@@ -33,13 +33,13 @@ void drawclear(Image *i, Color c)
 
 static void drawhalftriangle(Image *i, int x1, int y1, int x2, int y2, int x3, int y3, Color c)
 {
-	if (!CHECKY(i, y1) && !CHECKY(i, y2))
-		return;
 	if (y1 == y2) {
-		for (int x = CLIPX(i, MIN(x1, x2)); x < CLIPX(i, 1+MAX(x1, x2)); x++)
-			PIXEL(i, x, y1) = c;
+		if (CHECKY(i, y1)) {
+			for (int x = CLIPX(i, MIN(x1, x2)); x < CLIPX(i, 1+MAX(x1, x2)); x++)
+				PIXEL(i, x, y1) = c;
+		}
 	} else {
-		for (int y = CLIPY(i, MIN(y1, y2)); y <= CLIPY(i, MAX(y1, y2)); y++) {
+		for (int y = CLIPY(i, MIN(y1, y2)); y < CLIPY(i, 1+MAX(y1, y2)); y++) {
 			int x12 = x1 + DIVROUND((y-y1)*(x2-x1), (y2-y1));
 			int x13 = x1 + DIVROUND((y-y1)*(x3-x1), (y3-y1));
 			for (int x = CLIPX(i, MIN(x12, x13)); x < CLIPX(i, 1+MAX(x12, x13)); x++)
@@ -80,7 +80,8 @@ void drawrect(Image *i, int xtl, int ytl, int w, int h, Color c)
 		PIXEL(i, x, y) = c;
 }
 
-void drawline(Image *i, int x1, int y1, int x2, int y2, int th, Color c)
+/* TODO: check out Bresenham's Algorithm */
+void drawline(Image *i, int x1, int y1, int x2, int y2, Color c)
 {
 	int dx2 = SQUARE(x2-x1), dy2 = SQUARE(y2-y1);
 	if (dx2 == 0 && dy2 == 0)
@@ -91,8 +92,8 @@ void drawline(Image *i, int x1, int y1, int x2, int y2, int th, Color c)
 			SWAP(y1, y2);
 		}
 		for (int x = CLIPX(i, x1); x < CLIPX(i, 1+x2); x++) {
-			int ym = y1 + DIVROUND((x-x1)*(y2-y1), (x2-x1));
-			for (int y = CLIPY(i, ym-th); y < CLIPY(i, 1+ym+th); y++)
+			int y = y1 + DIVROUND((x-x1)*(y2-y1), (x2-x1));
+			if (CHECKY(i, y))
 				PIXEL(i, x, y) = c;
 		}
 	}
@@ -102,8 +103,8 @@ void drawline(Image *i, int x1, int y1, int x2, int y2, int th, Color c)
 			SWAP(x1, x2);
 		}
 		for (int y = CLIPY(i, y1); y < CLIPY(i, 1+y2); y++) {
-			int xm = x1 + DIVROUND((y-y1)*(x2-x1), (y2-y1));
-			for (int x = CLIPX(i, xm-th); x < CLIPX(i, 1+xm+th); x++)
+			int x = x1 + DIVROUND((y-y1)*(x2-x1), (y2-y1));
+			if (CHECKX(i, x))
 				PIXEL(i, x, y) = c;
 		}
 	}
