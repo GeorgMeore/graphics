@@ -1,28 +1,9 @@
-#include <stdlib.h>
-
+#include "util.h"
 #include "imath.h"
 #include "types.h"
 #include "color.h"
+#include "image.h"
 #include "draw.h"
-
-#define SWAP(x, y) ({ typeof(x) tmp; tmp = (x); (x) = (y); (y) = tmp; })
-
-#define PIXEL(i, x, y) ((i)->p[(y)*(i)->w + (x)])
-#define CLIPX(i, x) (CLIP((x), 0, (i)->w - 1))
-#define CLIPY(i, y) (CLIP((y), 0, (i)->h - 1))
-#define CHECKX(i, x) ((x) >= 0 && (x) < (i)->w)
-#define CHECKY(i, y) ((y) >= 0 && (y) < (i)->h)
-
-Image *Img(u16 w, u16 h)
-{
-	Image *i = NULL;
-	if (w == 0 || h == 0)
-		return i;
-	i = malloc(sizeof(*i) + sizeof(i->p[0])*w*h);
-	i->w = w;
-	i->h = h;
-	return i;
-}
 
 void drawclear(Image *i, Color c)
 {
