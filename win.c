@@ -18,10 +18,12 @@ static int down[2<<sizeof(u8)];
 
 void winclose(void)
 {
-	/* NOTE: image and gc will leak memory, but it's probably ok */
 	if (d)
 		XCloseDisplay(d);
 	d = NULL;
+	if (i)
+		XDestroyImage(i);
+	i = NULL;
 }
 
 static void onresize(u16 w, u16 h)
@@ -43,6 +45,7 @@ void winopen(u16 w, u16 h, const char *title)
 		return;
 	int s = DefaultScreen(d);
 	v = DefaultVisual(d, s);
+	gc = DefaultGC(d, s);
 	/* we try to be careful and check that the display
 	 * will understand our RGBA data (TODO: check byte order) */
 	if (DefaultDepth(d, s) != 24 ||
@@ -54,7 +57,6 @@ void winopen(u16 w, u16 h, const char *title)
 	}
 	win = XCreateSimpleWindow(d, RootWindow(d, s),
 			0, 0, w, h, 0, BlackPixel(d, s), BlackPixel(d, s));
-	gc = XCreateGC(d, win, 0, NULL);
 	XSelectInput(d, win, KeyPressMask|KeyReleaseMask|StructureNotifyMask);
 	XStoreName(d, win, title);
 	XMapWindow(d, win);
