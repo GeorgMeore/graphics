@@ -1,6 +1,6 @@
-#include "util.h"
 #include "imath.h"
 #include "types.h"
+#include "util.h"
 #include "color.h"
 #include "image.h"
 #include "draw.h"

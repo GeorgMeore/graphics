@@ -3,18 +3,21 @@
 #include <X11/Xlibint.h>
 
 #include "types.h"
+#include "util.h"
 #include "color.h"
 #include "image.h"
 #include "win.h"
 
-Image fb;
-
+static Image fb;
 static Display *d;
 static Visual *v;
 static XImage *i;
 static Window win;
 static GC gc;
 static int down[2<<sizeof(u8)];
+static u64 targetns;
+static u64 startns;
+static u64 framens;
 
 void winclose(void)
 {
@@ -38,7 +41,7 @@ static void onresize(u16 w, u16 h)
 }
 
 /* TODO: double buffering */
-void winopen(u16 w, u16 h, const char *title)
+void winopen(u16 w, u16 h, const char *title, u16 fps)
 {
 	d = XOpenDisplay(NULL);
 	if (!d)
@@ -61,6 +64,7 @@ void winopen(u16 w, u16 h, const char *title)
 	XStoreName(d, win, title);
 	XMapWindow(d, win);
 	onresize(w, h);
+	targetns = 1000000000 / fps;
 }
 
 /* TODO: a more proper input handling */
@@ -74,8 +78,14 @@ int keyisdown(u8 k)
 	return down[k];
 }
 
+Image *framebegin(void)
+{
+	startns = timens();
+	return &fb;
+}
+
 /* TODO: error handling */
-void winpoll(void)
+void frameend(void)
 {
 	XPutImage(d, win, gc, i, 0, 0, 0, 0, fb.w, fb.h);
 	while (XPending(d)) {
@@ -89,4 +99,7 @@ void winpoll(void)
 			onresize(e.xconfigure.width, e.xconfigure.height);
 	}
 	XFlush(d);
+	framens = timens() - startns;
+	if (framens < targetns)
+		sleepns(targetns - framens);
 }
