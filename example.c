@@ -12,11 +12,8 @@
 //#define PROFENABLED
 #include "prof.h"
 
-void drawscene(Image *i, int dx, int dy)
+void drawshapes(Image *i, int dx, int dy)
 {
-	drawclear(i, RGBA(18, 18, 18, 255));
-
-	/* A bunch of lines */
 	drawline(i, 400+dx, 200+dy, -200+dx, 200+dy, GREEN);
 	drawline(i, 100+dx, 200+dy, -200+dx, 351+dy, GREEN);
 	drawline(i, 100+dx, 200+dy, -200+dx, 49+dy, GREEN);
@@ -56,26 +53,34 @@ void drawscene(Image *i, int dx, int dy)
 	drawtriangle(i, 0+dx, 0+dy, 100+dx, 0+dy, 100+dx, 100+dy, BLUE);
 }
 
+void drawgradients(Image *i, int dx, int dy)
+{
+	for (int x = 0; x < i->w; x++)
+	for (int y = 0; y < i->h; y++)
+		PIXEL(i, x, y) = RGBA(0, (u8)(x-dx), (u8)(y-dy), 0);
+}
+
 int main()
 {
 	int dx = 0, dy = 0;
-	winopen(600, 600, "Example");
+	winopen(600, 600, "Example", 60);
 	for (;;) {
+		Image *fb = framebegin();
+
 		PROFBEGIN("drawing");
-		drawscene(&fb, dx, dy);
+		drawgradients(fb, dx, dy);
+		drawshapes(fb, dx, dy);
 		PROFEND();
 
 		PROFBEGIN("input handling");
 		if (keyisdown('q')) break;
-		if (keyisdown('d')) dx -= 10;
-		if (keyisdown('a')) dx += 10;
-		if (keyisdown('s')) dy -= 10;
-		if (keyisdown('w')) dy += 10;
+		if (keyisdown('d')) dx -= 4;
+		if (keyisdown('a')) dx += 4;
+		if (keyisdown('s')) dy -= 4;
+		if (keyisdown('w')) dy += 4;
 		PROFEND();
 
-		PROFBEGIN("polling");
-		winpoll();
-		PROFEND();
+		frameend();
 	}
 	winclose();
 	return 0;

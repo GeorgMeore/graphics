@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g -Wall -Wextra
 LDFLAGS=-lX11
-MOD=example win draw prof
+MOD=example win draw prof util
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
 
