@@ -65,22 +65,24 @@ int main()
 	int dx = 0, dy = 0;
 	winopen(600, 600, "Example", 60);
 	for (;;) {
+		PROFBEGIN("frame preparation");
 		Image *fb = framebegin();
+		PROFEND();
 
 		PROFBEGIN("drawing");
 		drawgradients(fb, dx, dy);
 		drawshapes(fb, dx, dy);
 		PROFEND();
 
-		PROFBEGIN("input handling");
 		if (keyisdown('q')) break;
 		if (keyisdown('d')) dx -= 4;
 		if (keyisdown('a')) dx += 4;
 		if (keyisdown('s')) dy -= 4;
 		if (keyisdown('w')) dy += 4;
-		PROFEND();
 
+		PROFBEGIN("frame finalization");
 		frameend();
+		PROFEND();
 	}
 	winclose();
 	return 0;
