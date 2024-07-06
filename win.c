@@ -12,6 +12,7 @@ static Image fb;
 static Display *d;
 static Visual *v;
 static XImage *i;
+static Pixmap bb;
 static Window win;
 static GC gc;
 static int down[CARD(u8)];
@@ -31,16 +32,18 @@ void winclose(void)
 
 static void onresize(u16 w, u16 h)
 {
-	if (i)
+	if (i) {
 		XDestroyImage(i);
+		XFreePixmap(d, bb);
+	}
 	fb.p = Xcalloc(w*h, sizeof(fb.p[0]));
 	fb.w = w;
 	fb.h = h;
 	i = XCreateImage(d, v, 24, ZPixmap, 0,
 			(char*)fb.p, w, h, sizeof(fb.p[0])*8, 0);
+	bb = XCreatePixmap(d, win, w, h, 24);
 }
 
-/* TODO: double buffering */
 void winopen(u16 w, u16 h, const char *title, u16 fps)
 {
 	d = XOpenDisplay(NULL);
@@ -55,7 +58,7 @@ void winopen(u16 w, u16 h, const char *title, u16 fps)
 			v->red_mask != RGBA(0xFF, 0, 0, 0) ||
 			v->green_mask != RGBA(0, 0xFF, 0, 0) ||
 			v->blue_mask != RGBA(0, 0, 0xFF, 0)) {
-		winclose();
+		XCloseDisplay(d);
 		return;
 	}
 	win = XCreateSimpleWindow(d, RootWindow(d, s),
@@ -87,7 +90,8 @@ Image *framebegin(void)
 /* TODO: error handling */
 void frameend(void)
 {
-	XPutImage(d, win, gc, i, 0, 0, 0, 0, fb.w, fb.h);
+	XPutImage(d, bb, gc, i, 0, 0, 0, 0, fb.w, fb.h);
+	XCopyArea(d, bb, win, gc, 0, 0, fb.w, fb.h, 0, 0);
 	while (XPending(d)) {
 		XEvent e;
 		XNextEvent(d, &e);
