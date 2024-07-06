@@ -14,7 +14,7 @@ static Visual *v;
 static XImage *i;
 static Window win;
 static GC gc;
-static int down[2<<sizeof(u8)];
+static int down[CARD(u8)];
 static u64 targetns;
 static u64 startns;
 static u64 framens;

@@ -6,3 +6,5 @@ typedef unsigned       u32;
 typedef int            s32;
 typedef unsigned long  u64;
 typedef long           s64;
+
+#define CARD(t) (2<<(sizeof(t)*8))
