@@ -39,8 +39,13 @@ static void onresize(u16 w, u16 h)
 	fb.p = Xcalloc(w*h, sizeof(fb.p[0]));
 	fb.w = w;
 	fb.h = h;
-	i = XCreateImage(d, v, 24, ZPixmap, 0,
-			(char*)fb.p, w, h, sizeof(fb.p[0])*8, 0);
+	/* NOTE: You might wander: what the fuck is 24? Why the fuck 32?
+	 * And the answer, my friend, is X11 is fucking garbage and
+	 * it's documentation is written by retarded motherfuckers.
+	 * There is no sane way whatsoever to make sure that the server will
+	 * understand 32-bit BGRA data that we want to feed it, so we must
+	 * use these magic numbers and hope for the best (for us, not for X11 devs, fuck them) */
+	i = XCreateImage(d, v, 24, ZPixmap, 0, (char*)fb.p, w, h, 32, 0);
 	bb = XCreatePixmap(d, win, w, h, 24);
 }
 
@@ -52,17 +57,7 @@ void winopen(u16 w, u16 h, const char *title, u16 fps)
 	int s = DefaultScreen(d);
 	v = DefaultVisual(d, s);
 	gc = DefaultGC(d, s);
-	/* we try to be careful and check that the display
-	 * will understand our RGBA data (TODO: check byte order) */
-	if (DefaultDepth(d, s) != 24 ||
-			v->red_mask != RGBA(0xFF, 0, 0, 0) ||
-			v->green_mask != RGBA(0, 0xFF, 0, 0) ||
-			v->blue_mask != RGBA(0, 0, 0xFF, 0)) {
-		XCloseDisplay(d);
-		return;
-	}
-	win = XCreateSimpleWindow(d, RootWindow(d, s),
-			0, 0, w, h, 0, BlackPixel(d, s), BlackPixel(d, s));
+	win = XCreateSimpleWindow(d, RootWindow(d, s), 0, 0, w, h, 0, 0, 0);
 	XSelectInput(d, win, KeyPressMask|KeyReleaseMask|StructureNotifyMask);
 	XStoreName(d, win, title);
 	XMapWindow(d, win);
