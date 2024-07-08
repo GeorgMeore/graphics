@@ -8,6 +8,9 @@
 #include "image.h"
 #include "win.h"
 
+#define KEYCOUNT CARD(u8)
+#define BTNCOUNT 5
+
 static Image fb;
 static Display *d;
 static Visual *v;
@@ -15,7 +18,8 @@ static XImage *i;
 static Pixmap bb;
 static Window win;
 static GC gc;
-static int down[CARD(u8)];
+static int keydown[KEYCOUNT];
+static int btndown[BTNCOUNT];
 static u64 targetns;
 static u64 startns;
 static u64 framens;
@@ -58,7 +62,7 @@ void winopen(u16 w, u16 h, const char *title, u16 fps)
 	v = DefaultVisual(d, s);
 	gc = DefaultGC(d, s);
 	win = XCreateSimpleWindow(d, RootWindow(d, s), 0, 0, w, h, 0, 0, 0);
-	XSelectInput(d, win, KeyPressMask|KeyReleaseMask|StructureNotifyMask);
+	XSelectInput(d, win, KeyPressMask|ButtonPressMask|ButtonReleaseMask|KeyReleaseMask|StructureNotifyMask);
 	XStoreName(d, win, title);
 	XMapWindow(d, win);
 	onresize(w, h);
@@ -68,12 +72,22 @@ void winopen(u16 w, u16 h, const char *title, u16 fps)
 /* TODO: a more proper input handling */
 static void onkey(u8 k, int isdown)
 {
-	down[k] = isdown;
+	keydown[k] = isdown;
 }
 
 int keyisdown(u8 k)
 {
-	return down[k];
+	return keydown[k];
+}
+
+static void onbtn(u8 b, int isdown)
+{
+	btndown[b] = isdown;
+}
+
+int btnisdown(u8 b)
+{
+	return btndown[b];
 }
 
 Image *framebegin(void)
@@ -87,6 +101,7 @@ void frameend(void)
 {
 	XPutImage(d, bb, gc, i, 0, 0, 0, 0, fb.w, fb.h);
 	XCopyArea(d, bb, win, gc, 0, 0, fb.w, fb.h, 0, 0);
+	XSync(d, 0);
 	while (XPending(d)) {
 		XEvent e;
 		XNextEvent(d, &e);
@@ -96,8 +111,11 @@ void frameend(void)
 			onkey(XLookupKeysym(&e.xkey, 0), 0);
 		else if (e.type == ConfigureNotify)
 			onresize(e.xconfigure.width, e.xconfigure.height);
+		else if (e.type == ButtonPress)
+			onbtn(e.xbutton.button, 1);
+		else if (e.type == ButtonRelease)
+			onbtn(e.xbutton.button, 0);
 	}
-	XFlush(d);
 	framens = timens() - startns;
 	if (framens < targetns)
 		sleepns(targetns - framens);
