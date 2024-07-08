@@ -1,5 +1,6 @@
 CC=gcc
-CFLAGS=-g -Wall -Wextra
+O=0 # no optimisations by default
+CFLAGS=-g -Wall -Wextra -O$O
 LDFLAGS=-lX11 -lm
 MOD=example win draw prof util
 SRC=${MOD:%=%.c}
