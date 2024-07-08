@@ -12,4 +12,7 @@ example: $OBJ
 %.o: %.c
 	$CC -c $CFLAGS -o $target $stem.c
 
+clean:V:
+	rm -rf $OBJ example
+
 <|$CC -MM $SRC
