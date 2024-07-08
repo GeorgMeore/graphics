@@ -84,6 +84,7 @@ int main()
 		frameend();
 		PROFEND();
 	}
+	PROFDUMP();
 	winclose();
 	return 0;
 }
