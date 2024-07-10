@@ -11,100 +11,154 @@
 #define KEYCOUNT CARD(u8)
 #define BTNCOUNT 5
 
-static Image fb;
-static Display *d;
-static Visual *v;
-static XImage *i;
-static Pixmap bb;
-static Window win;
-static GC gc;
-static int keydown[KEYCOUNT];
-static int btndown[BTNCOUNT];
-static u64 targetns;
-static u64 startns;
-static u64 framens;
+#define RMASK RGBA(0xFF, 0, 0, 0)
+#define GMASK RGBA(0, 0xFF, 0, 0)
+#define BMASK RGBA(0, 0, 0xFF, 0)
+
+typedef struct {
+	Image fb;
+	Display *d;
+	Visual *vis;
+	XImage *i;
+	Pixmap bb;
+	Window win;
+	int depth;
+	GC gc;
+	int keydown[KEYCOUNT];
+	int btndown[BTNCOUNT];
+	u64 targetns;
+	u64 startns;
+	u64 framens;
+	int needswap;
+} X11;
+
+static X11 x;
 
 void winclose(void)
 {
-	if (d)
-		XCloseDisplay(d);
-	d = NULL;
-	if (i)
-		XDestroyImage(i);
-	i = NULL;
+	if (x.d)
+		XCloseDisplay(x.d);
+	x.d = NULL;
+	if (x.i)
+		XDestroyImage(x.i);
+	x.i = NULL;
 }
 
 static void onresize(u16 w, u16 h)
 {
-	if (i) {
-		XDestroyImage(i);
-		XFreePixmap(d, bb);
+	if (!w || !h)
+		return;
+	if (x.i) {
+		XDestroyImage(x.i);
+		XFreePixmap(x.d, x.bb);
 	}
-	fb.p = Xcalloc(w*h, sizeof(fb.p[0]));
-	fb.w = w;
-	fb.h = h;
-	/* NOTE: You might wander: what the fuck is 24? Why the fuck 32?
-	 * And the answer, my friend, is X11 is fucking garbage and
-	 * it's documentation is written by retarded motherfuckers.
-	 * There is no sane way whatsoever to make sure that the server will
-	 * understand 32-bit BGRA data that we want to feed it, so we must
-	 * use these magic numbers and hope for the best (for us, not for X11 devs, fuck them) */
-	i = XCreateImage(d, v, 24, ZPixmap, 0, (char*)fb.p, w, h, 32, 0);
-	bb = XCreatePixmap(d, win, w, h, 24);
+	x.fb.p = Xcalloc(w*h, sizeof(x.fb.p[0]));
+	x.fb.w = w;
+	x.fb.h = h;
+	x.i = XCreateImage(x.d, x.vis, x.depth, ZPixmap, 0, (char*)x.fb.p, w, h, 32, 0);
+	x.bb = XCreatePixmap(x.d, x.win, w, h, x.depth);
 }
 
+static int isrgb32(Display *d, Visual *v, int depth)
+{
+	if (v->class != TrueColor)
+		return 0;
+	if (v->red_mask != RMASK && v->green_mask != GMASK && v->blue_mask != BMASK)
+		return 0;
+	for (int i = 0; i < d->nformats; i++) {
+		ScreenFormat *f = &d->pixmap_format[i];
+		if (f->depth == depth)
+			return f->bits_per_pixel == 32;
+	}
+	return 0;
+}
+
+static int byteorder(void)
+{
+	int x = 1;
+	return *(char *)&x == 1 ? LSBFirst : MSBFirst;
+}
+
+/* TODO: more proper error handling */
 void winopen(u16 w, u16 h, const char *title, u16 fps)
 {
-	d = XOpenDisplay(NULL);
-	if (!d)
+	if (x.d)
 		return;
-	int s = DefaultScreen(d);
-	v = DefaultVisual(d, s);
-	gc = DefaultGC(d, s);
-	win = XCreateSimpleWindow(d, RootWindow(d, s), 0, 0, w, h, 0, 0, 0);
-	XSelectInput(d, win, KeyPressMask|ButtonPressMask|ButtonReleaseMask|KeyReleaseMask|StructureNotifyMask);
-	XStoreName(d, win, title);
-	XMapWindow(d, win);
-	onresize(w, h);
-	targetns = 1000000000 / fps;
+	x.d = XOpenDisplay(NULL);
+	if (!x.d)
+		return;
+	int s = DefaultScreen(x.d);
+	x.depth = DefaultDepth(x.d, s);
+	x.vis = DefaultVisual(x.d, s);
+	/* NOTE: Check if the screen supports 32-bit RGB, we could also
+	 * try to search for an appropriate visual, but I don't think it matters */
+	if (!isrgb32(x.d, x.vis, x.depth)) {
+		winclose();
+		return;
+	}
+	x.win = XCreateSimpleWindow(x.d, RootWindow(x.d, s), 0, 0, w, h, 0, 0, 0);
+	x.gc = DefaultGC(x.d, s);
+	XSelectInput(x.d, x.win, KeyPressMask|ButtonPressMask|ButtonReleaseMask|KeyReleaseMask|StructureNotifyMask);
+	XStoreName(x.d, x.win, title);
+	XMapWindow(x.d, x.win);
+	x.needswap = byteorder() != x.d->byte_order;
+	x.targetns = 1000000000 / fps;
 }
 
 /* TODO: a more proper input handling */
 static void onkey(u8 k, int isdown)
 {
-	keydown[k] = isdown;
+	x.keydown[k] = isdown;
 }
 
 int keyisdown(u8 k)
 {
-	return keydown[k];
+	return x.keydown[k];
 }
 
 static void onbtn(u8 b, int isdown)
 {
-	btndown[b] = isdown;
+	x.btndown[b] = isdown;
 }
 
 int btnisdown(u8 b)
 {
-	return btndown[b];
+	return x.btndown[b];
 }
 
 Image *framebegin(void)
 {
-	startns = timens();
-	return &fb;
+	if (!x.d)
+		return NULL;
+	x.startns = timens();
+	return &x.fb;
 }
 
-/* TODO: error handling */
+#define SWAP4(x) (((x)&(0xFF<<0))<<24|((x)&(0xFF<<8))<<8|((x)&(0xFF<<16))>>8|((x)&(0xFF<<24))>>24)
+
+static void swaprgb32(Image *i)
+{
+	for (int x = 0; x < i->w; x++)
+	for (int y = 0; y < i->h; y++)
+		PIXEL(i, x, y) = SWAP4(PIXEL(i, x, y));
+}
+
 void frameend(void)
 {
-	XPutImage(d, bb, gc, i, 0, 0, 0, 0, fb.w, fb.h);
-	XCopyArea(d, bb, win, gc, 0, 0, fb.w, fb.h, 0, 0);
-	XSync(d, 0);
-	while (XPending(d)) {
+	if (!x.d)
+		return;
+	if (x.i) {
+		if (x.needswap)
+			/* NOTE: Xlib can actually do the swapping for us, if the image's
+			 * byte_order field doesn't match server's, but... */
+			swaprgb32(&x.fb);
+		XPutImage(x.d, x.bb, x.gc, x.i, 0, 0, 0, 0, x.fb.w, x.fb.h);
+		XCopyArea(x.d, x.bb, x.win, x.gc, 0, 0, x.fb.w, x.fb.h, 0, 0);
+	}
+	XSync(x.d, 0);
+	while (XPending(x.d)) {
 		XEvent e;
-		XNextEvent(d, &e);
+		XNextEvent(x.d, &e);
 		if (e.type == KeyPress)
 			onkey(XLookupKeysym(&e.xkey, 0), 1);
 		else if (e.type == KeyRelease)
@@ -116,7 +170,7 @@ void frameend(void)
 		else if (e.type == ButtonRelease)
 			onbtn(e.xbutton.button, 0);
 	}
-	framens = timens() - startns;
-	if (framens < targetns)
-		sleepns(targetns - framens);
+	x.framens = timens() - x.startns;
+	if (x.framens < x.targetns)
+		sleepns(x.targetns - x.framens);
 }

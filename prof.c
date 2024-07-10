@@ -49,7 +49,7 @@ typedef struct {
 
 /* NOTE: the profiler exists throughout the program execution,
  * so we don't bother with freeing up it's resources. */
-Profiler p;
+static Profiler p;
 
 static void profpush(Section *s, u64 t)
 {
