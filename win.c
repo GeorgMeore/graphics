@@ -26,6 +26,8 @@ typedef struct {
 	GC gc;
 	int keydown[KEYCOUNT];
 	int btndown[BTNCOUNT];
+	int mousex;
+	int mousey;
 	u64 targetns;
 	u64 startns;
 	u64 framens;
@@ -130,8 +132,22 @@ Image *framebegin(void)
 {
 	if (!x.d)
 		return NULL;
+	Window r, c;
+	int rx, ry;
+	unsigned int mask;
+	XQueryPointer(x.d, x.win, &r, &c, &rx, &ry, &x.mousex, &x.mousey, &mask);
 	x.startns = timens();
 	return &x.fb;
+}
+
+int mousex(void)
+{
+	return x.mousex;
+}
+
+int mousey(void)
+{
+	return x.mousey;
 }
 
 #define SWAP4(x) (((x)&(0xFF<<0))<<24|((x)&(0xFF<<8))<<8|((x)&(0xFF<<16))>>8|((x)&(0xFF<<24))>>24)
