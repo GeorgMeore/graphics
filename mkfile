@@ -2,17 +2,21 @@ CC=gcc
 O=0 # no optimisations by default
 CFLAGS=-g -Wall -Wextra -O$O
 LDFLAGS=-lX11 -lm
-MOD=example win draw prof util
+MOD=win draw prof util
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
+PROGS=example paint
 
-example: $OBJ
-	$CC $LDFLAGS -o $target $prereq
+all:VQ: $PROGS
+	true
+
+%: %.c $OBJ
+	$CC -o $target $prereq $LDFLAGS
 
 %.o: %.c
 	$CC -c $CFLAGS -o $target $stem.c
 
 clean:V:
-	rm -rf $OBJ example
+	rm -rf $OBJ $PROGS
 
 <|$CC -MM $SRC

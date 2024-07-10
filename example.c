@@ -1,8 +1,3 @@
-#include <stdio.h>
-#include <stdbool.h>
-#include <unistd.h>
-#include <time.h>
-
 #include "types.h"
 #include "color.h"
 #include "image.h"
@@ -83,8 +78,8 @@ int main()
 		PROFBEGIN("frame finalization");
 		frameend();
 		PROFEND();
+		PROFDUMP();
 	}
-	PROFDUMP();
 	winclose();
 	return 0;
 }
