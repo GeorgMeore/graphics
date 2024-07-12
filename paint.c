@@ -46,7 +46,10 @@ void addpoint(Picture *p, int x, int y)
 {
 	if (!*p)
 		*p = curve(*p);
-	(*p)->last = point(x, y, (*p)->last);
+	Point *pt = (*p)->last;
+	if (pt && pt->x == x && pt->y == y)
+		return;
+	(*p)->last = point(x, y, pt);
 }
 
 void undocurve(Picture *p)
