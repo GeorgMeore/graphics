@@ -9,7 +9,7 @@ void drawclear(Image *i, Color c)
 {
 	for (int x = 0; x < i->w; x++)
 	for (int y = 0; y < i->h; y++)
-		PIXEL(i, x, y) = c;
+		PIXEL(i, x, y) = c; /* NOTE: no blending here */
 }
 
 static void drawhalftriangle(Image *i, int x1, int y1, int x2, int y2, int x3, int y3, Color c)
@@ -17,14 +17,14 @@ static void drawhalftriangle(Image *i, int x1, int y1, int x2, int y2, int x3, i
 	if (y1 == y2) {
 		if (CHECKY(i, y1)) {
 			for (int x = CLIPX(i, MIN(x1, x2)); x < CLIPX(i, 1+MAX(x1, x2)); x++)
-				PIXEL(i, x, y1) = c;
+				PIXEL(i, x, y1) = BLEND(PIXEL(i, x, y1), c);
 		}
 	} else {
 		for (int y = CLIPY(i, MIN(y1, y2)); y < CLIPY(i, 1+MAX(y1, y2)); y++) {
 			int x12 = x1 + DIVROUND((y-y1)*(x2-x1), (y2-y1));
 			int x13 = x1 + DIVROUND((y-y1)*(x3-x1), (y3-y1));
 			for (int x = CLIPX(i, MIN(x12, x13)); x < CLIPX(i, 1+MAX(x12, x13)); x++)
-				PIXEL(i, x, y) = c;
+				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 		}
 	}
 }
@@ -51,7 +51,7 @@ void drawcircle(Image *i, int xc, int yc, int r, Color c)
 	for (int x = CLIPX(i, xc-r); x < CLIPX(i, 1+xc+r); x++)
 	for (int y = CLIPY(i, yc-r); y < CLIPY(i, 1+yc+r); y++)
 		if (SQUARE(x-xc) + SQUARE(y-yc) < SQUARE(r))
-			PIXEL(i, x, y) = c;
+			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 }
 
 void drawrect(Image *i, int xtl, int ytl, int w, int h, Color c)
@@ -66,7 +66,7 @@ void drawrect(Image *i, int xtl, int ytl, int w, int h, Color c)
 	}
 	for (int x = CLIPX(i, xtl); x < CLIPX(i, xtl+w); x++)
 	for (int y = CLIPY(i, ytl); y < CLIPY(i, ytl+h); y++)
-		PIXEL(i, x, y) = c;
+		PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 }
 
 /* TODO: check out Bresenham's Algorithm */
@@ -83,7 +83,7 @@ void drawline(Image *i, int x1, int y1, int x2, int y2, Color c)
 		for (int x = CLIPX(i, x1); x < CLIPX(i, 1+x2); x++) {
 			int y = y1 + DIVROUND((x-x1)*(y2-y1), (x2-x1));
 			if (CHECKY(i, y))
-				PIXEL(i, x, y) = c;
+				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 		}
 	}
 	else {
@@ -94,7 +94,7 @@ void drawline(Image *i, int x1, int y1, int x2, int y2, Color c)
 		for (int y = CLIPY(i, y1); y < CLIPY(i, 1+y2); y++) {
 			int x = x1 + DIVROUND((y-y1)*(x2-x1), (y2-y1));
 			if (CHECKX(i, x))
-				PIXEL(i, x, y) = c;
+				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 		}
 	}
 }

@@ -46,11 +46,6 @@ void drawshapes(Image *i, int dx, int dy)
 	drawtriangle(i, 1000+dx, 600+dy, 1500+dx, 600+dy, 1300+dx, 500+dy, GREEN);
 
 	drawtriangle(i, 0+dx, 0+dy, 100+dx, 0+dy, 100+dx, 100+dy, BLUE);
-
-	drawrect(i, 51, 51, 50, 50, BLUE);
-	drawrect(i, 51, 51, -50, -50, GREEN);
-	drawrect(i, 51, 51, 50, -50, RED);
-	drawrect(i, 51, 51, -50, 50, WHITE);
 }
 
 void drawgradients(Image *i, int dx, int dy)
@@ -72,6 +67,10 @@ int main()
 		PROFBEGIN("drawing");
 		drawgradients(fb, dx, dy);
 		drawshapes(fb, dx, dy);
+		drawrect(fb, mousex(), mousey(), 50, 50, RGBA(0, 0, 255, 50));
+		drawrect(fb, mousex(), mousey(), -50, -50, RGBA(255, 255, 0, 50));
+		drawrect(fb, mousex(), mousey(), 50, -50, RGBA(255, 0, 0, 50));
+		drawrect(fb, mousex(), mousey(), -50, 50, RGBA(255, 0, 255, 50));
 		PROFEND();
 
 		if (keyisdown('q')) break;
