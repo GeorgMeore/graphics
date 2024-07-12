@@ -46,6 +46,11 @@ void drawshapes(Image *i, int dx, int dy)
 	drawtriangle(i, 1000+dx, 600+dy, 1500+dx, 600+dy, 1300+dx, 500+dy, GREEN);
 
 	drawtriangle(i, 0+dx, 0+dy, 100+dx, 0+dy, 100+dx, 100+dy, BLUE);
+
+	drawrect(i, 51, 51, 50, 50, BLUE);
+	drawrect(i, 51, 51, -50, -50, GREEN);
+	drawrect(i, 51, 51, 50, -50, RED);
+	drawrect(i, 51, 51, -50, 50, WHITE);
 }
 
 void drawgradients(Image *i, int dx, int dy)
