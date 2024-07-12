@@ -25,7 +25,9 @@ typedef struct {
 	int depth;
 	GC gc;
 	int keydown[KEYCOUNT];
+	int prevkeydown[KEYCOUNT];
 	int btndown[BTNCOUNT];
+	int prevbtndown[BTNCOUNT];
 	int mousex;
 	int mousey;
 	u64 targetns;
@@ -118,6 +120,11 @@ int keyisdown(u8 k)
 	return x.keydown[k];
 }
 
+int keywaspressed(u8 k)
+{
+	return !x.keydown[k] && x.prevkeydown[k];
+}
+
 static void onbtn(u8 b, int isdown)
 {
 	x.btndown[b] = isdown;
@@ -126,6 +133,11 @@ static void onbtn(u8 b, int isdown)
 int btnisdown(u8 b)
 {
 	return x.btndown[b];
+}
+
+int btnwaspressed(u8 b)
+{
+	return !x.btndown[b] && x.prevbtndown[b];
 }
 
 Image *framebegin(void)
@@ -172,6 +184,8 @@ void frameend(void)
 		XCopyArea(x.d, x.bb, x.win, x.gc, 0, 0, x.fb.w, x.fb.h, 0, 0);
 	}
 	XSync(x.d, 0);
+	memcpy(x.prevbtndown, x.btndown, sizeof(x.btndown));
+	memcpy(x.prevkeydown, x.keydown, sizeof(x.keydown));
 	while (XPending(x.d)) {
 		XEvent e;
 		XNextEvent(x.d, &e);
