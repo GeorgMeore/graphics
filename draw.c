@@ -56,6 +56,14 @@ void drawcircle(Image *i, int xc, int yc, int r, Color c)
 
 void drawrect(Image *i, int xtl, int ytl, int w, int h, Color c)
 {
+	if (w < 0) {
+		xtl += w;
+		w = -w;
+	}
+	if (h < 0) {
+		ytl += h;
+		h = -h;
+	}
 	for (int x = CLIPX(i, xtl); x < CLIPX(i, xtl+w); x++)
 	for (int y = CLIPY(i, ytl); y < CLIPY(i, ytl+h); y++)
 		PIXEL(i, x, y) = c;
