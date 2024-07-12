@@ -6,6 +6,9 @@
 #include "win.h"
 #include "draw.h"
 
+#define LINECOLOR RGBA(240, 240, 240, 255)
+#define BGCOLOR RGBA(18, 18, 18, 255)
+
 typedef struct Point Point;
 
 struct Point {
@@ -85,7 +88,7 @@ void drawcurves(Image *fb, Picture p)
 	for (Curve *c = p; c; c = c->next) {
 		for (Point *p1 = c->last; p1 && p1->next; p1 = p1->next) {
 			Point *p2 = p1->next;
-			drawline(fb, p1->x, p1->y, p2->x, p2->y, BLACK);
+			drawline(fb, p1->x, p1->y, p2->x, p2->y, LINECOLOR);
 		}
 	}
 }
@@ -113,7 +116,7 @@ int main(void)
 			addpoint(&p, mousex(), mousey());
 		else
 			endcurve(&p);
-		drawclear(fb, WHITE);
+		drawclear(fb, BGCOLOR);
 		drawcurves(fb, p);
 		frameend();
 	}
