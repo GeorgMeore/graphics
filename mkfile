@@ -11,7 +11,7 @@ all:VQ: $PROGS
 	true
 
 %: %.c $OBJ
-	$CC -o $target $prereq $LDFLAGS
+	$CC $CFLAGS -o $target $prereq $LDFLAGS
 
 %.o: %.c
 	$CC -c $CFLAGS -o $target $stem.c

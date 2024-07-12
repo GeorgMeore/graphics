@@ -6,52 +6,117 @@
 #include "win.h"
 #include "draw.h"
 
-typedef struct {
+typedef struct Point Point;
+
+struct Point {
 	int x, y;
-} Point;
+	Point *next;
+};
 
-typedef struct {
-	Point *ps;
-	int cnt, cap;
-} Curve;
-
-void addpoint(Curve *c, int x, int y)
+Point *point(int x, int y, Point *next)
 {
-	if (c->cnt >= c->cap) {
-		c->cap = c->cap*2 + 1;
-		c->ps = reallocarray(c->ps, c->cap, sizeof(c->ps[0]));
-	}
-	c->ps[c->cnt] = (Point){x, y};
-	c->cnt += 1;
+	Point *p = malloc(sizeof(*p));
+	p->x = x;
+	p->y = y;
+	p->next = next;
+	return p;
 }
 
-void clearpoints(Curve *c)
+typedef struct Curve Curve;
+
+struct Curve {
+	Point *last;
+	Curve *next;
+};
+
+Curve *curve(Curve *next)
 {
-	c->cnt = 0;
+	Curve *c = malloc(sizeof(*c));
+	c->last = NULL;
+	c->next = next;
+	return c;
 }
 
-void drawpoints(Image *fb, Curve c)
+typedef Curve *Picture;
+
+void addpoint(Picture *p, int x, int y)
 {
-	for (int i = 0; i < c.cnt - 1; i++) {
-		Point p1 = c.ps[i], p2 = c.ps[i+1];
-		drawline(fb, p1.x, p1.y, p2.x, p2.y, BLACK);
+	if (!*p)
+		*p = curve(*p);
+	(*p)->last = point(x, y, (*p)->last);
+}
+
+void undocurve(Picture *p)
+{
+	Curve *c = *p;
+	while (c && !c->last) {
+		*p = c->next;
+		free(c);
+		c = *p;
 	}
+	if (!c)
+		return;
+	*p = c->next;
+	while (c->last) {
+		Point *pt = c->last;
+		c->last = pt->next;
+		free(pt);
+	}
+	free(c);
+}
+
+void undopoint(Picture *p)
+{
+	Curve *c = *p;
+	while (c && !c->last) {
+		*p = c->next;
+		free(c);
+		c = *p;
+	}
+	if (!c)
+		return;
+	Point *pt = c->last;
+	c->last = pt->next;
+	free(pt);
+}
+
+void drawcurves(Image *fb, Picture p)
+{
+	for (Curve *c = p; c; c = c->next) {
+		for (Point *p1 = c->last; p1 && p1->next; p1 = p1->next) {
+			Point *p2 = p1->next;
+			drawline(fb, p1->x, p1->y, p2->x, p2->y, BLACK);
+		}
+	}
+}
+
+void endcurve(Picture *p)
+{
+	if (!*p || !(*p)->last)
+		return;
+	*p = curve(*p);
 }
 
 int main(void)
 {
-	Curve c = {};
-	winopen(640, 480, "paint", 30);
+	Picture p = {};
+	winopen(640, 480, "paint", 60);
 	for (;;) {
 		Image *fb = framebegin();
-		if (keyisdown('q')) break;
+		if (keywaspressed('q'))
+			break;
+		if (keyisdown('u'))
+			undopoint(&p);
+		if (keywaspressed('y'))
+			undocurve(&p);
 		if (btnisdown(1))
-			addpoint(&c, mousex(), mousey());
+			addpoint(&p, mousex(), mousey());
 		else
-			clearpoints(&c);
+			endcurve(&p);
 		drawclear(fb, WHITE);
-		drawpoints(fb, c);
+		drawcurves(fb, p);
 		frameend();
 	}
+	winclose();
 	return 0;
 }
