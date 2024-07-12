@@ -67,7 +67,7 @@ static int isrgb32(Display *d, Visual *v, int depth)
 {
 	if (v->class != TrueColor)
 		return 0;
-	if (v->red_mask != RMASK && v->green_mask != GMASK && v->blue_mask != BMASK)
+	if (v->red_mask != RMASK || v->green_mask != GMASK || v->blue_mask != BMASK)
 		return 0;
 	for (int i = 0; i < d->nformats; i++) {
 		ScreenFormat *f = &d->pixmap_format[i];
