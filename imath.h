@@ -6,4 +6,4 @@
 #define MOD(a, b) (((a % b) + b) % b)
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
-#define CLIP(a, l, r) (MIN(MAX(l, a), r))
+#define CLAMP(a, l, r) (MIN(MAX(l, a), r))
