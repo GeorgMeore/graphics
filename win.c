@@ -184,8 +184,10 @@ void frameend(void)
 		XCopyArea(x.d, x.bb, x.win, x.gc, 0, 0, x.fb.w, x.fb.h, 0, 0);
 	}
 	XSync(x.d, 0);
-	memcpy(x.prevbtndown, x.btndown, sizeof(x.btndown));
-	memcpy(x.prevkeydown, x.keydown, sizeof(x.keydown));
+	for (int i = 0; i < BTNCOUNT; i++)
+		x.prevbtndown[i] = x.btndown[i];
+	for (int i = 0; i < KEYCOUNT; i++)
+		x.prevkeydown[i] = x.keydown[i];
 	while (XPending(x.d)) {
 		XEvent e;
 		XNextEvent(x.d, &e);
