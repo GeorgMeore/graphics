@@ -1,9 +1,9 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
 #include "types.h"
+#include "print.h"
 #include "util.h"
 #include "prof.h"
 #include "imath.h"
@@ -15,6 +15,11 @@ typedef struct {
 	u64 avg;
 	u64 n;
 } Stat;
+
+#define FSTAT(t) "min=", FU((t)->min),\
+	", max=", FU((t)->max),\
+	", avg=", FU((t)->avg),\
+	", stdev=", FU(sqrtf((t)->stdev2))
 
 static void statadd(Stat *s, u64 x)
 {
@@ -72,7 +77,7 @@ static Entry *profpop(void)
 	return NULL;
 }
 
-void profbegin(const char *name)
+void _profbegin(const char *name)
 {
 	Section *s = NULL;
 	for (int i = 0; i < p.scount; i++) {
@@ -94,7 +99,7 @@ void profbegin(const char *name)
 	profpush(s, timens());
 }
 
-void profend(void)
+void _profend(void)
 {
 	Entry *e = profpop();
 	if (!e)
@@ -102,11 +107,10 @@ void profend(void)
 	statadd(&e->s->time, timens() - e->startns);
 }
 
-void profdump(void)
+void _profdump(void)
 {
 	for (int i = 0; i < p.scount; i++) {
 		Section *s = &p.ss[i];
-		Stat *t = &s->time;
-		printf("prof: %s: min=%lu, max=%lu, avg=%lu, stdev=%f\n", s->name, t->min, t->max, t->avg, sqrtf(t->stdev2));
+		println("prof: ", s->name, ": ", FSTAT(&s->time));
 	}
 }

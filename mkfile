@@ -2,7 +2,7 @@ CC=gcc
 O=0 # no optimisations by default
 CFLAGS=-g -Wall -Wextra -O$O
 LDFLAGS=-lX11 -lm
-MOD=win draw prof util
+MOD=win draw prof util print
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
 PROGS=example paint

@@ -60,18 +60,18 @@ int main()
 	int dx = 0, dy = 0;
 	winopen(600, 600, "Example", 60);
 	for (;;) {
-		PROFBEGIN("frame preparation");
+		profbegin("frame preparation");
 		Image *fb = framebegin();
-		PROFEND();
+		profend();
 
-		PROFBEGIN("drawing");
+		profbegin("drawing");
 		drawgradients(fb, dx, dy);
 		drawshapes(fb, dx, dy);
 		drawrect(fb, mousex(), mousey(), 50, 50, RGBA(0, 0, 255, 50));
 		drawrect(fb, mousex(), mousey(), -50, -50, RGBA(255, 255, 0, 50));
 		drawrect(fb, mousex(), mousey(), 50, -50, RGBA(255, 0, 0, 50));
 		drawrect(fb, mousex(), mousey(), -50, 50, RGBA(255, 0, 255, 50));
-		PROFEND();
+		profend();
 
 		if (keyisdown('q')) break;
 		if (keyisdown('d')) dx -= 4;
@@ -79,10 +79,10 @@ int main()
 		if (keyisdown('s')) dy -= 4;
 		if (keyisdown('w')) dy += 4;
 
-		PROFBEGIN("frame finalization");
+		profbegin("frame finalization");
 		frameend();
-		PROFEND();
-		PROFDUMP();
+		profend();
+		profdump();
 	}
 	winclose();
 	return 0;
