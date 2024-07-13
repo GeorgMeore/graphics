@@ -35,7 +35,7 @@ struct Curve {
 Curve *curve(Curve *next)
 {
 	Curve *c = malloc(sizeof(*c));
-	c->last = NULL;
+	c->last = 0;
 	c->next = next;
 	return c;
 }

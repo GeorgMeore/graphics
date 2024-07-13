@@ -1,16 +1,17 @@
 CC=gcc
 O=0 # no optimisations by default
-CFLAGS=-g -Wall -Wextra -O$O
+CFLAGS=-I. -g -Wall -Wextra -O$O
 LDFLAGS=-lX11 -lm
 MOD=win draw prof util print
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
-PROGS=example paint
+PROGNAMES=example paint
+PROGS=${PROGNAMES:%=prog/%}
 
 all:VQ: $PROGS
 	true
 
-%: %.c $OBJ
+prog/%: prog/%.c $OBJ
 	$CC $CFLAGS -o $target $prereq $LDFLAGS
 
 %.o: %.c

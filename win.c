@@ -42,10 +42,10 @@ void winclose(void)
 {
 	if (x.d)
 		XCloseDisplay(x.d);
-	x.d = NULL;
+	x.d = 0;
 	if (x.i)
 		XDestroyImage(x.i);
-	x.i = NULL;
+	x.i = 0;
 }
 
 static void onresize(u16 w, u16 h)
@@ -88,7 +88,7 @@ void winopen(u16 w, u16 h, const char *title, u16 fps)
 {
 	if (x.d)
 		return;
-	x.d = XOpenDisplay(NULL);
+	x.d = XOpenDisplay(0);
 	if (!x.d)
 		return;
 	int s = DefaultScreen(x.d);
@@ -143,7 +143,7 @@ int btnwaspressed(u8 b)
 Image *framebegin(void)
 {
 	if (!x.d)
-		return NULL;
+		return 0;
 	Window r, c;
 	int rx, ry;
 	unsigned int mask;
