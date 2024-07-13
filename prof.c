@@ -74,12 +74,12 @@ static Entry *profpop(void)
 		p.edepth -= 1;
 		return &p.es[p.edepth];
 	}
-	return NULL;
+	return 0;
 }
 
 void _profbegin(const char *name)
 {
-	Section *s = NULL;
+	Section *s = 0;
 	for (int i = 0; i < p.scount; i++) {
 		if (!strncmp(p.ss[i].name, name, MAXNAME)) {
 			s = &p.ss[i];
