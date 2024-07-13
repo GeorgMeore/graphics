@@ -1,13 +1,13 @@
-void profbegin(const char *name);
-void profend(void);
-void profdump(void);
+void _profbegin(const char *name);
+void _profend(void);
+void _profdump(void);
 
 #ifdef PROFENABLED
-#define PROFBEGIN(...) profbegin(__VA_ARGS__)
-#define PROFEND(...)   profend(__VA_ARGS__)
-#define PROFDUMP(...)  profdump(__VA_ARGS__)
+#define profbegin(...) _profbegin(__VA_ARGS__)
+#define profend(...)   _profend(__VA_ARGS__)
+#define profdump(...)  _profdump(__VA_ARGS__)
 #else
-#define PROFBEGIN(...)
-#define PROFEND(...)
-#define PROFDUMP(...)
+#define profbegin(...)
+#define profend(...)
+#define profdump(...)
 #endif
