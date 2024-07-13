@@ -10,8 +10,7 @@ OBJ=${MOD:%=%.o}
 PROGNAMES=example paint
 PROGS=${PROGNAMES:%=prog/%}
 
-all:VQ: $PROGS
-	true
+progs:VQ: $PROGS
 
 prog/%: prog/%.c $OBJ
 	[ "$D" != 0 ] && CFLAGS=$CFLAGS' '$CDEBUGFLAGS
@@ -24,4 +23,4 @@ prog/%: prog/%.c $OBJ
 clean:V:
 	rm -rf $OBJ $PROGS
 
-<|$CC -MM $SRC
+<|$CC -MM $SRC # generate dependencies
