@@ -9,6 +9,8 @@
 
 void drawshapes(Image *i, int dx, int dy)
 {
+	drawclear(i, BLACK);
+
 	drawline(i, 400+dx, 200+dy, -200+dx, 200+dy, GREEN);
 	drawline(i, 100+dx, 200+dy, -200+dx, 351+dy, GREEN);
 	drawline(i, 100+dx, 200+dy, -200+dx, 49+dy, GREEN);
@@ -62,15 +64,18 @@ int main()
 	for (;;) {
 		profbegin("frame preparation");
 		Image *fb = framebegin();
+		Image l = subimage(*fb, 0, 0, fb->w/2, fb->h);
+		Image r = subimage(*fb, fb->w/2, 0, fb->w - fb->w/2, fb->h);
+		int mx = mousex(), my = mousey();
 		profend();
 
 		profbegin("drawing");
-		drawgradients(fb, dx, dy);
-		drawshapes(fb, dx, dy);
-		drawrect(fb, mousex(), mousey(), 50, 50, RGBA(0, 0, 255, 50));
-		drawrect(fb, mousex(), mousey(), -50, -50, RGBA(255, 255, 0, 50));
-		drawrect(fb, mousex(), mousey(), 50, -50, RGBA(255, 0, 0, 50));
-		drawrect(fb, mousex(), mousey(), -50, 50, RGBA(255, 0, 255, 50));
+		drawgradients(&l, dy, dx);
+		drawshapes(&r, dx, dy);
+		drawrect(fb, mx, my, 50, 50, RGBA(0, 0, 255, 50));
+		drawrect(fb, mx, my, -50, -50, RGBA(200, 200, 0, 50));
+		drawrect(fb, mx, my, 50, -50, RGBA(255, 0, 0, 50));
+		drawrect(fb, mx, my, -50, 50, RGBA(255, 0, 255, 50));
 		profend();
 
 		if (keyisdown('q')) break;

@@ -56,9 +56,10 @@ static void onresize(u16 w, u16 h)
 		XDestroyImage(x.i);
 		XFreePixmap(x.d, x.bb);
 	}
-	x.fb.p = Xcalloc(w*h, sizeof(x.fb.p[0]));
+	x.fb.p = Xmalloc(w*h*sizeof(x.fb.p[0]));
 	x.fb.w = w;
 	x.fb.h = h;
+	x.fb.s = w;
 	x.i = XCreateImage(x.d, x.vis, x.depth, ZPixmap, 0, (char*)x.fb.p, w, h, 32, 0);
 	x.bb = XCreatePixmap(x.d, x.win, w, h, x.depth);
 }
