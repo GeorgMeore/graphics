@@ -85,6 +85,7 @@ static int byteorder(void)
 }
 
 /* TODO: more proper error handling */
+/* TODO: look into the shared memory extension */
 void winopen(u16 w, u16 h, const char *title, u16 fps)
 {
 	if (x.d)
@@ -163,13 +164,17 @@ int mousey(void)
 	return x.mousey;
 }
 
-#define SWAP4(x) (((x)&(0xFF<<0))<<24|((x)&(0xFF<<8))<<8|((x)&(0xFF<<16))>>8|((x)&(0xFF<<24))>>24)
+#define REVERSE4(x) (\
+	((x)&(0xFF<<(8*0)))<<(8*3)|\
+	((x)&(0xFF<<(8*1)))<<(8*1)|\
+	((x)&(0xFF<<(8*2)))>>(8*1)|\
+	((x)&(0xFF<<(8*3)))>>(8*3))
 
 static void swaprgb32(Image *i)
 {
 	for (int x = 0; x < i->w; x++)
 	for (int y = 0; y < i->h; y++)
-		PIXEL(i, x, y) = SWAP4(PIXEL(i, x, y));
+		PIXEL(i, x, y) = REVERSE4(PIXEL(i, x, y));
 }
 
 void frameend(void)
