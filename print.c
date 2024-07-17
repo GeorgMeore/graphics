@@ -48,7 +48,6 @@ static void printu(u64 x, Pbuffer *b)
 	for (c = 0; x; c++) {
 		digits[c] = x%10 + '0';
 		x /= 10;
-		c += 1;
 	}
 	for (int i = 0; i < c; i++)
 		pbufpush(b, digits[c-1-i]);
