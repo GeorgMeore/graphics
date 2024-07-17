@@ -5,6 +5,8 @@
 #include "image.h"
 #include "draw.h"
 
+#define SWAP(x, y) ({ typeof(x) tmp; tmp = (x); (x) = (y); (y) = tmp; })
+
 void drawclear(Image *i, Color c)
 {
 	for (int x = 0; x < i->w; x++)

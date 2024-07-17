@@ -92,16 +92,14 @@ void winopen(u16 w, u16 h, const char *title, u16 fps)
 		return;
 	x.d = XOpenDisplay(0);
 	if (!x.d)
-		return;
+		panic("Failed to connect to the X server");
 	int s = DefaultScreen(x.d);
 	x.depth = DefaultDepth(x.d, s);
 	x.vis = DefaultVisual(x.d, s);
 	/* NOTE: Check if the screen supports 32-bit RGB, we could also
 	 * try to search for an appropriate visual, but I don't think it matters */
-	if (!isrgb32(x.d, x.vis, x.depth)) {
-		winclose();
-		return;
-	}
+	if (!isrgb32(x.d, x.vis, x.depth))
+		panic("The default display visual doesn't support 32-bit RGB");
 	x.win = XCreateSimpleWindow(x.d, RootWindow(x.d, s), 0, 0, w, h, 0, 0, 0);
 	x.gc = DefaultGC(x.d, s);
 	XSelectInput(x.d, x.win, KeyPressMask|ButtonPressMask|ButtonReleaseMask|KeyReleaseMask|StructureNotifyMask);

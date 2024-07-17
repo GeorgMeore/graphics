@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "util.h"
+#include "print.h"
 
 u64 timens(void)
 {
@@ -14,4 +15,10 @@ u64 timens(void)
 void sleepns(u64 t)
 {
 	usleep(t / 1000);
+}
+
+void panic(char *msg)
+{
+	eprintln("panic: ", msg);
+	_exit(1);
 }
