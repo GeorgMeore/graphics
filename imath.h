@@ -1,4 +1,4 @@
-#define SIGN(a) ((a > 0) - (a < 0))
+#define SIGN(a) (((a) > 0) + ((a) == 0) - ((a) <= 0))
 #define ABS(a) ((a)*SIGN(a))
 #define DIVCEIL(n, d) ((ABS(n) + ABS(d) - 1) / d * SIGN(n))
 #define DIVROUND(n, d) ((ABS(n) + ABS(d)/2) / d * SIGN(n))
