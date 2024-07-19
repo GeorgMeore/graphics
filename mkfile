@@ -4,7 +4,7 @@ D=0 # builds are not in debug mode by default
 CDEBUGFLAGS=-g -fsanitize=undefined,address
 CFLAGS=-I. -Wall -Wextra -O$O
 LDFLAGS=-lX11 -lm
-MOD=win draw prof util print image
+MOD=win draw prof util print image alloc
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
 PROGNAMES=example paint

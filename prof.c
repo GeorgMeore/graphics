@@ -6,7 +6,7 @@
 #include "print.h"
 #include "util.h"
 #include "prof.h"
-#include "imath.h"
+#include "mlib.h"
 
 typedef struct {
 	u64 min;
