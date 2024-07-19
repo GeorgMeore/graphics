@@ -164,10 +164,9 @@ struct Chunk {
 
 static void seglink(Segment *s, uW free)
 {
-	free = !!free; /* non-zero -> 1 */
 	Segment *r = SEGRIGHT(s);
 	Segment **q = free ? &s->header->free : &s->header->busy;
-	s->free = r->free = free;
+	s->free = r->free = BOOL(free);
 	s->next = r->next = *q;
 	s->prev = r->prev = 0;
 	if (*q)

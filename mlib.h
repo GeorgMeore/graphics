@@ -4,10 +4,11 @@
 
 #define SWAP(x, y) ({ typeof(x) tmp; tmp = (x); (x) = (y); (y) = tmp; })
 
+#define BOOL(v) (!!v) /* non-zero -> 1 */
+
 /* NOTE: shis should have been (a > 0) - (a < 0), but gcc
  * nags when you try to use this macro with an unsigned type */
 #define SIGN(a) (((a) > 0) + ((a) == 0) - ((a) <= 0))
-
 #define ABS(a) ((a) * SIGN(a))
 #define DIVCEIL(n, d) ((ABS(n) + ABS(d) - 1) / d * SIGN(n))
 #define DIVROUND(n, d) ((ABS(n) + ABS(d)/2) / d * SIGN(n))
