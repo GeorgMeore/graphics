@@ -5,7 +5,14 @@
 #include "alloc.h"
 
 #define PAGESIZE 4096
-#define PAGEALLOC(s) mmap(0, (s), PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)
+
+static void *pagemap(uW size)
+{
+	void *p = mmap(0, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	if (p == MAP_FAILED)
+		return 0;
+	return p;
+}
 
 /* TODO: use crc or something for metadata corruption detection */
 struct Zone {
@@ -26,6 +33,19 @@ struct Zone {
  *          |              ^
  *          `--------------'
  * The pointer to the start of the free memory (Zone.mem)
+ *
+ *
+ * The layout of an arena in memory:
+ *   ______ ______
+ *  |      |      |
+ *  | head | tail | (Arena)
+ *  '______'______'
+ *      |     `--------------------------------------.
+ *  ____V________    _________________           ____V_____
+ * |             |  |                 |         |          |
+ * |    Zone 1   |  |     Zone 2      |  .....  |  Zone n  |
+ * '_____________'  '_________________'  ^   |  '__________'
+ *   `--------------^ `------------------'   `--^
  */
 
 Arena arena(void)
@@ -37,9 +57,10 @@ Arena arena(void)
 static Zone *addzone(Arena *a, uW zsize)
 {
 	uW allocsize = ALIGNUP(zsize + sizeof(Zone), PAGESIZE);
-	Zone *z = PAGEALLOC(allocsize);
-	if (z == MAP_FAILED)
+	Zone *z = pagemap(allocsize);
+	if (!z)
 		return 0;
+	/* NOTE: alignment likely increased the capacity, recalculate */
 	z->free = allocsize - sizeof(Zone);
 	z->mem = z + 1;
 	z->next = 0;
@@ -67,8 +88,7 @@ void *aralloca(Arena *a, uW size, uW align)
 		 * Why 16? I just think it kind of makes sense: for small objects (<< PAGESIZE)
 		 * this doesn't matter since we round up to the page size anyway,
 		 * for large objects (~PAGESIZE) I suspect that 16 should be enough in most cases. */
-		uW zsize = asize * 16;
-		z = addzone(a, zsize);
+		z = addzone(a, asize * 16);
 		if (!z)
 			return 0;
 	}
@@ -191,9 +211,10 @@ typedef struct {
 static Chunk *addchunk(Heap *h, uW segcount)
 {
 	uW allocsize = ALIGNUP(segcount*sizeof(Segment) + sizeof(Chunk), PAGESIZE);
-	Chunk *c = PAGEALLOC(allocsize);
-	if (c == MAP_FAILED)
+	Chunk *c = pagemap(allocsize);
+	if (!c)
 		return 0;
+	/* NOTE: alignment likely increased the capacity, recalculate */
 	c->size = (allocsize - sizeof(Chunk))/sizeof(Segment);
 	c->next = h->chunks;
 	c->busy = 0;
@@ -217,6 +238,22 @@ static Heap h; /* TODO: if I'll do multithreading, this should become a thread-l
  *  `---- Back pointer -----'  `---- Return pointer
  *   (The back pointer is located at the closest word-byte aligned memory
  *    slot to the left of the return pointer)
+ *
+ * The layout of a heap in memory:
+ *     .--------.
+ *     | chunks | (Heap)
+ *     '--------'
+ *         |                    Note that segments also form a doubly-linked list
+ *   .-----|-------------.
+ *   ' .---v-------------v---------------------------~    ~---------------.      .-----------------~
+ *   ' | Chunk header 1 |             |             |       |             |      |                |
+ *   ' |    (Chunk)     |             |             |       |             |      |                |
+ *   '-|---- free       |  Segment 1  |  Segment 2  |  ...  |  Segment n  |      | Chunk header 2 | ...
+ * .---|-----next       |             |             |       |             |      |                |
+ * ' .-|---- busy       |             |             |       |             |      |                |
+ * ' ' '-------------------------------^-------------~    ~---------------'      '-----------------~
+ * '  `--------------------------------'                                          ^
+ * '------------------------------------------------------------------------------'
  */
 
 #define BACKPTR(a) ((void **)(ALIGNDOWN((uW)a, sizeof(uW)) - sizeof(uW)))
@@ -234,8 +271,7 @@ void *memalloca(uW size, uW align)
 		segunlink(s);
 	} else {
 		/* NOTE: preallocation logic is the same as in aralloca */
-		uW ssize = asize * 16;
-		Chunk *c = addchunk(&h, ssize);
+		Chunk *c = addchunk(&h, asize * 16);
 		if (!c)
 			return 0;
 		s = FIRSTSEG(c);
@@ -269,7 +305,7 @@ void memfree(void *p)
 		if (!n || !n->free)
 			break;
 		segunlink(n);
-		s = segmerge(s, n);
+		s = segmerge(s, n); /* heap defragmentation */
 	}
 	seglink(s, 1);
 }
