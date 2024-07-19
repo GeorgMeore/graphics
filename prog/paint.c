@@ -1,6 +1,5 @@
-#include <stdlib.h>
-
 #include "types.h"
+#include "alloc.h"
 #include "color.h"
 #include "image.h"
 #include "win.h"
@@ -18,7 +17,7 @@ struct Point {
 
 Point *point(int x, int y, Point *next)
 {
-	Point *p = malloc(sizeof(*p));
+	Point *p = memalloc(sizeof(*p));
 	p->x = x;
 	p->y = y;
 	p->next = next;
@@ -34,7 +33,7 @@ struct Curve {
 
 Curve *curve(Curve *next)
 {
-	Curve *c = malloc(sizeof(*c));
+	Curve *c = memalloc(sizeof(*c));
 	c->last = 0;
 	c->next = next;
 	return c;
@@ -57,7 +56,7 @@ void undocurve(Picture *p)
 	Curve *c = *p;
 	while (c && !c->last) {
 		*p = c->next;
-		free(c);
+		memfree(c);
 		c = *p;
 	}
 	if (!c)
@@ -66,9 +65,9 @@ void undocurve(Picture *p)
 	while (c->last) {
 		Point *pt = c->last;
 		c->last = pt->next;
-		free(pt);
+		memfree(pt);
 	}
-	free(c);
+	memfree(c);
 }
 
 void undopoint(Picture *p)
@@ -76,14 +75,14 @@ void undopoint(Picture *p)
 	Curve *c = *p;
 	while (c && !c->last) {
 		*p = c->next;
-		free(c);
+		memfree(c);
 		c = *p;
 	}
 	if (!c)
 		return;
 	Point *pt = c->last;
 	c->last = pt->next;
-	free(pt);
+	memfree(pt);
 }
 
 void drawcurves(Image *fb, Picture p)
