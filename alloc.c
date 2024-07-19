@@ -103,13 +103,13 @@ struct Segment {
 };
 
 #define SEGRIGHT(l) ((l) + (l)->size + 1)
-#define SEGRIGHT2(l, s) ((l) + (s) + 1)
 #define SEGLEFT(r) ((r) - (r)->size - 1)
 
 static void seginit(Segment *s, uW size, Chunk *header)
 {
-	Segment *r = SEGRIGHT2(s, size);
-	s->size = r->size = size;
+	s->size = size;
+	Segment *r = SEGRIGHT(s);
+	r->size = size;
 	s->header = r->header = header;
 }
 
