@@ -224,23 +224,18 @@ static Heap h; /* TODO: if I'll do multithreading, this should become a thread-l
 void *memalloca(uW size, uW align)
 {
 	uW asize = DIVCEIL(size + align*2 + sizeof(uW), sizeof(Segment));
-	Chunk *c = h.chunks;
 	Segment *s = 0;
-	while (c) {
-		if (!s)
-			s = c->free;
-		if (s->size >= asize)
-			break;
-		s = s->next;
-		if (!s)
-			c = c->next;
-	}
+	for (Chunk *c = h.chunks; c && !s; c = c->next)
+		for (s = c->free; s; s = s->next) {
+			if (s->size >= asize)
+				break;
+		}
 	if (s) {
 		segunlink(s);
 	} else {
 		/* NOTE: preallocation logic is the same as in aralloca */
 		uW ssize = asize * 16;
-		c = addchunk(&h, ssize);
+		Chunk *c = addchunk(&h, ssize);
 		if (!c)
 			return 0;
 		s = FIRSTSEG(c);
@@ -263,6 +258,8 @@ void *memalloc(uW size)
 
 void memfree(void *p)
 {
+	if (!p)
+		return;
 	Segment *s = *BACKPTR(p);
 	segunlink(s);
 	for (;;) {

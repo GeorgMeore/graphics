@@ -16,6 +16,10 @@ void *aralloc(Arena *a, uW size);
 void *aralloca(Arena *a, uW size, uW align);
 void arclear(Arena *a);
 
+/* TODO: I actually have a really cool idea, I can try to integrate
+ * reference counting into the allocator implementation and introduce, say,
+ * memref function that would increase the reference count, while memfree
+ * would decrease it */
 void *memalloca(uW size, uW align);
 void *memalloc(uW size);
 void memfree(void *p);
