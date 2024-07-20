@@ -359,6 +359,8 @@ void *memrealloca(void *p, uW size, uW align)
 	if (o)
 		return o;
 	o = memalloca(size, align);
+	if (!o)
+		return 0;
 	memtransfer(o, p);
 	memfree(p);
 	return o;
