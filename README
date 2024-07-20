@@ -5,7 +5,7 @@ This is an experimental pet project.
 
 At first I just wanted to play with some simple graphics on the cpu,
 but then I kind of started doing other things I kind of wanted to do
-(e.g. a printf-replacement with slightly different way of providing arguments and formats).
+(e.g. a printf-replacement and custom allocators).
 
 Building.
 =========
