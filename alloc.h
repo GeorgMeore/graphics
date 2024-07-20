@@ -4,6 +4,9 @@
 
 typedef struct Zone Zone;
 
+/* NOTE: alloc functions without 'a' suffix return word-aligned pointers */
+/* TODO: maybe use natural alignment instead? */
+
 /* TODO: maybe an arena should have several predefined zone sizes?
  * (like a list of 16K zones, a list of 16M and maybe a list of 1G) */
 typedef struct {
@@ -22,4 +25,8 @@ void arclear(Arena *a);
  * would decrease it */
 void *memalloca(uW size, uW align);
 void *memalloc(uW size);
+void *memrealloca(void *p, uW size, uW align);
+void *memrealloc(void *p, uW size);
 void memfree(void *p);
+void *memallocarray(uW n, uW size);
+void *memreallocarray(void *p, uW n, uW size);
