@@ -99,7 +99,7 @@ void *aralloca(Arena *a, uW size, uW align)
 
 void *aralloc(Arena *a, uW size)
 {
-	return aralloca(a, size, 8);
+	return aralloca(a, size, sizeof(uW));
 }
 
 void arclear(Arena *a)
@@ -218,6 +218,8 @@ static Chunk *addchunk(Heap *h, uW segcount)
 	c->next = h->chunks;
 	c->busy = 0;
 	c->free = 0;
+	/* NOTE: the chunk is initialized, but not linked */
+	seginit(FIRSTSEG(c), c->size - 2, c);
 	h->chunks = c;
 	return c;
 }
@@ -244,28 +246,37 @@ static Heap h; /* TODO: if I'll do multithreading, this should become a thread-l
  *     '--------'
  *         |                    Note that segments also form a doubly-linked list
  *   .-----|-------------.
- *   ' .---v-------------v---------------------------~    ~---------------.      .-----------------~
+ *   '  ___v____________ v____________ _____________ _    __ _____________        ________________ _
+ *   ' |                |             |             |       |             |      |                |
  *   ' | Chunk header 1 |             |             |       |             |      |                |
  *   ' |    (Chunk)     |             |             |       |             |      |                |
  *   '-|---- free       |  Segment 1  |  Segment 2  |  ...  |  Segment n  |      | Chunk header 2 | ...
  * .---|-----next       |             |             |       |             |      |                |
  * ' .-|---- busy       |             |             |       |             |      |                |
- * ' ' '-------------------------------^-------------~    ~---------------'      '-----------------~
- * '  `--------------------------------'                                          ^
+ * ' \ '________________'_____________'_____________'_    __'_____________'      '________________'_
+ * '  `--------------------------------^                                          ^
  * '------------------------------------------------------------------------------'
  */
 
 #define BACKPTR(a) ((void **)(ALIGNDOWN((uW)a, sizeof(uW)) - sizeof(uW)))
 
+void *segaddr(Segment *s, uW align)
+{
+	uW addr = ALIGNUP((uW)(s + 1) + sizeof(uW), align);
+	*BACKPTR(addr) = s;
+	return (void *)addr;
+}
+
 void *memalloca(uW size, uW align)
 {
 	uW asize = DIVCEIL(size + align*2 + sizeof(uW), sizeof(Segment));
 	Segment *s = 0;
-	for (Chunk *c = h.chunks; c && !s; c = c->next)
+	for (Chunk *c = h.chunks; c && !s; c = c->next) {
 		for (s = c->free; s; s = s->next) {
 			if (s->size >= asize)
 				break;
 		}
+	}
 	if (s) {
 		segunlink(s);
 	} else {
@@ -274,21 +285,18 @@ void *memalloca(uW size, uW align)
 		if (!c)
 			return 0;
 		s = FIRSTSEG(c);
-		seginit(s, c->size - 2, c);
 	}
 	if (s->size - asize > 4) {
 		Segment *o = segsplit(s, asize);
 		seglink(o, 1);
 	}
 	seglink(s, 0);
-	uW addr = ALIGNUP((uW)(s + 1) + sizeof(uW), align);
-	*BACKPTR(addr) = s;
-	return (void *)addr;
+	return segaddr(s, align);
 }
 
 void *memalloc(uW size)
 {
-	return memalloca(size, 8);
+	return memalloca(size, sizeof(uW));
 }
 
 void memfree(void *p)
@@ -307,4 +315,67 @@ void memfree(void *p)
 		s = segmerge(s, n); /* heap defragmentation */
 	}
 	seglink(s, 1);
+}
+
+static void *memtryextend(void *p, uW size, uW align)
+{
+	if (!p)
+		return 0;
+	Segment *s = *BACKPTR(p);
+	uW asize = DIVCEIL(size + align*2 + sizeof(uW), sizeof(Segment));
+	if (s->size >= asize)
+		return segaddr(s, align);
+	Segment *r = segradjacent(s);
+	if (!r || !r->free)
+		return 0;
+	segunlink(s);
+	segunlink(r);
+	/* NOTE: a->size + b->size + 2 == segmerge(a, b)->size */
+	if ((r->size + s->size + 2) - asize > 4) {
+		Segment *o = segsplit(r, asize - s->size - 2);
+		seglink(o, 1);
+	}
+	s = segmerge(s, r);
+	seglink(s, 0);
+	return segaddr(s, align);
+}
+
+static void memtransfer(void *dst, void *src)
+{
+	Segment *s = *BACKPTR(src);
+	Segment *d = *BACKPTR(dst);
+	u8 *sc = src, *dc = dst;
+	while (sc < (u8 *)SEGRIGHT(s) && dc < (u8 *)SEGRIGHT(d)) {
+		*dc = *sc;
+		sc += 1;
+		dc += 1;
+	}
+}
+
+void *memrealloca(void *p, uW size, uW align)
+{
+	if (!p)
+		return memalloca(size, align);
+	void *o = memtryextend(p, size, align);
+	if (o)
+		return o;
+	o = memalloca(size, align);
+	memtransfer(o, p);
+	memfree(p);
+	return o;
+}
+
+void *memrealloc(void *p, uW size)
+{
+	return memrealloca(p, size, sizeof(uW));
+}
+
+void *memallocarray(uW n, uW size)
+{
+	return memalloc(n*size);
+}
+
+void *memreallocarray(void *p, uW n, uW size)
+{
+	return memrealloc(p, n*size);
 }

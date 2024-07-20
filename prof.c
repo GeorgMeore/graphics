@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
@@ -7,6 +6,7 @@
 #include "util.h"
 #include "prof.h"
 #include "mlib.h"
+#include "alloc.h"
 
 typedef struct {
 	u64 min;
@@ -60,7 +60,7 @@ static void profpush(Section *s, u64 t)
 {
 	if (p.edepth >= p.ecap) {
 		p.ecap = p.ecap*2 + 1;
-		p.es = reallocarray(p.es, p.ecap, sizeof(p.es[0]));
+		p.es = memreallocarray(p.es, p.ecap, sizeof(p.es[0]));
 	}
 	Entry *e = &p.es[p.edepth];
 	e->s = s;
@@ -89,7 +89,7 @@ void _profbegin(const char *name)
 	if (!s) {
 		if (p.scount >= p.scap) {
 			p.scap = p.scap*2 + 1;
-			p.ss = reallocarray(p.ss, p.scap, sizeof(p.ss[0]));
+			p.ss = memreallocarray(p.ss, p.scap, sizeof(p.ss[0]));
 		}
 		s = &p.ss[p.scount];
 		strncpy(s->name, name, MAXNAME);
