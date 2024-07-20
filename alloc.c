@@ -1,10 +1,9 @@
 #include <sys/mman.h>
+#include <sys/user.h>
 
 #include "mlib.h"
 #include "types.h"
 #include "alloc.h"
-
-#define PAGESIZE 4096
 
 static void *pagemap(uW size)
 {
@@ -56,7 +55,7 @@ Arena arena(void)
 
 static Zone *addzone(Arena *a, uW zsize)
 {
-	uW allocsize = ALIGNUP(zsize + sizeof(Zone), PAGESIZE);
+	uW allocsize = ALIGNUP(zsize + sizeof(Zone), PAGE_SIZE);
 	Zone *z = pagemap(allocsize);
 	if (!z)
 		return 0;
@@ -85,9 +84,9 @@ void *aralloca(Arena *a, uW size, uW align)
 	if (!z) {
 		/* NOTE: Why multiply? Well, the idea is that we expect
 		 * the user to maybe allocate some more objects of the same size.
-		 * Why 16? I just think it kind of makes sense: for small objects (<< PAGESIZE)
+		 * Why 16? I just think it kind of makes sense: for small objects (<< PAGE_SIZE)
 		 * this doesn't matter since we round up to the page size anyway,
-		 * for large objects (~PAGESIZE) I suspect that 16 should be enough in most cases. */
+		 * for large objects (~PAGE_SIZE) I suspect that 16 should be enough in most cases. */
 		z = addzone(a, asize * 16);
 		if (!z)
 			return 0;
@@ -209,7 +208,7 @@ typedef struct {
 
 static Chunk *addchunk(Heap *h, uW segcount)
 {
-	uW allocsize = ALIGNUP(segcount*sizeof(Segment) + sizeof(Chunk), PAGESIZE);
+	uW allocsize = ALIGNUP(segcount*sizeof(Segment) + sizeof(Chunk), PAGE_SIZE);
 	Chunk *c = pagemap(allocsize);
 	if (!c)
 		return 0;
