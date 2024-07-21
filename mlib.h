@@ -19,3 +19,4 @@
 #define CLAMP(a, l, r) (MIN(MAX(l, a), r))
 #define ALIGNUP(n, m) (DIVCEIL(n, m) * (m))
 #define ALIGNDOWN(n, m) ((n) / (m) * (m))
+#define LOWESTPOW2(n) ((n) ^ ((n) & ((n) - 1)))

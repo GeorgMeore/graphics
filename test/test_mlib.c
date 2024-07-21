@@ -36,5 +36,17 @@ TESTSUITE("macro library") {
 		REQUIRE(DIVROUND(-6, -2) == 3);
 		REQUIRE(DIVROUND(7, 3) == 2);
 	}
+	TESTCASE("LOWESTPOW2") {
+		REQUIRE(LOWESTPOW2((unsigned)1) == 1);
+		REQUIRE(LOWESTPOW2((unsigned)2) == 2);
+		REQUIRE(LOWESTPOW2((unsigned)4) == 4);
+		REQUIRE(LOWESTPOW2((unsigned)5) == 1);
+		REQUIRE(LOWESTPOW2((unsigned)7) == 1);
+		REQUIRE(LOWESTPOW2((unsigned)8) == 8);
+		REQUIRE(LOWESTPOW2((unsigned)9) == 1);
+		REQUIRE(LOWESTPOW2((unsigned)15) == 1);
+		REQUIRE(LOWESTPOW2((unsigned)12) == 4);
+		REQUIRE(LOWESTPOW2((unsigned)16) == 16);
+	}
 	/* TODO: check more */
 }
