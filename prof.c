@@ -16,10 +16,10 @@ typedef struct {
 	u64 n;
 } Stat;
 
-#define FSTAT(t) "min=", FU((t)->min),\
-	", max=", FU((t)->max),\
-	", avg=", FU((t)->avg),\
-	", stdev=", FU(sqrtf((t)->stdev2))
+#define FMTSTAT(t) "min=", FMTU((t)->min),\
+	", max=", FMTU((t)->max),\
+	", avg=", FMTU((t)->avg),\
+	", stdev=", FMTU(sqrtf((t)->stdev2))
 
 static void statadd(Stat *s, u64 x)
 {
@@ -111,6 +111,6 @@ void _profdump(void)
 {
 	for (int i = 0; i < p.scount; i++) {
 		Section *s = &p.ss[i];
-		println("prof: ", s->name, ": ", FSTAT(&s->time));
+		println("prof: ", s->name, ": ", FMTSTAT(&s->time));
 	}
 }

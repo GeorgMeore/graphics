@@ -35,19 +35,24 @@ static void pbufpush(Pbuffer *b, char c)
 	b->i += 1;
 }
 
-#define MAXNUMLEN (20 + 1) /* 2^64 - 1 has 20 digits + 1 for the sign */
-
-static void printu(u64 x, Pbuffer *b)
+static void printu(u64 x, Pbuffer *b, u8 base)
 {
-	char digits[MAXNUMLEN] = {};
+	char digits[64] = {};
+	if (base != 10)
+		pbufpush(b, '0');
+	if (base == 2)
+		pbufpush(b, 'b');
+	if (base == 16)
+		pbufpush(b, 'x');
 	if (!x) {
 		pbufpush(b, '0');
 		return;
 	}
 	int c;
 	for (c = 0; x; c++) {
-		digits[c] = x%10 + '0';
-		x /= 10;
+		/* a little bit of hacky hex digit calculation */
+		digits[c] = '0' + x%base + x%base/10*('a' - '0');
+		x /= base;
 	}
 	for (int i = 0; i < c; i++)
 		pbufpush(b, digits[c-1-i]);
@@ -59,7 +64,7 @@ static void prints(s64 x, Pbuffer *b)
 		pbufpush(b, '-');
 		x = -x;
 	}
-	printu(x, b);
+	printu(x, b, 10);
 }
 
 void _fdprint(int fd, ...)
@@ -73,15 +78,21 @@ void _fdprint(int fd, ...)
 			for (; *s; s++)
 				pbufpush(&b, *s);
 		} else {
-			switch (va_arg(args, Format)) {
-			case FEND:
+			switch (va_arg(args, int)) {
+			case 0:
 				va_end(args);
 				pbufdrain(&b);
 				return;
-			case FU:
-				printu(va_arg(args, u64), &b);
+			case 'b':
+				printu(va_arg(args, u64), &b, 2);
 				break;
-			case FS:
+			case 'h':
+				printu(va_arg(args, u64), &b, 16);
+				break;
+			case 'u':
+				printu(va_arg(args, u64), &b, 10);
+				break;
+			case 's':
 				prints(va_arg(args, s64), &b);
 				break;
 			}
