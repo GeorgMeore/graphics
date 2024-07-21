@@ -40,10 +40,11 @@ static void printu(u64 x, Pbuffer *b, u8 base)
 	char digits[64] = {};
 	if (base != 10)
 		pbufpush(b, '0');
-	if (base == 2)
-		pbufpush(b, 'b');
-	if (base == 16)
-		pbufpush(b, 'x');
+	switch (base) {
+		case 2:  pbufpush(b, 'b'); break;
+		case 16: pbufpush(b, 'x'); break;
+		default: pbufpush(b, '?'); /* TODO: maybe panic here? */
+	}
 	if (!x) {
 		pbufpush(b, '0');
 		return;
