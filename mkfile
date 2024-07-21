@@ -9,8 +9,18 @@ SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
 PROGNAMES=example paint
 PROGS=${PROGNAMES:%=prog/%}
+UTESTNAMES=test_types test_mlib
+UTESTS=${UTESTNAMES:%=test/%}
 
-progs:VQ: $PROGS
+progs:V: $PROGS
+
+tests:VQ: $UTESTS
+	for test in $prereq; do
+		$test
+	done
+
+test/%: test/%.c
+	$CC $CFLAGS -o $target $prereq $LDFLAGS
 
 prog/%: prog/%.c $OBJ
 	[ "$D" != 0 ] && CFLAGS=$CFLAGS' '$CDEBUGFLAGS
@@ -21,6 +31,6 @@ prog/%: prog/%.c $OBJ
 	$CC -c $CFLAGS -o $target $stem.c
 
 clean:V:
-	rm -rf $OBJ $PROGS
+	rm -rf $OBJ $PROGS $UTESTS
 
 <|$CC -MM $SRC # generate dependencies

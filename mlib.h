@@ -4,7 +4,7 @@
 
 #define SWAP(x, y) ({ typeof(x) tmp; tmp = (x); (x) = (y); (y) = tmp; })
 
-#define BOOL(v) (!!v) /* non-zero -> 1 */
+#define BOOL(v) (!!(v)) /* non-zero -> 1 */
 
 /* NOTE: shis should have been (a > 0) - (a < 0), but gcc
  * nags when you try to use this macro with an unsigned type */
