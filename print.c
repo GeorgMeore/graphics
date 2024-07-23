@@ -38,12 +38,13 @@ static void pbufpush(Pbuffer *b, char c)
 static void printu(u64 x, Pbuffer *b, u8 base)
 {
 	char digits[64] = {};
-	if (base != 10)
+	if (base != 10) {
 		pbufpush(b, '0');
-	switch (base) {
-		case 2:  pbufpush(b, 'b'); break;
-		case 16: pbufpush(b, 'x'); break;
-		default: pbufpush(b, '?'); /* TODO: maybe panic here? */
+		switch (base) {
+			case 2:  pbufpush(b, 'b'); break;
+			case 16: pbufpush(b, 'x'); break;
+			default: pbufpush(b, '?'); /* TODO: maybe panic here? */
+		}
 	}
 	if (!x) {
 		pbufpush(b, '0');
