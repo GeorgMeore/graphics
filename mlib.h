@@ -2,7 +2,17 @@
 #define VALSTRING(x) STRING(x)
 #define LOCATION __FILE__ ":" VALSTRING(__LINE__)
 
-#define SWAP(x, y) ({ typeof(x) tmp; tmp = (x); (x) = (y); (y) = tmp; })
+#define SWAP(x, y) ({\
+	typeof(x) _tmp = (x);\
+	(x) = (y);\
+	(y) = _tmp;\
+})
+
+#define ETRACE(x, fmt) ({\
+	typeof(x) _tmp = (x);\
+	println("trace: ", #x, " = ", fmt(_tmp));\
+	_tmp;\
+})
 
 #define BOOL(v) (!!(v)) /* non-zero -> 1 */
 
