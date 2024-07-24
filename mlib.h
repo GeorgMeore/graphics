@@ -30,4 +30,4 @@
 #define CLAMP(a, l, r) (MIN(MAX(l, a), r))
 #define ALIGNUP(n, m) (DIVCEIL(n, m) * (m))
 #define ALIGNDOWN(n, m) ((n) / (m) * (m))
-#define LOWESTPOW2(n) ((n) ^ ((n) & ((n) - 1)))
+#define LP2(n) ((n) ^ ((n) & ((n) - 1))) /* lowest power of 2 that evenly divides n */
