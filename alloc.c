@@ -204,9 +204,11 @@ static Segment *segradjacent(Segment *s)
  * TODO: implement a page allocator for huge ones (> ~16 MIB) */
 typedef struct {
 	Chunk *chunks;
-} Heap;
+} Sallocator;
 
-static Chunk *addchunk(Heap *h, uW segcount)
+static Sallocator defsallocator;
+
+static Chunk *addchunk(Sallocator *a, uW segcount)
 {
 	uW allocsize = ALIGNUP(segcount*sizeof(Segment) + sizeof(Chunk), PAGE_SIZE);
 	Chunk *c = pagemap(allocsize);
@@ -214,16 +216,14 @@ static Chunk *addchunk(Heap *h, uW segcount)
 		return 0;
 	/* NOTE: alignment likely increased the capacity, recalculate */
 	c->size = (allocsize - sizeof(Chunk))/sizeof(Segment);
-	c->next = h->chunks;
+	c->next = a->chunks;
 	c->busy = 0;
 	c->free = 0;
 	/* NOTE: the chunk is initialized, but not linked */
 	seginit(FIRSTSEG(c), c->size - 2, c);
-	h->chunks = c;
+	a->chunks = c;
 	return c;
 }
-
-static Heap h; /* TODO: if I'll do multithreading, this should become a thread-local */
 
 /*
  * The layout of a segment in memory:
@@ -241,7 +241,7 @@ static Heap h; /* TODO: if I'll do multithreading, this should become a thread-l
  *
  * The layout of a heap in memory:
  *     .--------.
- *     | chunks | (Heap)
+ *     | chunks | (Sallocator)
  *     '--------'
  *         |                    Note that segments also form a doubly-linked list
  *   .-----|-------------.
@@ -270,7 +270,7 @@ void *memalloca(uW size, uW align)
 {
 	uW asize = DIVCEIL(size + align*2 + sizeof(uW), sizeof(Segment));
 	Segment *s = 0;
-	for (Chunk *c = h.chunks; c && !s; c = c->next) {
+	for (Chunk *c = defsallocator.chunks; c && !s; c = c->next) {
 		for (s = c->free; s; s = s->next) {
 			if (s->size >= asize)
 				break;
@@ -280,7 +280,7 @@ void *memalloca(uW size, uW align)
 		segunlink(s);
 	} else {
 		/* NOTE: preallocation logic is the same as in aralloca */
-		Chunk *c = addchunk(&h, asize * 16);
+		Chunk *c = addchunk(&defsallocator, asize * 16);
 		if (!c)
 			return 0;
 		s = FIRSTSEG(c);

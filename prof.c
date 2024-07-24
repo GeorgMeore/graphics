@@ -54,25 +54,25 @@ typedef struct {
 
 /* NOTE: the profiler exists throughout the program execution,
  * so we don't bother with freeing up it's resources. */
-static Profiler p;
+static Profiler defpr;
 
 static void profpush(Section *s, u64 t)
 {
-	if (p.edepth >= p.ecap) {
-		p.ecap = p.ecap*2 + 1;
-		p.es = memreallocarray(p.es, p.ecap, sizeof(p.es[0]));
+	if (defpr.edepth >= defpr.ecap) {
+		defpr.ecap = defpr.ecap*2 + 1;
+		defpr.es = memreallocarray(defpr.es, defpr.ecap, sizeof(defpr.es[0]));
 	}
-	Entry *e = &p.es[p.edepth];
+	Entry *e = &defpr.es[defpr.edepth];
 	e->s = s;
 	e->startns = t;
-	p.edepth += 1;
+	defpr.edepth += 1;
 }
 
 static Entry *profpop(void)
 {
-	if (p.edepth) {
-		p.edepth -= 1;
-		return &p.es[p.edepth];
+	if (defpr.edepth) {
+		defpr.edepth -= 1;
+		return &defpr.es[defpr.edepth];
 	}
 	return 0;
 }
@@ -80,21 +80,21 @@ static Entry *profpop(void)
 void _profbegin(const char *name)
 {
 	Section *s = 0;
-	for (int i = 0; i < p.scount; i++) {
-		if (!strncmp(p.ss[i].name, name, MAXNAME)) {
-			s = &p.ss[i];
+	for (int i = 0; i < defpr.scount; i++) {
+		if (!strncmp(defpr.ss[i].name, name, MAXNAME)) {
+			s = &defpr.ss[i];
 			break;
 		}
 	}
 	if (!s) {
-		if (p.scount >= p.scap) {
-			p.scap = p.scap*2 + 1;
-			p.ss = memreallocarray(p.ss, p.scap, sizeof(p.ss[0]));
+		if (defpr.scount >= defpr.scap) {
+			defpr.scap = defpr.scap*2 + 1;
+			defpr.ss = memreallocarray(defpr.ss, defpr.scap, sizeof(defpr.ss[0]));
 		}
-		s = &p.ss[p.scount];
+		s = &defpr.ss[defpr.scount];
 		strncpy(s->name, name, MAXNAME);
 		s->name[MAXNAME] = '\0';
-		p.scount += 1;
+		defpr.scount += 1;
 	}
 	profpush(s, timens());
 }
@@ -109,8 +109,8 @@ void _profend(void)
 
 void _profdump(void)
 {
-	for (int i = 0; i < p.scount; i++) {
-		Section *s = &p.ss[i];
+	for (int i = 0; i < defpr.scount; i++) {
+		Section *s = &defpr.ss[i];
 		println("prof: ", s->name, ": ", FMTSTAT(&s->time));
 	}
 }
