@@ -56,23 +56,36 @@ typedef struct {
  * so we don't bother with freeing up it's resources. */
 static Profiler defpr;
 
-static void profpush(Section *s, u64 t)
+static void profpush(Profiler *p, Section *s, u64 t)
 {
-	if (defpr.edepth >= defpr.ecap) {
-		defpr.ecap = defpr.ecap*2 + 1;
-		defpr.es = memreallocarray(defpr.es, defpr.ecap, sizeof(defpr.es[0]));
+	if (p->edepth >= p->ecap) {
+		p->ecap = p->ecap*2 + 1;
+		p->es = memreallocarray(p->es, p->ecap, sizeof(p->es[0]));
 	}
-	Entry *e = &defpr.es[defpr.edepth];
+	Entry *e = &p->es[p->edepth];
 	e->s = s;
 	e->startns = t;
-	defpr.edepth += 1;
+	p->edepth += 1;
 }
 
-static Entry *profpop(void)
+static Section *profaddsection(Profiler *p, const char *name)
 {
-	if (defpr.edepth) {
-		defpr.edepth -= 1;
-		return &defpr.es[defpr.edepth];
+	if (p->scount >= p->scap) {
+		p->scap = p->scap*2 + 1;
+		p->ss = memreallocarray(p->ss, p->scap, sizeof(p->ss[0]));
+	}
+	Section *s = &p->ss[p->scount];
+	strncpy(s->name, name, MAXNAME);
+	s->name[MAXNAME] = '\0';
+	p->scount += 1;
+	return s;
+}
+
+static Entry *profpop(Profiler *p)
+{
+	if (p->edepth) {
+		p->edepth -= 1;
+		return &p->es[p->edepth];
 	}
 	return 0;
 }
@@ -86,22 +99,14 @@ void _profbegin(const char *name)
 			break;
 		}
 	}
-	if (!s) {
-		if (defpr.scount >= defpr.scap) {
-			defpr.scap = defpr.scap*2 + 1;
-			defpr.ss = memreallocarray(defpr.ss, defpr.scap, sizeof(defpr.ss[0]));
-		}
-		s = &defpr.ss[defpr.scount];
-		strncpy(s->name, name, MAXNAME);
-		s->name[MAXNAME] = '\0';
-		defpr.scount += 1;
-	}
-	profpush(s, timens());
+	if (!s)
+		s = profaddsection(&defpr, name);
+	profpush(&defpr, s, timens());
 }
 
 void _profend(void)
 {
-	Entry *e = profpop();
+	Entry *e = profpop(&defpr);
 	if (!e)
 		return;
 	statadd(&e->s->time, timens() - e->startns);
