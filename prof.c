@@ -3,7 +3,7 @@
 
 #include "types.h"
 #include "print.h"
-#include "util.h"
+#include "ntime.h"
 #include "prof.h"
 #include "mlib.h"
 #include "alloc.h"
