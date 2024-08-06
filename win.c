@@ -34,6 +34,8 @@ typedef struct {
 	u64 startns;
 	u64 framens;
 	int needswap;
+	Cursor invis;
+	int mouselocked;
 } X11;
 
 static X11 defxwin;
@@ -107,6 +109,19 @@ void winopen(u16 w, u16 h, const char *title, u16 fps)
 	XMapWindow(defxwin.d, defxwin.win);
 	defxwin.needswap = byteorder() != defxwin.d->byte_order;
 	defxwin.targetns = 1000000000 / fps;
+	/* NOTE: hacky hacks to get an invisible cursor */
+	XColor c = {};
+	Pixmap p = XCreatePixmap(defxwin.d, defxwin.win, 1, 1, 1);
+	defxwin.invis = XCreatePixmapCursor(defxwin.d, p, p, &c, &c, 0, 0);
+}
+
+void mouselock(int on)
+{
+	defxwin.mouselocked = on;
+	if (on)
+		XDefineCursor(defxwin.d, defxwin.win, defxwin.invis);
+	else
+		XUndefineCursor(defxwin.d, defxwin.win);
 }
 
 /* TODO: a more proper input handling */
@@ -148,6 +163,14 @@ Image *framebegin(void)
 	int rx, ry;
 	unsigned int mask;
 	XQueryPointer(defxwin.d, defxwin.win, &r, &c, &rx, &ry, &defxwin.mousex, &defxwin.mousey, &mask);
+	if (defxwin.mouselocked) {
+		defxwin.mousex -= defxwin.fb.w/2;
+		defxwin.mousey -= defxwin.fb.h/2;
+		XWarpPointer(defxwin.d, None, defxwin.win, 0, 0, 0, 0, defxwin.fb.w/2, defxwin.fb.h/2);
+		/* NOTE: XSync must me used here to make sure that the cursor is actually warped before
+		 * the user moves the mouse in during a new frame, or the movent can be lost. */
+		XSync(defxwin.d, 0);
+	}
 	defxwin.startns = timens();
 	return &defxwin.fb;
 }
@@ -173,6 +196,11 @@ static void swaprgb32(Image *i)
 	for (int x = 0; x < i->w; x++)
 	for (int y = 0; y < i->h; y++)
 		PIXEL(i, x, y) = REVERSE4(PIXEL(i, x, y));
+}
+
+u64 lastframetime(void)
+{
+	return defxwin.framens;
 }
 
 void frameend(void)
@@ -209,4 +237,5 @@ void frameend(void)
 	defxwin.framens = timens() - defxwin.startns;
 	if (defxwin.framens < defxwin.targetns)
 		sleepns(defxwin.targetns - defxwin.framens);
+	defxwin.framens = timens() - defxwin.startns;
 }
