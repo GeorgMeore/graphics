@@ -3,7 +3,8 @@
 #include <X11/Xlibint.h>
 
 #include "types.h"
-#include "util.h"
+#include "ntime.h"
+#include "panic.h"
 #include "color.h"
 #include "image.h"
 #include "win.h"
