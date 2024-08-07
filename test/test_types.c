@@ -4,14 +4,14 @@
 TESTSUITE("integer type definitions")
 {
 	TESTCASE("check sizes") {
-		REQUIRE(sizeof(u8) == 1);
-		REQUIRE(sizeof(s8) == 1);
-		REQUIRE(sizeof(u16) == 2);
-		REQUIRE(sizeof(s16) == 2);
-		REQUIRE(sizeof(u32) == 4);
-		REQUIRE(sizeof(s32) == 4);
+		REQUIRE(sizeof(U8) == 1);
+		REQUIRE(sizeof(I8) == 1);
+		REQUIRE(sizeof(U16) == 2);
+		REQUIRE(sizeof(I16) == 2);
+		REQUIRE(sizeof(U32) == 4);
+		REQUIRE(sizeof(I32) == 4);
 	}
-	TESTCASE("check bits per u8") {
-		REQUIRE((u8)(0xFF + 1) == (u8)0);
+	TESTCASE("check bits per U8") {
+		REQUIRE((U8)(0xFF + 1) == (U8)0);
 	}
 }

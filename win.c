@@ -9,7 +9,7 @@
 #include "image.h"
 #include "win.h"
 
-#define KEYCOUNT CARD(u8)
+#define KEYCOUNT CARD(U8)
 #define BTNCOUNT 5
 
 #define RMASK RGBA(0xFF, 0, 0, 0)
@@ -31,9 +31,9 @@ typedef struct {
 	int prevbtndown[BTNCOUNT];
 	int mousex;
 	int mousey;
-	u64 targetns;
-	u64 startns;
-	u64 framens;
+	U64 targetns;
+	U64 startns;
+	U64 framens;
 	int needswap;
 	Cursor invis;
 	int mouselocked;
@@ -51,7 +51,7 @@ void winclose(void)
 	defxwin.i = 0;
 }
 
-static void onresize(u16 w, u16 h)
+static void onresize(U16 w, U16 h)
 {
 	if (!w || !h)
 		return;
@@ -89,7 +89,7 @@ static int byteorder(void)
 
 /* TODO: more proper error handling */
 /* TODO: look into the shared memory extension */
-void winopen(u16 w, u16 h, const char *title, u16 fps)
+void winopen(U16 w, U16 h, const char *title, U16 fps)
 {
 	if (defxwin.d)
 		return;
@@ -126,32 +126,32 @@ void mouselock(int on)
 }
 
 /* TODO: a more proper input handling */
-static void onkey(u8 k, int isdown)
+static void onkey(U8 k, int isdown)
 {
 	defxwin.keydown[k] = isdown;
 }
 
-int keyisdown(u8 k)
+int keyisdown(U8 k)
 {
 	return defxwin.keydown[k];
 }
 
-int keywaspressed(u8 k)
+int keywaspressed(U8 k)
 {
 	return !defxwin.keydown[k] && defxwin.prevkeydown[k];
 }
 
-static void onbtn(u8 b, int isdown)
+static void onbtn(U8 b, int isdown)
 {
 	defxwin.btndown[b] = isdown;
 }
 
-int btnisdown(u8 b)
+int btnisdown(U8 b)
 {
 	return defxwin.btndown[b];
 }
 
-int btnwaspressed(u8 b)
+int btnwaspressed(U8 b)
 {
 	return !defxwin.btndown[b] && defxwin.prevbtndown[b];
 }
@@ -199,7 +199,7 @@ static void swaprgb32(Image *i)
 		PIXEL(i, x, y) = REVERSE4(PIXEL(i, x, y));
 }
 
-u64 lastframetime(void)
+U64 lastframetime(void)
 {
 	return defxwin.framens;
 }

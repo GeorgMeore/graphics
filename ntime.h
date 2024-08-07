@@ -2,5 +2,5 @@
 #define MSEC (1000*USEC)
 #define SEC  (1000*MSEC)
 
-u64  timens(void);
-void sleepns(u64 t);
+U64  timens(void);
+void sleepns(U64 t);

@@ -5,7 +5,7 @@
 #include "types.h"
 #include "alloc.h"
 
-static void *pagemap(uW size)
+static void *pagemap(U size)
 {
 	void *p = mmap(0, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 	if (p == MAP_FAILED)
@@ -15,7 +15,7 @@ static void *pagemap(uW size)
 
 /* TODO: use crc or something for metadata corruption detection */
 struct Zone {
-	uW free;  /* in bytes */
+	U free;  /* in bytes */
 	void *mem;
 	Zone *next;
 };
@@ -53,9 +53,9 @@ Arena arena(void)
 	return a;
 }
 
-static Zone *addzone(Arena *a, uW zsize)
+static Zone *addzone(Arena *a, U zsize)
 {
-	uW allocsize = ALIGNUP(zsize + sizeof(Zone), PAGE_SIZE);
+	U allocsize = ALIGNUP(zsize + sizeof(Zone), PAGE_SIZE);
 	Zone *z = pagemap(allocsize);
 	if (!z)
 		return 0;
@@ -72,9 +72,9 @@ static Zone *addzone(Arena *a, uW zsize)
 	return z;
 }
 
-void *aralloca(Arena *a, uW size, uW align)
+void *aralloca(Arena *a, U size, U align)
 {
-	uW asize = (size + align*2);
+	U asize = (size + align*2);
 	Zone *z = a->head;
 	while (z) {
 		if (z->free >= asize)
@@ -93,18 +93,18 @@ void *aralloca(Arena *a, uW size, uW align)
 	}
 	z->free -= asize;
 	z->mem += asize;
-	return (void *)ALIGNUP((uW)z->mem, align);
+	return (void *)ALIGNUP((U)z->mem, align);
 }
 
-void *aralloc(Arena *a, uW size)
+void *aralloc(Arena *a, U size)
 {
-	return aralloca(a, size, sizeof(uW));
+	return aralloca(a, size, sizeof(U));
 }
 
 void arclear(Arena *a)
 {
 	for (Zone *z = a->head; z; z = z->next) {
-		z->free += (uW)z->mem - (uW)(z + 1);
+		z->free += (U)z->mem - (U)(z + 1);
 		z->mem = z + 1;
 	}
 }
@@ -114,8 +114,8 @@ typedef struct Chunk Chunk;
 
 /* TODO: use crc or something for metadata corruption detection */
 struct Segment {
-	uW size : sizeof(uW)*8 - 1; /* in sizeof(Segment), for convenience */
-	uW free : 1;
+	U size : sizeof(U)*8 - 1; /* in sizeof(Segment), for convenience */
+	U free : 1;
 	Segment *next;
 	Segment *prev;
 	Chunk *header;
@@ -124,7 +124,7 @@ struct Segment {
 #define SEGRIGHT(l) ((l) + (l)->size + 1)
 #define SEGLEFT(r) ((r) - (r)->size - 1)
 
-static void seginit(Segment *s, uW size, Chunk *header)
+static void seginit(Segment *s, U size, Chunk *header)
 {
 	s->size = size;
 	Segment *r = SEGRIGHT(s);
@@ -132,9 +132,9 @@ static void seginit(Segment *s, uW size, Chunk *header)
 	s->header = r->header = header;
 }
 
-static Segment *segsplit(Segment *s, uW size)
+static Segment *segsplit(Segment *s, U size)
 {
-	uW oldsize = s->size;
+	U oldsize = s->size;
 	Chunk *header = s->header;
 	Segment *o = s + size + 2;
 	seginit(s, size, header);
@@ -152,7 +152,7 @@ static Segment *segmerge(Segment *s1, Segment *s2)
 
 /* TODO: use crc or something for metadata corruption detection */
 struct Chunk {
-	uW size; /* in sizeof(Segment) */
+	U size; /* in sizeof(Segment) */
 	Segment *free;
 	Segment *busy;
 	Chunk *next;
@@ -161,7 +161,7 @@ struct Chunk {
 #define FIRSTSEG(c) ((Segment *)((c) + 1))
 #define LASTSEG(c) (FIRSTSEG(c) + (c)->size - 1)
 
-static void seglink(Segment *s, uW free)
+static void seglink(Segment *s, U free)
 {
 	Segment *r = SEGRIGHT(s);
 	Segment **q = free ? &s->header->free : &s->header->busy;
@@ -208,9 +208,9 @@ typedef struct {
 
 static Sallocator defsallocator;
 
-static Chunk *addchunk(Sallocator *a, uW segcount)
+static Chunk *addchunk(Sallocator *a, U segcount)
 {
-	uW allocsize = ALIGNUP(segcount*sizeof(Segment) + sizeof(Chunk), PAGE_SIZE);
+	U allocsize = ALIGNUP(segcount*sizeof(Segment) + sizeof(Chunk), PAGE_SIZE);
 	Chunk *c = pagemap(allocsize);
 	if (!c)
 		return 0;
@@ -257,18 +257,18 @@ static Chunk *addchunk(Sallocator *a, uW segcount)
  * '------------------------------------------------------------------------------'
  */
 
-#define BACKPTR(a) ((void **)(ALIGNDOWN((uW)a, sizeof(uW)) - sizeof(uW)))
+#define BACKPTR(a) ((void **)(ALIGNDOWN((U)a, sizeof(U)) - sizeof(U)))
 
-void *segaddr(Segment *s, uW align)
+void *segaddr(Segment *s, U align)
 {
-	uW addr = ALIGNUP((uW)(s + 1) + sizeof(uW), align);
+	U addr = ALIGNUP((U)(s + 1) + sizeof(U), align);
 	*BACKPTR(addr) = s;
 	return (void *)addr;
 }
 
-void *memalloca(uW size, uW align)
+void *memalloca(U size, U align)
 {
-	uW asize = DIVCEIL(size + align*2 + sizeof(uW), sizeof(Segment));
+	U asize = DIVCEIL(size + align*2 + sizeof(U), sizeof(Segment));
 	Segment *s = 0;
 	for (Chunk *c = defsallocator.chunks; c && !s; c = c->next) {
 		for (s = c->free; s; s = s->next) {
@@ -293,9 +293,9 @@ void *memalloca(uW size, uW align)
 	return segaddr(s, align);
 }
 
-void *memalloc(uW size)
+void *memalloc(U size)
 {
-	return memalloca(size, sizeof(uW));
+	return memalloca(size, sizeof(U));
 }
 
 void memfree(void *p)
@@ -316,12 +316,12 @@ void memfree(void *p)
 	seglink(s, 1);
 }
 
-static void *memtryextend(void *p, uW size, uW align)
+static void *memtryextend(void *p, U size, U align)
 {
 	if (!p)
 		return 0;
 	Segment *s = *BACKPTR(p);
-	uW asize = DIVCEIL(size + align*2 + sizeof(uW), sizeof(Segment));
+	U asize = DIVCEIL(size + align*2 + sizeof(U), sizeof(Segment));
 	if (s->size >= asize)
 		return segaddr(s, align);
 	Segment *r = segradjacent(s);
@@ -343,15 +343,15 @@ static void memtransfer(void *dst, void *src)
 {
 	Segment *s = *BACKPTR(src);
 	Segment *d = *BACKPTR(dst);
-	u8 *sc = src, *dc = dst;
-	while (sc < (u8 *)SEGRIGHT(s) && dc < (u8 *)SEGRIGHT(d)) {
+	U8 *sc = src, *dc = dst;
+	while (sc < (U8 *)SEGRIGHT(s) && dc < (U8 *)SEGRIGHT(d)) {
 		*dc = *sc;
 		sc += 1;
 		dc += 1;
 	}
 }
 
-void *memrealloca(void *p, uW size, uW align)
+void *memrealloca(void *p, U size, U align)
 {
 	if (!p)
 		return memalloca(size, align);
@@ -366,17 +366,17 @@ void *memrealloca(void *p, uW size, uW align)
 	return o;
 }
 
-void *memrealloc(void *p, uW size)
+void *memrealloc(void *p, U size)
 {
-	return memrealloca(p, size, sizeof(uW));
+	return memrealloca(p, size, sizeof(U));
 }
 
-void *memallocarray(uW n, uW size)
+void *memallocarray(U n, U size)
 {
 	return memalloc(n*size);
 }
 
-void *memreallocarray(void *p, uW n, uW size)
+void *memreallocarray(void *p, U n, U size)
 {
 	return memrealloc(p, n*size);
 }

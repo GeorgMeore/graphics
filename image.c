@@ -3,7 +3,7 @@
 #include "color.h"
 #include "image.h"
 
-Image subimage(Image i, u16 x, u16 y, u16 w, u16 h)
+Image subimage(Image i, U16 x, U16 y, U16 w, U16 h)
 {
 	Image s = {};
 	if (x > i.w || y > i.h)
