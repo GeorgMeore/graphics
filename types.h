@@ -1,12 +1,13 @@
-/* TODO: maybe some ifdefs? Or at least tests that verify the size assumtions. */
-typedef unsigned char  u8;
-typedef signed char    s8;
-typedef unsigned short u16;
-typedef short          s16;
-typedef unsigned       u32;
-typedef int            s32;
-typedef unsigned long  u64;
-typedef long           s64;
-typedef u64            uW; /* the machine address size */
+/* TODO: ifdefs for other platforms. */
+typedef unsigned char  U8;
+typedef signed char    I8;
+typedef unsigned short U16;
+typedef short          I16;
+typedef unsigned       U32;
+typedef int            I32;
+typedef unsigned long  U64;
+typedef long           I64;
+typedef U64            U; /* the machine address size */
+typedef I64            I; /* the machine address size */
 
 #define CARD(t) (2<<(sizeof(t)*8))

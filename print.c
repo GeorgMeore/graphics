@@ -35,7 +35,7 @@ static void pbufpush(Pbuffer *b, char c)
 	b->i += 1;
 }
 
-static void printu(u64 x, Pbuffer *b, u8 base)
+static void printu(U x, Pbuffer *b, U8 base)
 {
 	char digits[64] = {};
 	if (base != 10) {
@@ -60,7 +60,7 @@ static void printu(u64 x, Pbuffer *b, u8 base)
 		pbufpush(b, digits[c-1-i]);
 }
 
-static void prints(s64 x, Pbuffer *b)
+static void prints(I x, Pbuffer *b)
 {
 	if (x < 0) {
 		pbufpush(b, '-');
@@ -86,16 +86,16 @@ void _fdprint(int fd, ...)
 				pbufdrain(&b);
 				return;
 			case 'b':
-				printu(va_arg(args, u64), &b, 2);
+				printu(va_arg(args, U), &b, 2);
 				break;
 			case 'h':
-				printu(va_arg(args, u64), &b, 16);
+				printu(va_arg(args, U), &b, 16);
 				break;
 			case 'u':
-				printu(va_arg(args, u64), &b, 10);
+				printu(va_arg(args, U), &b, 10);
 				break;
-			case 's':
-				prints(va_arg(args, s64), &b);
+			case 'i':
+				prints(va_arg(args, I), &b);
 				break;
 			}
 		}

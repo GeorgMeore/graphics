@@ -54,7 +54,7 @@ void drawgradients(Image *i, int dx, int dy)
 {
 	for (int x = 0; x < i->w; x++)
 	for (int y = 0; y < i->h; y++)
-		PIXEL(i, x, y) = RGBA(0, (u8)(x-dx), (u8)(y-dy), 0);
+		PIXEL(i, x, y) = RGBA(0, (U8)(x-dx), (U8)(y-dy), 0);
 }
 
 int main()

@@ -7,7 +7,7 @@ LDFLAGS=-lX11 -lm
 MOD=win draw prof ntime panic print image alloc
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
-PROGNAMES=example paint
+PROGNAMES=example paint 3d
 PROGS=${PROGNAMES:%=prog/%}
 UTESTNAMES=test_types test_mlib
 UTESTS=${UTESTNAMES:%=test/%}

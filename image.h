@@ -1,5 +1,5 @@
 typedef struct {
-	u16 w, h, s;
+	U16 w, h, s;
 	Color *p;
 } Image;
 
@@ -9,4 +9,4 @@ typedef struct {
 #define CHECKX(i, x) ((x) >= 0 && (x) < (i)->w)
 #define CHECKY(i, y) ((y) >= 0 && (y) < (i)->h)
 
-Image subimage(Image i, u16 x, u16 y, u16 w, u16 h);
+Image subimage(Image i, U16 x, U16 y, U16 w, U16 h);

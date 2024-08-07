@@ -9,11 +9,11 @@
 #include "alloc.h"
 
 typedef struct {
-	u64 min;
-	u64 max;
-	u64 stdev2; /* stdev*stdev */
-	u64 avg;
-	u64 n;
+	U64 min;
+	U64 max;
+	U64 stdev2; /* stdev*stdev */
+	U64 avg;
+	U64 n;
 } Stat;
 
 #define FMTSTAT(t) "min=", FMTU((t)->min),\
@@ -21,14 +21,14 @@ typedef struct {
 	", avg=", FMTU((t)->avg),\
 	", stdev=", FMTU(sqrtf((t)->stdev2))
 
-static void statadd(Stat *s, u64 x)
+static void statadd(Stat *s, U64 x)
 {
 	if (x < s->min || !s->n)
 		s->min = x;
 	if (x > s->max || !s->n)
 		s->max = x;
 	s->n += 1;
-	u64 newavg = (s->avg*s->n + (x - s->avg))/s->n;
+	U64 newavg = (s->avg*s->n + (x - s->avg))/s->n;
 	s->stdev2 = (s->stdev2*(s->n - 1) + (x - s->avg)*(x - newavg))/s->n;
 	s->avg = newavg;
 }
@@ -41,22 +41,22 @@ typedef struct {
 } Section;
 
 typedef struct {
-	u64 startns;
+	U64 startns;
 	Section *s;
 } Entry;
 
 typedef struct {
 	Section *ss;
-	u16 scount, scap;
+	U16 scount, scap;
 	Entry *es;
-	u16 edepth, ecap;
+	U16 edepth, ecap;
 } Profiler;
 
 /* NOTE: the profiler exists throughout the program execution,
  * so we don't bother with freeing up it's resources. */
 static Profiler defpr;
 
-static void profpush(Profiler *p, Section *s, u64 t)
+static void profpush(Profiler *p, Section *s, U64 t)
 {
 	if (p->edepth >= p->ecap) {
 		p->ecap = p->ecap*2 + 1;
