@@ -4,7 +4,7 @@
 #include "win.h"
 #include "draw.h"
 
-//#define PROFENABLED
+#define PROFENABLED
 #include "prof.h"
 
 void drawshapes(Image *i, int dx, int dy)

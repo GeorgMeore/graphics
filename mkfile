@@ -4,10 +4,10 @@ D=0 # builds are not in debug mode by default
 CDEBUGFLAGS=-g -fsanitize=undefined,address
 CFLAGS=-I. -Wall -Wextra -O$O
 LDFLAGS=-lX11 -lm
-MOD=win draw prof ntime panic print image alloc
+MOD=win draw prof ntime panic fmt image alloc
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
-PROGNAMES=example paint 3d
+PROGNAMES=example paint io
 PROGS=${PROGNAMES:%=prog/%}
 UTESTNAMES=test_types test_mlib
 UTESTS=${UTESTNAMES:%=test/%}

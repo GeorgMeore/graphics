@@ -2,7 +2,7 @@
 #include <math.h>
 
 #include "types.h"
-#include "print.h"
+#include "fmt.h"
 #include "ntime.h"
 #include "prof.h"
 #include "mlib.h"
@@ -16,10 +16,10 @@ typedef struct {
 	U64 n;
 } Stat;
 
-#define FMTSTAT(t) "min=", FMTU((t)->min),\
-	", max=", FMTU((t)->max),\
-	", avg=", FMTU((t)->avg),\
-	", stdev=", FMTU(sqrtf((t)->stdev2))
+#define FMTSTAT(t) "min=", OD((t)->min),\
+	", max=", OD((t)->max),\
+	", avg=", OD((t)->avg),\
+	", stdev=", OD(sqrtf((t)->stdev2))
 
 static void statadd(Stat *s, U64 x)
 {

@@ -2,6 +2,8 @@
 #define VALSTRING(x) STRING(x)
 #define LOCATION __FILE__ ":" VALSTRING(__LINE__)
 
+#define ISUNSIGNED(type) ((type)0 - 1 > 0)
+
 #define SWAP(x, y) ({\
 	typeof(x) _tmp = (x);\
 	(x) = (y);\
