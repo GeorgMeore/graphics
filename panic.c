@@ -1,6 +1,7 @@
 #include <unistd.h>
 
-#include "print.h"
+#include "types.h"
+#include "fmt.h"
 
 void panic(char *msg)
 {
