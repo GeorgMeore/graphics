@@ -1,3 +1,9 @@
+/*
+ * TODO: research more on the topic of signed/unsigned conversions
+ * on integers of different sizes and stuff. And maybe add overflow
+ * checks during integer parsing.
+ */
+
 #define _INTFMT(type) (ISUNSIGNED(type)<<8 | sizeof(type))
 
 #define FMTEND (U)0, 0 /* End of arguments, isn't supposed to be used explicitly */
