@@ -52,9 +52,9 @@ static void printu(U64 x, Obuffer *b, U8 base)
 		obufpush(b, digits[c-1-i]);
 }
 
-static void prints(I64 x, Obuffer *b)
+static void prints(U64 x, Obuffer *b)
 {
-	if (x < 0) {
+	if ((I64)x < 0) {
 		obufpush(b, '-');
 		x = -x;
 	}
@@ -150,7 +150,7 @@ I ibufpop(Ibuffer *i)
 
 static int inputint(Ibuffer *b, int fmt, void *p)
 {
-	U v = 1;
+	U64 v = 1;
 	I c = ibufpop(b);
 	if (c == '-') {
 		v = -1;
