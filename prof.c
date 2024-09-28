@@ -5,7 +5,6 @@
 #include "fmt.h"
 #include "ntime.h"
 #include "prof.h"
-#include "mlib.h"
 #include "alloc.h"
 
 typedef struct {
