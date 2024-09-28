@@ -61,8 +61,8 @@ static void prints(U64 x, Obuffer *b)
 	printu(x, b, 10);
 }
 
-#define FMTUNSIGNED(fmt) (fmt & 0xFF00)
-#define FMTSIZE(fmt)     (fmt & 0x00FF)
+#define FMTUNSIGNED(fmt) ((fmt) & 0xFF00)
+#define FMTSIZE(fmt)     ((fmt) & 0x00FF)
 
 void _fdprint(int fd, ...)
 {
@@ -111,7 +111,7 @@ I ibufpeek(Ibuffer *i)
 {
 	if (i->next == IEMPTY) {
 		U8 c;
-		I rc = read(i->fd, &c, 1) > 0;
+		I rc = read(i->fd, &c, 1);
 		if (rc < 0)
 			i->next = IERROR;
 		else if (rc == 0)
