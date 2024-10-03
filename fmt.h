@@ -4,9 +4,9 @@
 
 #define FMTEND (U)0, 0 /* End of arguments, isn't supposed to be used explicitly */
 
-#define OD(v)  (U)0, _INTFMT(typeof(v)), 10, (U64)v
-#define OH(v)  (U)0, _INTFMT(typeof(v)), 16, (U64)v
-#define OB(v)  (U)0, _INTFMT(typeof(v)), 2,  (U64)v
+#define OD(v) (U)0, _INTFMT(typeof(v)), 10, (U64)v
+#define OH(v) (U)0, _INTFMT(typeof(v)), 16, (U64)v
+#define OB(v) (U)0, _INTFMT(typeof(v)), 2,  (U64)v
 
 void _fdprint(int fd, ...);
 
