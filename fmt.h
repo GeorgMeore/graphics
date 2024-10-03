@@ -15,7 +15,7 @@ void _fdprint(int fd, ...);
 #define eprint(...) _fdprint(2, __VA_ARGS__, FMTEND)
 #define eprintln(...) eprint(__VA_ARGS__, "\n")
 
-#define I(v)   (U)0, _INTFMT(typeof(*v)), (U)v
+#define ID(v) (U)0, _INTFMT(typeof(*v)), (U)v
 
 /* TODO: maybe add overflow checks during integer parsing. */
 int _fdinputln(int fd, ...);
