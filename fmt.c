@@ -150,15 +150,15 @@ I ibufpop(Ibuffer *i)
 
 static int inputint(Ibuffer *b, int fmt, void *p)
 {
-	U64 v = 1;
+	I neg = 0;
 	I c = ibufpop(b);
 	if (c == '-') {
-		v = -1;
+		neg = 1;
 		c = ibufpop(b);
 	}
 	if (c < '0' || c > '9')
 		return 0;
-	v *= c - '0';
+	U64 v = c - '0';
 	for (;;) {
 		c = ibufpeek(b);
 		if (c < '0' || c > '9')
@@ -166,6 +166,8 @@ static int inputint(Ibuffer *b, int fmt, void *p)
 		ibufpop(b);
 		v = v*10 + c - '0';
 	}
+	if (neg)
+		v = -v;
 	FMTSTORE(fmt, p, v);
 	return 1;
 }
