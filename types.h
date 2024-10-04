@@ -11,4 +11,4 @@ typedef U64            U; /* the machine address size */
 typedef I64            I; /* the machine address size */
 
 #define ISUNSIGNED(t) ((t)(-1) > 0)
-#define CARD(t) (2<<(sizeof(t)*8))
+#define CARD(t) (1<<(sizeof(t)*8))
