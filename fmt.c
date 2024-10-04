@@ -52,7 +52,7 @@ static void printu(U64 x, Obuffer *b, U8 base)
 		obufpush(b, digits[c-1-i]);
 }
 
-static void prints(U64 x, Obuffer *b)
+static void printi(U64 x, Obuffer *b)
 {
 	if ((I64)x < 0) {
 		obufpush(b, '-');
@@ -81,19 +81,11 @@ void _fdprint(int fd, ...)
 				obufdrain(&b);
 				break;
 			}
-			switch (va_arg(args, int)) {
-			case 2:
-				printu(va_arg(args, U64), &b, 2);
-				break;
-			case 16:
-				printu(va_arg(args, U64), &b, 16);
-				break;
-			case 10:
-				if (FMTUNSIGNED(fmt))
-					printu(va_arg(args, U64), &b, 10);
-				else
-					prints(va_arg(args, U64), &b);
-			}
+			int base = va_arg(args, int);
+			if (base == 2 || base == 16 || FMTUNSIGNED(fmt))
+				printu(va_arg(args, U64), &b, base);
+			else if (base == 10)
+				printi(va_arg(args, U64), &b);
 		}
 	}
 }
@@ -148,7 +140,7 @@ I ibufpop(Ibuffer *i)
 		_FMTSTORE(I, FMTSIZE(fmt), p, v);\
 })
 
-static int inputint(Ibuffer *b, int fmt, void *p)
+static int inputi(Ibuffer *b, int fmt, void *p)
 {
 	I neg = 0;
 	I c = ibufpop(b);
@@ -198,7 +190,7 @@ int _fdinputln(int fd, ...)
 				I c = ibufpop(&b);
 				FMTSTORE(fmt, p, c);
 			} else {
-				if (!inputint(&b, fmt, p))
+				if (!inputi(&b, fmt, p))
 					return 0;
 			}
 		}

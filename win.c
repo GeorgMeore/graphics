@@ -9,7 +9,7 @@
 #include "image.h"
 #include "win.h"
 
-#define KEYCOUNT CARD(U8)
+#define KEYCOUNT (MAXVAL(U8) + 1)
 #define BTNCOUNT 5
 
 #define RMASK RGBA(0xFF, 0, 0, 0)

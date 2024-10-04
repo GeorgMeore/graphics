@@ -1,5 +1,3 @@
-/* NOTE: this module assumes two's complement integer representation. */
-
 #define _INTFMT(type) (ISUNSIGNED(type)<<8 | sizeof(type))
 
 #define FMTEND (U)0, 0 /* End of arguments, isn't supposed to be used explicitly */
@@ -8,6 +6,7 @@
 #define OH(v) (U)0, _INTFMT(typeof(v)), 16, (U64)v
 #define OB(v) (U)0, _INTFMT(typeof(v)), 2,  (U64)v
 
+/* TODO: correct value length for binary and hex formats */
 void _fdprint(int fd, ...);
 
 #define print(...) _fdprint(1, __VA_ARGS__, FMTEND)
