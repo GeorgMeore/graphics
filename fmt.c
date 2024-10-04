@@ -45,7 +45,7 @@ static void printu(U64 x, Obuffer *b, U8 base)
 	int c;
 	for (c = 0; x; c++) {
 		/* a little bit of hacky hex digit calculation */
-		digits[c] = '0' + x%base + x%base/10*('a' - '0');
+		digits[c] = '0' + x%base%10 + x%base/10*('a' - '0');
 		x /= base;
 	}
 	for (int i = 0; i < c; i++)
