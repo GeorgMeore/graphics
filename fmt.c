@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "fmt.h"
+#include "mlib.h"
 
 #define OBUFSIZE 256 /* We don't want TOO much stuff on the stack */
 
@@ -35,13 +36,14 @@ static void obufpush(Obuffer *b, char c)
 	b->i += 1;
 }
 
-static void printu(U64 x, Obuffer *b, U8 base)
+static void printu(U64 x, Obuffer *b, U8 base, U8 bytes)
 {
 	char digits[64] = {};
 	if (!x) {
 		obufpush(b, '0');
 		return;
 	}
+	x &= MASK(0, bytes*8);
 	int c;
 	for (c = 0; x; c++) {
 		/* a little bit of hacky hex digit calculation */
@@ -52,13 +54,13 @@ static void printu(U64 x, Obuffer *b, U8 base)
 		obufpush(b, digits[c-1-i]);
 }
 
-static void printi(U64 x, Obuffer *b)
+static void printi(U64 x, Obuffer *b, U8 bytes)
 {
 	if ((I64)x < 0) {
 		obufpush(b, '-');
 		x = -x;
 	}
-	printu(x, b, 10);
+	printu(x, b, 10, bytes);
 }
 
 #define FMTUNSIGNED(fmt) ((fmt) & 0xFF00)
@@ -83,9 +85,9 @@ void _fdprint(int fd, ...)
 			}
 			int base = va_arg(args, int);
 			if (base == 2 || base == 16 || FMTUNSIGNED(fmt))
-				printu(va_arg(args, U64), &b, base);
+				printu(va_arg(args, U64), &b, base, FMTSIZE(fmt));
 			else if (base == 10)
-				printi(va_arg(args, U64), &b);
+				printi(va_arg(args, U64), &b, FMTSIZE(fmt));
 		}
 	}
 }
@@ -124,38 +126,60 @@ I ibufpop(Ibuffer *i)
 	return c;
 }
 
-#define _FMTSTORE(sign, size, p, v) ({\
-	switch (size) {\
-	case 1: *(sign##8  *)p = v; break;\
-	case 2: *(sign##16 *)p = v; break;\
-	case 4: *(sign##32 *)p = v; break;\
-	case 8: *(sign##64 *)p = v; break;\
+#define _FMTSWITCH(fmt, op, ...) ({\
+	switch (fmt) {\
+	case _INTFMT(U8):  op(U8, __VA_ARGS__); break;\
+	case _INTFMT(I8):  op(I8, __VA_ARGS__); break;\
+	case _INTFMT(U16): op(U16, __VA_ARGS__); break;\
+	case _INTFMT(I16): op(I16, __VA_ARGS__); break;\
+	case _INTFMT(U32): op(U32, __VA_ARGS__); break;\
+	case _INTFMT(I32): op(I32, __VA_ARGS__); break;\
+	case _INTFMT(U64): op(U64, __VA_ARGS__); break;\
+	case _INTFMT(I64): op(I64, __VA_ARGS__); break;\
 	}\
 })
 
-#define FMTSTORE(fmt, p, v) ({\
-	if (FMTUNSIGNED(fmt))\
-		_FMTSTORE(U, FMTSIZE(fmt), p, v);\
-	else\
-		_FMTSTORE(I, FMTSIZE(fmt), p, v);\
-})
+#define _FMTSTORE(t, p, v) (*(t *)(p) = (v))
+#define FMTSTORE(fmt, p, v) _FMTSWITCH(fmt, _FMTSTORE, p, v)
+
+
+#define _FMTGET(t, op, p) (*(p) = op(t))
+#define FMTGET(fmt, op, p) _FMTSWITCH(fmt, _FMTGET, op, p)
+
+static int isdigit10(I c)
+{
+	return c >= '0' && c <= '9';
+}
+
+static U64 fmtmaxabs(int fmt, int neg)
+{
+	U64 max;
+	if (neg) {
+		FMTGET(fmt, MINVAL, &max);
+		max = -max;
+	} else {
+		FMTGET(fmt, MAXVAL, &max);
+	}
+	return max;
+}
 
 static int inputi(Ibuffer *b, int fmt, void *p)
 {
 	I neg = 0;
-	I c = ibufpop(b);
-	if (c == '-') {
+	if (ibufpeek(b) == '-') {
+		if (FMTUNSIGNED(fmt))
+			return 0;
 		neg = 1;
-		c = ibufpop(b);
-	}
-	if (c < '0' || c > '9')
-		return 0;
-	U64 v = c - '0';
-	for (;;) {
-		c = ibufpeek(b);
-		if (c < '0' || c > '9')
-			break;
 		ibufpop(b);
+	}
+	U64 max = fmtmaxabs(fmt, neg);
+	if (!isdigit10(ibufpeek(b)))
+		return 0;
+	U64 v = 0;
+	while (isdigit10(ibufpeek(b))) {
+		I c = ibufpop(b);
+		if (v > (max - (c - '0'))/10)
+			return 0;
 		v = v*10 + c - '0';
 	}
 	if (neg)

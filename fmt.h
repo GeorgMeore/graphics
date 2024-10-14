@@ -6,7 +6,6 @@
 #define OH(v) (U)0, _INTFMT(typeof(v)), 16, (U64)v
 #define OB(v) (U)0, _INTFMT(typeof(v)), 2,  (U64)v
 
-/* TODO: correct value length for binary and hex formats */
 void _fdprint(int fd, ...);
 
 #define print(...) _fdprint(1, __VA_ARGS__, FMTEND)
@@ -16,7 +15,6 @@ void _fdprint(int fd, ...);
 
 #define ID(v) (U)0, _INTFMT(typeof(*v)), (U)v
 
-/* TODO: maybe add overflow checks during integer parsing. */
 int _fdinputln(int fd, ...);
 
 #define inputln(...) _fdinputln(0, __VA_ARGS__, FMTEND)
