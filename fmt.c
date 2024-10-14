@@ -43,6 +43,7 @@ static void printu(U64 x, Obuffer *b, U8 base, U8 bytes)
 		obufpush(b, '0');
 		return;
 	}
+	/* mask out bits that came from sign extension */
 	x &= MASK(0, bytes*8);
 	int c;
 	for (c = 0; x; c++) {
@@ -126,26 +127,6 @@ I ibufpop(Ibuffer *i)
 	return c;
 }
 
-#define _FMTSWITCH(fmt, op, ...) ({\
-	switch (fmt) {\
-	case _INTFMT(U8):  op(U8, __VA_ARGS__); break;\
-	case _INTFMT(I8):  op(I8, __VA_ARGS__); break;\
-	case _INTFMT(U16): op(U16, __VA_ARGS__); break;\
-	case _INTFMT(I16): op(I16, __VA_ARGS__); break;\
-	case _INTFMT(U32): op(U32, __VA_ARGS__); break;\
-	case _INTFMT(I32): op(I32, __VA_ARGS__); break;\
-	case _INTFMT(U64): op(U64, __VA_ARGS__); break;\
-	case _INTFMT(I64): op(I64, __VA_ARGS__); break;\
-	}\
-})
-
-#define _FMTSTORE(t, p, v) (*(t *)(p) = (v))
-#define FMTSTORE(fmt, p, v) _FMTSWITCH(fmt, _FMTSTORE, p, v)
-
-
-#define _FMTGET(t, op, p) (*(p) = op(t))
-#define FMTGET(fmt, op, p) _FMTSWITCH(fmt, _FMTGET, op, p)
-
 static int isdigit10(I c)
 {
 	return c >= '0' && c <= '9';
@@ -153,14 +134,31 @@ static int isdigit10(I c)
 
 static U64 fmtmaxabs(int fmt, int neg)
 {
-	U64 max;
-	if (neg) {
-		FMTGET(fmt, MINVAL, &max);
-		max = -max;
-	} else {
-		FMTGET(fmt, MAXVAL, &max);
+	switch (fmt) {
+	case _INTFMT(I8):  return neg ? -(U64)MINVAL(I8) : MAXVAL(I8);
+	case _INTFMT(U8):  return neg ? -(U64)MINVAL(U8) : MAXVAL(U8);
+	case _INTFMT(I16): return neg ? -(U64)MINVAL(I16) : MAXVAL(I16);
+	case _INTFMT(U16): return neg ? -(U64)MINVAL(U16) : MAXVAL(U16);
+	case _INTFMT(I32): return neg ? -(U64)MINVAL(I32) : MAXVAL(I32);
+	case _INTFMT(U32): return neg ? -(U64)MINVAL(U32) : MAXVAL(U32);
+	case _INTFMT(I64): return neg ? -(U64)MINVAL(I64) : MAXVAL(I64);
+	case _INTFMT(U64): return neg ? -(U64)MINVAL(U64) : MAXVAL(U64);
 	}
-	return max;
+	return 0;
+}
+
+static void fmtstore(int fmt, void *p, U64 val)
+{
+	switch (fmt) {
+	case _INTFMT(U8):  *(U8 *)p = val; break;
+	case _INTFMT(I8):  *(I8 *)p = val; break;
+	case _INTFMT(U16): *(U16 *)p = val; break;
+	case _INTFMT(I16): *(I16 *)p = val; break;
+	case _INTFMT(U32): *(U32 *)p = val; break;
+	case _INTFMT(I32): *(I32 *)p = val; break;
+	case _INTFMT(U64): *(U64 *)p = val; break;
+	case _INTFMT(I64): *(I64 *)p = val; break;
+	}
 }
 
 static int inputi(Ibuffer *b, int fmt, void *p)
@@ -184,7 +182,7 @@ static int inputi(Ibuffer *b, int fmt, void *p)
 	}
 	if (neg)
 		v = -v;
-	FMTSTORE(fmt, p, v);
+	fmtstore(fmt, p, v);
 	return 1;
 }
 
@@ -212,7 +210,7 @@ int _fdinputln(int fd, ...)
 			void *p = va_arg(args, void *);
 			if (FMTSIZE(fmt) == 1) {
 				I c = ibufpop(&b);
-				FMTSTORE(fmt, p, c);
+				fmtstore(fmt, p, c);
 			} else {
 				if (!inputi(&b, fmt, p))
 					return 0;
