@@ -54,6 +54,31 @@ void drawcircle(Image *i, int xc, int yc, int r, Color c)
 			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 }
 
+void drawsmoothcircle(Image *i, int xc, int yc, int r, Color c)
+{
+	const int n = 3; /* NOTE: looks ok */
+	for (int x = CLIPX(i, xc-r); x < CLIPX(i, 1+xc+r); x++)
+	for (int y = CLIPY(i, yc-r); y < CLIPY(i, 1+yc+r); y++) {
+		int hits = 0;
+		for (int dx = 0; dx < n; dx++)
+		for (int dy = 0; dy < n; dy++)
+			hits += SQUARE((x-xc)*n + (dx-n/2)) + SQUARE((y-yc)*n + (dy-n/2)) < SQUARE(r*n);
+		if (hits)
+			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+	}
+}
+
+void drawbezier2(Image *i, int x1, int y1, int x2, int y2, int x3, int y3, Color c)
+{
+	const int n = 100; /* NOTE: looks ok */
+	for (int t = 1, xp = x1, yp = y1; t <= n; t++) {
+		int x = (SQUARE(n-t)*x1 + 2*(n-t)*t*x2 + SQUARE(t)*x3)/SQUARE(n);
+		int y = (SQUARE(n-t)*y1 + 2*(n-t)*t*y2 + SQUARE(t)*y3)/SQUARE(n);
+		drawline(i, xp, yp, x, y, c);
+		xp = x, yp = y;
+	}
+}
+
 void drawrect(Image *i, int xtl, int ytl, int w, int h, Color c)
 {
 	if (w < 0) {
@@ -85,8 +110,7 @@ void drawline(Image *i, int x1, int y1, int x2, int y2, Color c)
 			if (CHECKY(i, y))
 				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 		}
-	}
-	else {
+	} else {
 		if (y1 > y2) {
 			SWAP(y1, y2);
 			SWAP(x1, x2);

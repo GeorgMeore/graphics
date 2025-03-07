@@ -18,9 +18,9 @@ typedef U32 Color;
 #define WHITE  RGBA(255, 255, 255, 255)
 #define YELLOW RGBA(255, 255, 000, 255)
 
-/* NOTE: this is simple linear blending, no gamma-correction */
-#define BLEND(c1, c2) RGBA(\
-	CLAMP((R(c1)*(255-A(c2)))/255 + R(c2), 0, 255),\
-	CLAMP((G(c1)*(255-A(c2)))/255 + G(c2), 0, 255),\
-	CLAMP((B(c1)*(255-A(c2)))/255 + B(c2), 0, 255),\
-	CLAMP(255 - (255-A(c1))*(255-A(c2))/255, 0, 255))
+/* NOTE: no gamma-correction (not even sure it is correct, but looks ok) */
+#define BLEND(b, t) RGBA(\
+	CLAMP((R(b)*(255-A(t)) + R(t)*A(t))/255, 0, 255),\
+	CLAMP((G(b)*(255-A(t)) + G(t)*A(t))/255, 0, 255),\
+	CLAMP((B(b)*(255-A(t)) + B(t)*A(t))/255, 0, 255),\
+	CLAMP((A(t)*255 + A(b)*(255 - A(t)))/255, 0, 255))

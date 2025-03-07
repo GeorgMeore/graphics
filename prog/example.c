@@ -37,14 +37,14 @@ void drawshapes(Image *i, int dx, int dy)
 	drawcircle(i, 900+dx, 900+dy, 10, GREEN);
 	drawtriangle(i, 800+dx, 600+dy, 900+dx, 700+dy, 900+dx, 900+dy, GREEN);
 
-	drawcircle(i, 1000+dx, 900+dy, 10, GREEN);
-	drawcircle(i, 1500+dx, 900+dy, 10, GREEN);
-	drawcircle(i, 1300+dx, 1000+dy, 10, GREEN);
+	drawsmoothcircle(i, 1000+dx, 900+dy, 10, GREEN);
+	drawsmoothcircle(i, 1500+dx, 900+dy, 10, GREEN);
+	drawsmoothcircle(i, 1300+dx, 1000+dy, 10, GREEN);
 	drawtriangle(i, 1000+dx, 900+dy, 1500+dx, 900+dy, 1300+dx, 1000+dy, GREEN);
 
-	drawcircle(i, 1000+dx, 600+dy, 10, GREEN);
-	drawcircle(i, 1500+dx, 600+dy, 10, GREEN);
-	drawcircle(i, 1300+dx, 500+dy, 10, GREEN);
+	drawsmoothcircle(i, 1000+dx, 600+dy, 10, GREEN);
+	drawsmoothcircle(i, 1500+dx, 600+dy, 10, GREEN);
+	drawsmoothcircle(i, 1300+dx, 500+dy, 10, GREEN);
 	drawtriangle(i, 1000+dx, 600+dy, 1500+dx, 600+dy, 1300+dx, 500+dy, GREEN);
 
 	drawtriangle(i, 0+dx, 0+dy, 100+dx, 0+dy, 100+dx, 100+dy, BLUE);
@@ -72,10 +72,10 @@ int main()
 		profbegin("drawing");
 		drawgradients(&l, dy, dx);
 		drawshapes(&r, dx, dy);
-		drawrect(fb, mx, my, 50, 50, RGBA(0, 0, 255, 50));
-		drawrect(fb, mx, my, -50, -50, RGBA(200, 200, 0, 50));
-		drawrect(fb, mx, my, 50, -50, RGBA(255, 0, 0, 50));
-		drawrect(fb, mx, my, -50, 50, RGBA(255, 0, 255, 50));
+		drawrect(fb, mx, my, 50, 50, RGBA(0, 0, 255, 100));
+		drawrect(fb, mx, my, -50, -50, RGBA(200, 200, 0, 100));
+		drawrect(fb, mx, my, 50, -50, RGBA(255, 0, 0, 100));
+		drawrect(fb, mx, my, -50, 50, RGBA(255, 0, 255, 100));
 		profend();
 
 		if (keyisdown('q')) break;

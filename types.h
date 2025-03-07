@@ -17,3 +17,6 @@ typedef I64            I; /* the machine address size */
 #define NBITS(t) (sizeof(t)*8)
 #define MINVAL(t) ((t)((U64)ISSIGNED(t)<<(NBITS(t) - 1)))
 #define MAXVAL(t) ((t)~MINVAL(t))
+
+typedef float  F32;
+typedef double F64;

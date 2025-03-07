@@ -27,7 +27,7 @@
 #define MOD(a, b) ((((a) % (b)) + (b)) % (b))
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
-#define CLAMP(a, l, r) (MIN(MAX(l, a), r))
+#define CLAMP(x, l, r) (MIN(MAX(l, x), r))
 #define ALIGNUP(n, m) (DIVCEIL(n, m) * (m))
 #define ALIGNDOWN(n, m) ((n) / (m) * (m))
 #define LP2(n) ((n) ^ ((n) & ((n) - 1))) /* lowest power of 2 that evenly divides n */
