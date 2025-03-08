@@ -59,12 +59,17 @@ void drawsmoothcircle(Image *i, int xc, int yc, int r, Color c)
 	const int n = 3; /* NOTE: looks ok */
 	for (int x = CLIPX(i, xc-r); x < CLIPX(i, 1+xc+r); x++)
 	for (int y = CLIPY(i, yc-r); y < CLIPY(i, 1+yc+r); y++) {
-		int hits = 0;
-		for (int dx = 0; dx < n; dx++)
-		for (int dy = 0; dy < n; dy++)
-			hits += SQUARE((x-xc)*n + (dx-n/2)) + SQUARE((y-yc)*n + (dy-n/2)) < SQUARE(r*n);
-		if (hits)
-			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+		/* NOTE: check if the point is definitely inside the circle */
+		if (ABS(x-xc) < r*43/64 && ABS(y-yc) < r*43/64) {
+			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
+		} else {
+			int hits = 0;
+			for (int dx = 0; dx < n; dx++)
+			for (int dy = 0; dy < n; dy++)
+				hits += SQUARE((x-xc)*n + SIGN(x-xc)*dx) + SQUARE((y-yc)*n + SIGN(y-yc)*dy) < SQUARE(r*n);
+			if (hits)
+				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+		}
 	}
 }
 
