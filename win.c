@@ -10,7 +10,7 @@
 #include "win.h"
 
 #define KEYCOUNT (MAXVAL(U8) + 1)
-#define BTNCOUNT 5
+#define BTNCOUNT 6
 
 #define RMASK RGBA(0xFF, 0, 0, 0)
 #define GMASK RGBA(0, 0xFF, 0, 0)
