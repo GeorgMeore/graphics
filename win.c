@@ -204,19 +204,24 @@ U64 lastframetime(void)
 	return defxwin.framens;
 }
 
+void flush(void)
+{
+	if (!defxwin.i)
+		return;
+	if (defxwin.needswap)
+		/* NOTE: Xlib can actually do the swapping for us, if the image's
+		 * byte_order field doesn't match server's, but... */
+		swaprgb32(&defxwin.fb);
+	XPutImage(defxwin.d, defxwin.bb, defxwin.gc, defxwin.i, 0, 0, 0, 0, defxwin.fb.w, defxwin.fb.h);
+	XCopyArea(defxwin.d, defxwin.bb, defxwin.win, defxwin.gc, 0, 0, defxwin.fb.w, defxwin.fb.h, 0, 0);
+	XSync(defxwin.d, 0);
+}
+
 void frameend(void)
 {
 	if (!defxwin.d)
 		return;
-	if (defxwin.i) {
-		if (defxwin.needswap)
-			/* NOTE: Xlib can actually do the swapping for us, if the image's
-			 * byte_order field doesn't match server's, but... */
-			swaprgb32(&defxwin.fb);
-		XPutImage(defxwin.d, defxwin.bb, defxwin.gc, defxwin.i, 0, 0, 0, 0, defxwin.fb.w, defxwin.fb.h);
-		XCopyArea(defxwin.d, defxwin.bb, defxwin.win, defxwin.gc, 0, 0, defxwin.fb.w, defxwin.fb.h, 0, 0);
-	}
-	XSync(defxwin.d, 0);
+	flush();
 	for (int i = 0; i < BTNCOUNT; i++)
 		defxwin.prevbtndown[i] = defxwin.btndown[i];
 	for (int i = 0; i < KEYCOUNT; i++)

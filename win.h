@@ -2,6 +2,7 @@ void   winopen(U16 w, U16 h, const char *title, U16 fps);
 void   winclose(void);
 Image* framebegin(void);
 void   frameend(void);
+void   flush(void);
 U64    lastframetime(void);
 int    keyisdown(U8 k);
 int    keywaspressed(U8 k);

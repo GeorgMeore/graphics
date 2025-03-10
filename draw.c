@@ -46,6 +46,7 @@ void drawtriangle(Image *i, int x1, int y1, int x2, int y2, int x3, int y3, Colo
 	drawhalftriangle(i, x3, y3, x2, y2, x1, y1, c);
 }
 
+/* TODO: this is very slow, need to experiment with optimizations */
 void drawsmoothtriangle(Image *i, int x1, int y1, int x2, int y2, int x3, int y3, Color c)
 {
 	const int n = 3;

@@ -25,7 +25,7 @@ void updatepoint(Image *i, int p[2])
 
 int main(void)
 {
-	winopen(600, 600, "Triangle", 60);
+	winopen(600, 600, "Circle", 60);
 	int pt[2][2] = {{100, 100}, {200, 200}};
 	Color c[2] = {RED, GREEN};
 	int smooth = 1;
