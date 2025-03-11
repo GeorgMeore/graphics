@@ -22,14 +22,22 @@ typedef struct {
 
 static void statadd(Stat *s, U64 x)
 {
-	if (x < s->min || !s->n)
+	if (x < s->min)
 		s->min = x;
-	if (x > s->max || !s->n)
+	if (x > s->max)
 		s->max = x;
 	s->n += 1;
 	U64 newavg = (s->avg*s->n + (x - s->avg))/s->n;
 	s->stdev2 = (s->stdev2*(s->n - 1) + (x - s->avg)*(x - newavg))/s->n;
 	s->avg = newavg;
+}
+
+static void statreset(Stat *s)
+{
+	s->n = 0;
+	s->avg = 0;
+	s->min = MAXVAL(U64);
+	s->max = 0;
 }
 
 #define MAXNAME 256
@@ -75,6 +83,7 @@ static Section *profaddsection(Profiler *p, const char *name)
 	}
 	Section *s = &p->ss[p->scount];
 	strncpy(s->name, name, MAXNAME);
+	statreset(&s->time);
 	s->name[MAXNAME] = '\0';
 	p->scount += 1;
 	return s;
@@ -117,4 +126,11 @@ void _profdump(void)
 		Section *s = &defpr.ss[i];
 		println("prof: ", s->name, ": ", FMTSTAT(&s->time));
 	}
+}
+
+void _profreset(const char *name)
+{
+	for (int i = 0; i < defpr.scount; i++)
+		if (!strncmp(defpr.ss[i].name, name, MAXNAME))
+			statreset(&defpr.ss[i].time);
 }
