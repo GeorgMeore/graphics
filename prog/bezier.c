@@ -69,7 +69,7 @@ int main(void)
 				drawline(fb, c->pt[i][0], c->pt[i][1], c->pt[1][0], c->pt[1][1], RGBA(40, 40, 40, 255));
 			for (int i = 0; i < 3; i++)
 				drawsmoothcircle(fb, c->pt[i][0], c->pt[i][1], 6, WHITE);
-			drawbezier2(fb, c->pt[0][0], c->pt[0][1], c->pt[1][0], c->pt[1][1], c->pt[2][0], c->pt[2][1], WHITE);
+			drawbezier(fb, c->pt[0][0], c->pt[0][1], c->pt[1][0], c->pt[1][1], c->pt[2][0], c->pt[2][1], WHITE);
 		}
 		for (int i = 0; i < tmpcnt; i++)
 			drawsmoothcircle(fb, tmp[i][0], tmp[i][1], 6, RED);

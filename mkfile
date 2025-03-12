@@ -7,7 +7,7 @@ LDFLAGS=-lX11 -lm
 MOD=win draw prof ntime panic fmt image alloc
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
-PROGNAMES=example paint io bezier triangle circle
+PROGNAMES=example paint io bezier triangle circle line
 PROGS=${PROGNAMES:%=prog/%}
 UTESTNAMES=test_types test_mlib
 UTESTS=${UTESTNAMES:%=test/%}

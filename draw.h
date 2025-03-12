@@ -1,8 +1,11 @@
 void drawclear(Image *i, Color c);
-void drawtriangle(Image *i, int x1, int y1, int x2, int y2, int x3, int y3, Color c);
-void drawsmoothtriangle(Image *i, int x1, int y1, int x2, int y2, int x3, int y3, Color c);
-void drawcircle(Image *i, int xc, int yc, int r, Color c);
-void drawsmoothcircle(Image *i, int xc, int yc, int r, Color c);
-void drawbezier2(Image *i, int x1, int y1, int x2, int y2, int x3, int y3, Color c);
-void drawrect(Image *i, int xtl, int ytl, int w, int h, Color c);
-void drawline(Image *i, int x1, int y1, int x2, int y2, Color c);
+void drawtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c);
+void drawsmoothtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c);
+void drawcircle(Image *i, I32 xc, I32 yc, I32 r, Color c);
+void drawsmoothcircle(Image *i, I32 xc, I32 yc, I32 r, Color c);
+void drawbezier(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c);
+void drawbezier2b(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c);
+void drawrect(Image *i, I32 xtl, I32 ytl, I32 w, I32 h, Color c);
+void drawline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, Color c);
+void drawbresenham(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, Color c);
+void drawpixel(Image *i, I32 x, I32 y, Color c);
