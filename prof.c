@@ -1,7 +1,5 @@
-#include <string.h>
-#include <math.h>
-
 #include "types.h"
+#include "math.h"
 #include "fmt.h"
 #include "ntime.h"
 #include "prof.h"
@@ -18,7 +16,7 @@ typedef struct {
 #define FMTSTAT(t) "min=", OD((t)->min),\
 	", max=", OD((t)->max),\
 	", avg=", OD((t)->avg),\
-	", stdev=", OD(sqrtf((t)->stdev2))
+	", stdev=", OD(isqrt((t)->stdev2))
 
 static void statadd(Stat *s, U64 x)
 {
@@ -82,7 +80,8 @@ static Section *profaddsection(Profiler *p, const char *name)
 		p->ss = memreallocarray(p->ss, p->scap, sizeof(p->ss[0]));
 	}
 	Section *s = &p->ss[p->scount];
-	strncpy(s->name, name, MAXNAME);
+	for (int i = 0; i < MAXNAME && name[i]; i++)
+		s->name[i] = name[i];
 	statreset(&s->time);
 	s->name[MAXNAME] = '\0';
 	p->scount += 1;
@@ -98,15 +97,19 @@ static Entry *profpop(Profiler *p)
 	return 0;
 }
 
+static Section *proffindsection(Profiler *p, const char *name)
+{
+	for (int i = 0; i < p->scount; i++) {
+		for (int j = 0; p->ss[i].name[j] == name[j]; j++)
+			if (j >= MAXNAME || !name[j])
+				return &p->ss[i];
+	}
+	return 0;
+}
+
 void _profbegin(const char *name)
 {
-	Section *s = 0;
-	for (int i = 0; i < defpr.scount; i++) {
-		if (!strncmp(defpr.ss[i].name, name, MAXNAME)) {
-			s = &defpr.ss[i];
-			break;
-		}
-	}
+	Section *s = proffindsection(&defpr, name);
 	if (!s)
 		s = profaddsection(&defpr, name);
 	profpush(&defpr, s, timens());
@@ -130,7 +133,7 @@ void _profdump(void)
 
 void _profreset(const char *name)
 {
-	for (int i = 0; i < defpr.scount; i++)
-		if (!strncmp(defpr.ss[i].name, name, MAXNAME))
-			statreset(&defpr.ss[i].time);
+	Section *s = proffindsection(&defpr, name);
+	if (s)
+		statreset(&s->time);
 }

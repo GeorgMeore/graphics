@@ -1,5 +1,3 @@
-#include <math.h>
-
 #include "types.h"
 #include "alloc.h"
 #include "mlib.h"

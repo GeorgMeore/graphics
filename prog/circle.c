@@ -1,6 +1,5 @@
-#include <math.h>
-
 #include "types.h"
+#include "math.h"
 #include "alloc.h"
 #include "mlib.h"
 #include "color.h"
@@ -37,9 +36,9 @@ int main(void)
 			smooth = !smooth;
 		drawclear(fb, BLACK);
 		if (smooth)
-			drawsmoothcircle(fb, pt[0][0], pt[0][1], sqrt(SQUARE(pt[1][0]-pt[0][0]) + SQUARE(pt[1][1]-pt[0][1])), WHITE);
+			drawsmoothcircle(fb, pt[0][0], pt[0][1], isqrt(SQUARE(pt[1][0]-pt[0][0]) + SQUARE(pt[1][1]-pt[0][1])), WHITE);
 		else
-			drawcircle(fb, pt[0][0], pt[0][1], sqrt(SQUARE(pt[1][0]-pt[0][0]) + SQUARE(pt[1][1]-pt[0][1])), WHITE);
+			drawcircle(fb, pt[0][0], pt[0][1], isqrt(SQUARE(pt[1][0]-pt[0][0]) + SQUARE(pt[1][1]-pt[0][1])), WHITE);
 		for (int i = 0; i < 2; i++)
 			drawsmoothcircle(fb, pt[i][0], pt[i][1], 5, c[i]);
 		frameend();
