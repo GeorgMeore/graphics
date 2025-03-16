@@ -65,7 +65,7 @@ static void profpush(Profiler *p, Section *s, U64 t)
 {
 	if (p->edepth >= p->ecap) {
 		p->ecap = p->ecap*2 + 1;
-		p->es = memreallocarray(p->es, p->ecap, sizeof(p->es[0]));
+		p->es = memrealloc(p->es, p->ecap*sizeof(p->es[0]));
 	}
 	Entry *e = &p->es[p->edepth];
 	e->s = s;
@@ -77,7 +77,7 @@ static Section *profaddsection(Profiler *p, const char *name)
 {
 	if (p->scount >= p->scap) {
 		p->scap = p->scap*2 + 1;
-		p->ss = memreallocarray(p->ss, p->scap, sizeof(p->ss[0]));
+		p->ss = memrealloc(p->ss, p->scap*sizeof(p->ss[0]));
 	}
 	Section *s = &p->ss[p->scount];
 	for (int i = 0; i < MAXNAME && name[i]; i++)

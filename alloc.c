@@ -370,13 +370,3 @@ void *memrealloc(void *p, U size)
 {
 	return memrealloca(p, size, sizeof(U));
 }
-
-void *memallocarray(U n, U size)
-{
-	return memalloc(n*size);
-}
-
-void *memreallocarray(void *p, U n, U size)
-{
-	return memrealloc(p, n*size);
-}

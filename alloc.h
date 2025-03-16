@@ -28,5 +28,3 @@ void *memalloc(U size);
 void *memrealloca(void *p, U size, U align);
 void *memrealloc(void *p, U size);
 void memfree(void *p);
-void *memallocarray(U n, U size);
-void *memreallocarray(void *p, U n, U size);
