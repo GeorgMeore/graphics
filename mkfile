@@ -7,12 +7,12 @@ LDFLAGS=-lX11 -lm
 MOD=win draw prof ntime panic fmt image alloc math
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
-PROGNAMES=example paint io bezier triangle circle line
-PROGS=${PROGNAMES:%=prog/%}
+PROGNAMES=split paint io bezier triangle circle line
+PROGS=${PROGNAMES:%=examples/%}
 UTESTNAMES=test_types test_mlib
 UTESTS=${UTESTNAMES:%=test/%}
 
-progs:V: $PROGS
+examples:V: $PROGS
 
 tests:VQ: $UTESTS
 	for test in $prereq; do
@@ -22,7 +22,7 @@ tests:VQ: $UTESTS
 test/%: test/%.c
 	$CC $CFLAGS -o $target $prereq $LDFLAGS
 
-prog/%: prog/%.c $OBJ
+examples/%: examples/%.c $OBJ
 	[ "$D" != 0 ] && CFLAGS=$CFLAGS' '$CDEBUGFLAGS
 	$CC $CFLAGS -o $target $prereq $LDFLAGS
 
