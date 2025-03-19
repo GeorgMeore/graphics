@@ -56,7 +56,9 @@ void drawsmoothtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3
 		for (I64 dx = 0; dx < n; dx++)
 		for (I64 dy = 0; dy < n; dy++) {
 			/* TODO: I think an overflow can happen here, buut... */
-			/* NOTE: check if the point is oriented equally to all sides */
+			/* NOTE: SIGN((yp - y1)*(x2 - x1) - (xp - x1)*(y2 - y1)) gets us the the orientation
+			 * of the point (xp, yp) relative to the line (x1, y1) -> (x2, y2):
+			 * -1 (to the left), 0 (on the line) or 1 (to the right) */
 			I64 o1 = SIGN(((y - y1)*n + dy)*(x2 - x1) - ((x - x1)*n + dx)*(y2 - y1));
 			I64 o2 = SIGN(((y - y2)*n + dy)*(x3 - x2) - ((x - x2)*n + dx)*(y3 - y2));
 			I64 o3 = SIGN(((y - y3)*n + dy)*(x1 - x3) - ((x - x3)*n + dx)*(y1 - y3));
