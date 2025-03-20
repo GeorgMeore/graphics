@@ -1,6 +1,6 @@
 #include "mlib.h"
 #include "types.h"
-#include "fmt.h"
+#include "io.h"
 
 int main(void)
 {

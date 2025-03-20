@@ -1,6 +1,6 @@
 #include "types.h"
 #include "math.h"
-#include "fmt.h"
+#include "io.h"
 #include "ntime.h"
 #include "prof.h"
 #include "alloc.h"

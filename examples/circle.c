@@ -6,7 +6,6 @@
 #include "image.h"
 #include "win.h"
 #include "draw.h"
-#include "fmt.h"
 
 void updatepoint(Image *i, int p[2])
 {

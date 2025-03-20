@@ -1,13 +1,13 @@
 CC=gcc
 O=0 # no optimisations by default
-D=0 # builds are not in debug mode by default
+D=1 # builds are not in debug mode by default
 CDEBUGFLAGS=-g -fsanitize=undefined,address
 CFLAGS=-I. -Wall -Wextra -O$O
 LDFLAGS=-lX11 -lm
-MOD=win draw prof ntime panic fmt image alloc math
+MOD=win draw prof ntime panic io image alloc math ppm
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
-PROGNAMES=split paint io bezier triangle circle line
+PROGNAMES=split paint io bezier triangle circle line ppm
 PROGS=${PROGNAMES:%=examples/%}
 UTESTNAMES=test_types test_mlib
 UTESTS=${UTESTNAMES:%=test/%}

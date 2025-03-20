@@ -2,45 +2,75 @@
 #include <stdarg.h>
 
 #include "types.h"
-#include "fmt.h"
+#include "io.h"
 #include "mlib.h"
 
-#define OBUFSIZE 256 /* We don't want TOO much stuff on the stack */
+static IOBuffer _bin  = {.fd = 0};
+static IOBuffer _bout = {.fd = 1};
+static IOBuffer _berr = {.fd = 2};
 
-typedef struct {
-	int fd;
-	char data[OBUFSIZE];
-	int i;
-} Obuffer;
+IOBuffer *bin  = &_bin;
+IOBuffer *bout = &_bout;
+IOBuffer *berr = &_berr;
 
-static void obufdrain(Obuffer *b)
+int bpeek(IOBuffer *b)
 {
-	for (char *d = b->data; b->i;) {
-		int rc = write(b->fd, d, b->i);
-		if (rc < 0) {
-			/* NOTE: here we just drop everything in case of an error.
-			 * Maybe that's not very correct, but who actually checks printf return values? */
-			b->i = 0;
+	if (b->i == b->count) {
+		if (b->error)
+			return -1;
+		/* TODO: maybe I do need to distinguish eof from errors */
+		int n = read(b->fd, b->bytes, IOBUFSIZE);
+		if (n <= 0) {
+			b->error = 1;
+			return -1;
+		}
+		b->count = n;
+		b->i = 0;
+	}
+	return b->bytes[b->i];
+}
+
+int bread(IOBuffer *b)
+{
+	int c = bpeek(b);
+	if (c != -1)
+		b->i += 1;
+	return c;
+}
+
+int bflush(IOBuffer *b)
+{
+	if (b->error)
+		return 0;
+	for (U8 *p = b->bytes; b->i && !b->error;) {
+		int n = write(b->fd, p, b->i);
+		if (n < 0) {
+			b->error = 1;
+			return 0;
 		} else {
-			d += rc;
-			b->i -= rc;
+			p += n;
+			b->i -= n;
 		}
 	}
+	return 1;
 }
 
-static void obufpush(Obuffer *b, char c)
+int bwrite(IOBuffer *b, U8 v)
 {
-	if (b->i + 1 >= OBUFSIZE)
-		obufdrain(b);
-	b->data[b->i] = c;
+	if (b->i == IOBUFSIZE)
+		bflush(b);
+	if (b->error)
+		return 0;
+	b->bytes[b->i] = v;
 	b->i += 1;
+	return 1;
 }
 
-static void printu(U64 x, Obuffer *b, U8 base, U8 bytes)
+static void printu(U64 x, IOBuffer *b, U8 base, U8 bytes)
 {
 	char digits[64] = {};
 	if (!x) {
-		obufpush(b, '0');
+		bwrite(b, '0');
 		return;
 	}
 	/* mask out bits that came from sign extension */
@@ -52,13 +82,13 @@ static void printu(U64 x, Obuffer *b, U8 base, U8 bytes)
 		x /= base;
 	}
 	for (int i = 0; i < c; i++)
-		obufpush(b, digits[c-1-i]);
+		bwrite(b, digits[c-1-i]);
 }
 
-static void printi(U64 x, Obuffer *b, U8 bytes)
+static void printi(U64 x, IOBuffer *b, U8 bytes)
 {
 	if ((I64)x < 0) {
-		obufpush(b, '-');
+		bwrite(b, '-');
 		x = -x;
 	}
 	printu(x, b, 10, bytes);
@@ -67,64 +97,28 @@ static void printi(U64 x, Obuffer *b, U8 bytes)
 #define FMTUNSIGNED(fmt) ((fmt) & 0xFF00)
 #define FMTSIZE(fmt)     ((fmt) & 0x00FF)
 
-void _fdprint(int fd, ...)
+int _bprint(IOBuffer *b, ...)
 {
 	va_list args;
-	va_start(args, fd);
-	Obuffer b = {.fd = fd};
+	va_start(args, b);
 	for (;;) {
 		char *s = va_arg(args, char *);
 		if (s) {
 			for (; *s; s++)
-				obufpush(&b, *s);
+				bwrite(b, *s);
 		} else {
 			int fmt = va_arg(args, int);
 			if (fmt == 0) {
 				va_end(args);
-				obufdrain(&b);
-				break;
+				return bflush(b);
 			}
 			int base = va_arg(args, int);
 			if (base == 2 || base == 16 || FMTUNSIGNED(fmt))
-				printu(va_arg(args, U64), &b, base, FMTSIZE(fmt));
+				printu(va_arg(args, U64), b, base, FMTSIZE(fmt));
 			else if (base == 10)
-				printi(va_arg(args, U64), &b, FMTSIZE(fmt));
+				printi(va_arg(args, U64), b, FMTSIZE(fmt));
 		}
 	}
-}
-
-#define IEOF   -1
-#define IERROR -2
-#define IEMPTY -3
-
-typedef struct {
-	int fd;
-	I next;
-} Ibuffer;
-
-I ibufpeek(Ibuffer *i)
-{
-	if (i->next == IEMPTY) {
-		U8 c;
-		I rc = read(i->fd, &c, 1);
-		if (rc < 0)
-			i->next = IERROR;
-		else if (rc == 0)
-			i->next = IEOF;
-		else
-			i->next = c;
-	}
-	return i->next;
-}
-
-I ibufpop(Ibuffer *i)
-{
-	if (i->next == IEMPTY)
-		ibufpeek(i);
-	I c = i->next;
-	if (i->next >= 0)
-		i->next = IEMPTY;
-	return c;
 }
 
 static int isdigit10(I c)
@@ -161,21 +155,21 @@ static void fmtstore(int fmt, void *p, U64 val)
 	}
 }
 
-static int inputi(Ibuffer *b, int fmt, void *p)
+static int inputi(IOBuffer *b, int fmt, void *p)
 {
 	I neg = 0;
-	if (ibufpeek(b) == '-') {
+	if (bpeek(b) == '-') {
 		if (FMTUNSIGNED(fmt))
 			return 0;
 		neg = 1;
-		ibufpop(b);
+		bread(b);
 	}
 	U64 max = fmtmaxabs(fmt, neg);
-	if (!isdigit10(ibufpeek(b)))
+	if (!isdigit10(bpeek(b)))
 		return 0;
 	U64 v = 0;
-	while (isdigit10(ibufpeek(b))) {
-		I c = ibufpop(b);
+	while (isdigit10(bpeek(b))) {
+		I c = bread(b);
 		if (v > (max - (c - '0'))/10)
 			return 0;
 		v = v*10 + c - '0';
@@ -186,35 +180,30 @@ static int inputi(Ibuffer *b, int fmt, void *p)
 	return 1;
 }
 
-int _fdinputln(int fd, ...)
+int _binput(IOBuffer *b, ...)
 {
 	va_list args;
-	va_start(args, fd);
-	Ibuffer b = {.fd = fd, .next = IEMPTY};
-	for (;;) {
+	va_start(args, b);
+	int ok = 1;
+	while (ok) {
 		char *s = va_arg(args, char *);
 		if (s) {
-			for (; *s; s++) {
-				if (*s != ibufpop(&b)) {
-					va_end(args);
-					return 0;
-				}
-			}
+			for (; *s && ok; s++)
+				ok = *s == bread(b);
 		} else {
 			int fmt = va_arg(args, int);
-			if (!fmt) {
-				if (ibufpeek(&b) == '\n')
-					return 1;
-				return 0;
-			}
+			if (!fmt)
+				break;
 			void *p = va_arg(args, void *);
 			if (FMTSIZE(fmt) == 1) {
-				I c = ibufpop(&b);
+				I c = bread(b);
 				fmtstore(fmt, p, c);
+				ok = c != -1;
 			} else {
-				if (!inputi(&b, fmt, p))
-					return 0;
+				ok = inputi(b, fmt, p);
 			}
 		}
 	}
+	va_end(args);
+	return ok;
 }
