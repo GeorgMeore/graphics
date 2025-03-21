@@ -8,7 +8,6 @@
 #include "io.h"
 #include "ppm.h"
 
-/* TODO: proper parsing (ppm "header" values can be separated by arbitrary amount of spaces) */
 Image loadppm(const char *path)
 {
 	Image i = {};
@@ -17,7 +16,7 @@ Image loadppm(const char *path)
 		return i;
 	IOBuffer b = {.fd = fd};
 	U16 w, h, m;
-	if (!binputln(&b, "P6", "\n", ID(&w), " ", ID(&h), "\n", ID(&m)))
+	if (!binput(&b, "P6", IWS, ID(&w), IWS, ID(&h), IWS, ID(&m), IWS1))
 		goto out;
 	if (!m || m >= 256) /* TODO: 2-byte ppms */
 		goto out;
@@ -26,8 +25,8 @@ Image loadppm(const char *path)
 		goto out;
 	for (U16 y = 0; y < h; y++)
 	for (U16 x = 0; x < w; x++) {
-		I rv = bread(&b), gv = bread(&b), bv = bread(&b);
-		if (rv == -1 || gv == -1 || bv == -1) {
+		U8 rv, gv, bv;
+		if (!binput(&b, ID(&rv), ID(&gv), ID(&bv))) {
 			memfree(p);
 			goto out;
 		}

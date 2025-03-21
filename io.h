@@ -34,7 +34,9 @@ int _bprint(IOBuffer *b, ...);
 #define eprint(...) bprint(berr, __VA_ARGS__)
 #define eprintln(...) bprintln(berr, __VA_ARGS__)
 
-#define ID(v) (U)0, _INTFMT(typeof(*(v))), (U)(v)
+#define ID(v)  (U)0, _INTFMT(typeof(*(v))), (U)(v)
+#define IWS    "", (U)-1
+#define IWS1   "", (U)1
 
 int _binput(IOBuffer *b, ...);
 

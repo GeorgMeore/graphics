@@ -2,6 +2,7 @@
 #include "alloc.h"
 #include "color.h"
 #include "image.h"
+#include "ppm.h"
 #include "win.h"
 #include "draw.h"
 
@@ -120,6 +121,8 @@ int main(void)
 			endcurve(&p);
 		drawclear(fb, BGCOLOR);
 		drawcurves(fb, p);
+		if (keywaspressed('s'))
+			saveppm(fb, "out.ppm");
 		frameend();
 	}
 	winclose();

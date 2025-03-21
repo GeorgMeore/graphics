@@ -66,7 +66,7 @@ int bwrite(IOBuffer *b, U8 v)
 	return 1;
 }
 
-static void printu(U64 x, IOBuffer *b, U8 base, U8 bytes)
+static void bprintu(U64 x, IOBuffer *b, U8 base, U8 bytes)
 {
 	char digits[64] = {};
 	if (!x) {
@@ -85,13 +85,13 @@ static void printu(U64 x, IOBuffer *b, U8 base, U8 bytes)
 		bwrite(b, digits[c-1-i]);
 }
 
-static void printi(U64 x, IOBuffer *b, U8 bytes)
+static void bprinti(U64 x, IOBuffer *b, U8 bytes)
 {
 	if ((I64)x < 0) {
 		bwrite(b, '-');
 		x = -x;
 	}
-	printu(x, b, 10, bytes);
+	bprintu(x, b, 10, bytes);
 }
 
 #define FMTUNSIGNED(fmt) ((fmt) & 0xFF00)
@@ -114,16 +114,21 @@ int _bprint(IOBuffer *b, ...)
 			}
 			int base = va_arg(args, int);
 			if (base == 2 || base == 16 || FMTUNSIGNED(fmt))
-				printu(va_arg(args, U64), b, base, FMTSIZE(fmt));
+				bprintu(va_arg(args, U64), b, base, FMTSIZE(fmt));
 			else if (base == 10)
-				printi(va_arg(args, U64), b, FMTSIZE(fmt));
+				bprinti(va_arg(args, U64), b, FMTSIZE(fmt));
 		}
 	}
 }
 
-static int isdigit10(I c)
+static int isdecimal(I c)
 {
 	return c >= '0' && c <= '9';
+}
+
+static int isws(I c)
+{
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
 static U64 fmtmaxabs(int fmt, int neg)
@@ -155,7 +160,7 @@ static void fmtstore(int fmt, void *p, U64 val)
 	}
 }
 
-static int inputi(IOBuffer *b, int fmt, void *p)
+static int binputi(IOBuffer *b, int fmt, void *p)
 {
 	I neg = 0;
 	if (bpeek(b) == '-') {
@@ -165,10 +170,10 @@ static int inputi(IOBuffer *b, int fmt, void *p)
 		bread(b);
 	}
 	U64 max = fmtmaxabs(fmt, neg);
-	if (!isdigit10(bpeek(b)))
+	if (!isdecimal(bpeek(b)))
 		return 0;
 	U64 v = 0;
-	while (isdigit10(bpeek(b))) {
+	while (isdecimal(bpeek(b))) {
 		I c = bread(b);
 		if (v > (max - (c - '0'))/10)
 			return 0;
@@ -188,8 +193,16 @@ int _binput(IOBuffer *b, ...)
 	while (ok) {
 		char *s = va_arg(args, char *);
 		if (s) {
-			for (; *s && ok; s++)
-				ok = *s == bread(b);
+			if (*s) {
+				for (; *s == bpeek(b); s++)
+					bread(b);
+				ok = !*s;
+			} else {
+				U c = va_arg(args, U);
+				ok = isws(bpeek(b));
+				for (; c && isws(bpeek(b)); c--)
+					bread(b);
+			}
 		} else {
 			int fmt = va_arg(args, int);
 			if (!fmt)
@@ -200,7 +213,7 @@ int _binput(IOBuffer *b, ...)
 				fmtstore(fmt, p, c);
 				ok = c != -1;
 			} else {
-				ok = inputi(b, fmt, p);
+				ok = binputi(b, fmt, p);
 			}
 		}
 	}
