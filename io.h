@@ -1,4 +1,4 @@
-#define IOBUFSIZE 4096
+#define IOBUFSIZE 16384
 
 typedef struct {
 	int fd;
