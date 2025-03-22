@@ -1,5 +1,4 @@
 #include "types.h"
-#include "alloc.h"
 #include "color.h"
 #include "image.h"
 #include "win.h"
