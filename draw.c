@@ -180,6 +180,8 @@ void drawpixel(Image *i, I32 x, I32 y, Color c)
 		PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 }
 
+/* IDEA: introduce a separate "shadering" rendering step, that would handle
+ * those pixel-by-pixel-rendered objects in parallel */
 void drawthickline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, U8 w, Color c)
 {
 	const I64 n = 3;
