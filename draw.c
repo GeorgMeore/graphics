@@ -179,3 +179,53 @@ void drawpixel(Image *i, I32 x, I32 y, Color c)
 	if (CHECKX(i, x) && CHECKY(i, y))
 		PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 }
+
+void drawthickline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, U8 w, Color c)
+{
+	const I64 n = 3;
+	U64 dx = ABS(x2-x1), dy = ABS(y2-y1);
+	if (dx + dy == 0)
+		return;
+	U64 l2 = dx*dx + dy*dy;
+	if (dx >= dy) {
+		if (x1 > x2) {
+			SWAP(x1, x2);
+			SWAP(y1, y2);
+		}
+		for (I64 x = CLIPX(i, x1-2*w); x < CLIPX(i, x2+2*w+1); x++) {
+			I32 yc = y1 + DIVROUND((x-x1)*(y2-y1), (x2-x1));
+			for (I64 y = CLIPY(i, yc-2*w); y < CLIPY(i, yc+2*w+1); y++) {
+				I64 hits = 0;
+				for (I64 dx = 0; dx < n; dx++)
+				for (I64 dy = 0; dy < n; dy++) {
+					U64 d = ABS((n*(x - x1) + dx)*(y1 - y2) + (n*(y - y1) + dy)*(x2 - x1));
+					I64 o1 = (n*(x - x1) + dx)*(x2 - x1) + (n*(y - y1) + dy)*(y2 - y1);
+					I64 o2 = (n*(x - x2) + dx)*(x2 - x1) + (n*(y - y2) + dy)*(y2 - y1);
+					hits += o1 >= 0 && o2 <= 0 && SQUARE(d) < SQUARE(w)*SQUARE(n)*l2;
+				}
+				if (hits)
+					PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+			}
+		}
+	} else {
+		if (y1 > y2) {
+			SWAP(y1, y2);
+			SWAP(x1, x2);
+		}
+		for (I64 y = CLIPY(i, y1-2*w); y < CLIPY(i, y2+2*w+1); y++) {
+			I32 xc = x1 + DIVROUND((y-y1)*(x2-x1), (y2-y1));
+			for (I64 x = CLIPX(i, xc-2*w); x < CLIPX(i, xc+2*w+1); x++) {
+				I64 hits = 0;
+				for (I64 dy = 0; dy < n; dy++)
+				for (I64 dx = 0; dx < n; dx++) {
+					U64 d = ABS((n*(y - y1) + dy)*(x1 - x2) + (n*(x - x1) + dx)*(y2 - y1));
+					I64 o1 = (n*(y - y1) + dy)*(y2 - y1) + (n*(x - x1) + dx)*(x2 - x1);
+					I64 o2 = (n*(y - y2) + dy)*(y2 - y1) + (n*(x - x2) + dx)*(x2 - x1);
+					hits += o1 >= 0 && o2 <= 0 && SQUARE(d) < SQUARE(w)*SQUARE(n)*l2;
+				}
+				if (hits)
+					PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+			}
+		}
+	}
+}
