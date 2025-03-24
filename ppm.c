@@ -1,6 +1,3 @@
-#include <fcntl.h>
-#include <unistd.h>
-
 #include "types.h"
 #include "alloc.h"
 #include "color.h"
@@ -11,10 +8,9 @@
 Image loadppm(const char *path)
 {
 	Image i = {};
-	int fd = open(path, O_RDONLY);
-	if (fd == -1)
+	IOBuffer b = {};
+	if (!bopen(&b, path, 'r'))
 		return i;
-	IOBuffer b = {.fd = fd};
 	U16 w, h, m;
 	if (!binput(&b, "P6", IWS, ID(&w), IWS, ID(&h), IWS, ID(&m), IWS1))
 		goto out;
@@ -37,16 +33,15 @@ Image loadppm(const char *path)
 	i.s = w;
 	i.p = p;
 out:
-	close(fd);
+	bclose(&b);
 	return i;
 }
 
 int saveppm(Image *i, const char *path)
 {
-	int fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0600);
-	if (fd == -1)
+	IOBuffer b = {};
+	if (!bopen(&b, path, 'w'))
 		return 0;
-	IOBuffer b = {.fd = fd};
 	bprintln(&b, "P6\n", OD(i->w), " ", OD(i->h), "\n", OD(255));
 	for (U16 y = 0; y < i->h; y++)
 	for (U16 x = 0; x < i->w; x++) {
@@ -54,5 +49,5 @@ int saveppm(Image *i, const char *path)
 		bwrite(&b, G(PIXEL(i, x, y)));
 		bwrite(&b, B(PIXEL(i, x, y)));
 	}
-	return bflush(&b) && !close(fd);
+	return bclose(&b);
 }

@@ -4,12 +4,15 @@ typedef struct {
 	int fd;
 	U8  bytes[IOBUFSIZE];
 	int i, count;
-	int error;
+	U8  error, mode;
 } IOBuffer;
 
 extern IOBuffer *bin;
 extern IOBuffer *bout;
 extern IOBuffer *berr;
+
+int bopen(IOBuffer *b, const char *path, U8 mode);
+int bclose(IOBuffer *b);
 
 int bread(IOBuffer *b);
 int bpeek(IOBuffer *b);

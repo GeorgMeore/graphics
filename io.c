@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdarg.h>
 
@@ -12,6 +13,25 @@ static IOBuffer _berr = {.fd = 2};
 IOBuffer *bin  = &_bin;
 IOBuffer *bout = &_bout;
 IOBuffer *berr = &_berr;
+
+int bopen(IOBuffer *b, const char *path, U8 mode)
+{
+	b->mode = mode;
+	if (mode == 'r') {
+		b->fd = open(path, O_RDONLY);
+	} else if (mode == 'w') {
+		b->fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+	} else {
+		b->fd = -1;
+		b->error = 1;
+	}
+	return b->fd != -1;
+}
+
+int bclose(IOBuffer *b)
+{
+	return (b->mode == 'r' || bflush(b)) && !close(b->fd);
+}
 
 int bpeek(IOBuffer *b)
 {
