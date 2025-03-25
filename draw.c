@@ -46,26 +46,38 @@ void drawtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Colo
 	drawhalftriangle(i, x3, y3, x2, y2, x1, y1, c);
 }
 
-/* TODO: this is very slow, need to experiment with optimizations */
+/* TODO: overflows can definitely happen here, buut... */
 void drawsmoothtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c)
 {
 	const I64 n = 3;
-	for (I64 x = CLIPX(i, MIN3(x1, x2, x3)); x < CLIPX(i, 1+MAX3(x1, x2, x3)); x++)
-	for (I64 y = CLIPY(i, MIN3(y1, y2, y3)); y < CLIPY(i, 1+MAX3(y1, y2, y3)); y++) {
-		I64 hits = 0;
-		for (I64 dx = 0; dx < n; dx++)
-		for (I64 dy = 0; dy < n; dy++) {
-			/* TODO: I think an overflow can happen here, buut... */
-			/* NOTE: SIGN((yp - y1)*(x2 - x1) - (xp - x1)*(y2 - y1)) gets us the the orientation
-			 * of the point (xp, yp) relative to the line (x1, y1) -> (x2, y2):
-			 * -1 (to the left), 0 (on the line) or 1 (to the right) */
-			I64 o1 = SIGN(((y - y1)*n + dy)*(x2 - x1) - ((x - x1)*n + dx)*(y2 - y1));
-			I64 o2 = SIGN(((y - y2)*n + dy)*(x3 - x2) - ((x - x2)*n + dx)*(y3 - y2));
-			I64 o3 = SIGN(((y - y3)*n + dy)*(x1 - x3) - ((x - x3)*n + dx)*(y1 - y3));
-			hits += o1*o2 >= 0 && o2*o3 >= 0 && o1*o3 >= 0;
+	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, 1+MAX3(x1, x2, x3));
+	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, 1+MAX3(y1, y2, y3));
+	/* NOTE: SIGN((yp - y1)*(x2 - x1) - (xp - x1)*(y2 - y1)) gets us the the orientation
+	 * of the point (xp, yp) relative to the line (x1, y1) -> (x2, y2):
+	 * -1 (to the left), 0 (on the line) or 1 (to the right) */
+	I64 o1 = n*(ymin - y1)*(x2 - x1) - n*(xmin - x1)*(y2 - y1);
+	I64 o2 = n*(ymin - y2)*(x3 - x2) - n*(xmin - x2)*(y3 - y2);
+	I64 o3 = n*(ymin - y3)*(x1 - x3) - n*(xmin - x3)*(y1 - y3);
+	for (I64 x = xmin; x < xmax; x++) {
+		for (I64 y = ymin; y < ymax; y++) {
+			I64 hits = 0;
+			o1 += n*(x2 - x1); o2 += n*(x3 - x2); o3 += n*(x1 - x3);
+			for (I64 dx = 0; dx < n; dx++) {
+				for (I64 dy = 0; dy < n; dy++) {
+					o1 += x2 - x1; o2 += x3 - x2; o3 += x1 - x3;
+					hits += o1*o2 >= 0 && o2*o3 >= 0 && o1*o3 >= 0;
+				}
+				o1 -= (x2 - x1)*n + (y2 - y1);
+				o2 -= (x3 - x2)*n + (y3 - y2);
+				o3 -= (x1 - x3)*n + (y1 - y3);
+			}
+			o1 += n*(y2 - y1); o2 += n*(y3 - y2); o3 += n*(y1 - y3);
+			if (hits)
+				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
 		}
-		if (hits)
-			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+		o1 -= n*((x2 - x1)*(ymax - ymin) + (y2 - y1));
+		o2 -= n*((x3 - x2)*(ymax - ymin) + (y3 - y2));
+		o3 -= n*((x1 - x3)*(ymax - ymin) + (y1 - y3));
 	}
 }
 
