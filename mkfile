@@ -26,7 +26,7 @@ examples/%: examples/%.c $OBJ
 	[ "$D" != 0 ] && CFLAGS=$CFLAGS' '$CDEBUGFLAGS
 	$CC $CFLAGS -o $target $prereq $LDFLAGS
 
-%.o: %.c
+%.o: %.c mkfile
 	[ "$D" != 0 ] && CFLAGS=$CFLAGS' '$CDEBUGFLAGS
 	$CC -c $CFLAGS -o $target $stem.c
 
