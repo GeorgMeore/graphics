@@ -61,17 +61,16 @@ void drawsmoothtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3
 	for (I64 x = xmin; x < xmax; x++) {
 		for (I64 y = ymin; y < ymax; y++) {
 			I64 hits = 0;
-			o1 += n*(x2 - x1), o2 += n*(x3 - x2), o3 += n*(x1 - x3);
 			for (I64 dx = 0; dx < n; dx++) {
 				for (I64 dy = 0; dy < n; dy++) {
-					o1 += x2 - x1, o2 += x3 - x2, o3 += x1 - x3;
 					hits += o1*o2 >= 0 && o2*o3 >= 0 && o1*o3 >= 0;
+					o1 += x2 - x1, o2 += x3 - x2, o3 += x1 - x3;
 				}
 				o1 -= (x2 - x1)*n + (y2 - y1);
 				o2 -= (x3 - x2)*n + (y3 - y2);
 				o3 -= (x1 - x3)*n + (y1 - y3);
 			}
-			o1 += n*(y2 - y1), o2 += n*(y3 - y2), o3 += n*(y1 - y3);
+			o1 += n*(x2-x1 + y2-y1), o2 += n*(x3-x2 + y3-y2), o3 += n*(x1-x3 + y1-y3);
 			if (hits)
 				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
 		}
@@ -221,7 +220,7 @@ static void drawthicknonsteep(Image *i, U8 flip, I32 x1, I32 y1, I32 x2, I32 y2,
 				o2 -= n*(y2 - y1) - (x2 - x1);
 				d  -= n*(x2 - x1) - (y1 - y2);
 			}
-			o1 += n*(y2-y1-x2+x1), o2 += n*(y2-y1-x2+x1), d += n*(x2-x1+y2-y1);
+			o1 += n*(y2-y1 - x2+x1), o2 += n*(y2-y1 - x2+x1), d += n*(x2-x1 + y2-y1);
 			if (hits) {
 				if (flip)
 					PIXEL(i, y, x) = BLEND(PIXEL(i, y, x), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
