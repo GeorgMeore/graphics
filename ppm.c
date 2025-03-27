@@ -37,6 +37,22 @@ out:
 	return i;
 }
 
+int savec(Image *i, const char *var, const char *path)
+{
+	IOBuffer b = {};
+	if (!bopen(&b, path, 'w'))
+		return 0;
+	bprintln(&b, "Color ", var, "[", OD(i->h), "][", OD(i->w), "] = {");
+	for (U16 y = 0; y < i->h; y++) {
+		bprint(&b, "\t{");
+		for (U16 x = 0; x < i->w; x++)
+			bprint(&b, "0x", OH(PIXEL(i, x, y)), ",");
+		bprint(&b, "},\n");
+	}
+	bprintln(&b, "};");
+	return bclose(&b);
+}
+
 int saveppm(Image *i, const char *path)
 {
 	IOBuffer b = {};
