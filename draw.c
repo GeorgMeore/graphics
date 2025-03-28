@@ -158,7 +158,7 @@ void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 		for (I64 y = ymin; y < ymax; y++, e += dx) {
 			if (e*2 >= dy)
 				x += sx, e -= dy;
-			if (CHECKY(i, x))
+			if (CHECKX(i, x))
 				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 		}
 	}
