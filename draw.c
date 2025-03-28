@@ -10,12 +10,12 @@
 
 void drawclear(Image *i, Color c)
 {
-	for (I32 x = 0; x < i->w; x++)
-	for (I32 y = 0; y < i->h; y++)
+	for (I64 x = 0; x < i->w; x++)
+	for (I64 y = 0; y < i->h; y++)
 		PIXEL(i, x, y) = c; /* NOTE: no blending here */
 }
 
-static void drawhalftriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c)
+static void drawhalftriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	if (y1 == y2) {
 		if (CHECKY(i, y1)) {
@@ -32,7 +32,7 @@ static void drawhalftriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I
 	}
 }
 
-void drawtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c)
+void drawtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	if (y3 < y1) {
 		SWAP(x1, x3);
@@ -49,15 +49,19 @@ void drawtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Colo
 	drawhalftriangle(i, x3, y3, x2, y2, x1, y1, c);
 }
 
-/* TODO: overflows can definitely happen here, buut... */
-void drawsmoothtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c)
+/* NOTE: SIGN((yp - y1)*(x2 - x1) - (xp - x1)*(y2 - y1)) gets us the the orientation
+ * of the point (xp, yp) relative to the line (x1, y1) -> (x2, y2):
+ * -1 (to the left), 0 (on the line) or 1 (to the right) */
+void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	const I64 n = 3;
 	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, 1+MAX3(x1, x2, x3));
 	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, 1+MAX3(y1, y2, y3));
-	/* NOTE: SIGN((yp - y1)*(x2 - x1) - (xp - x1)*(y2 - y1)) gets us the the orientation
-	 * of the point (xp, yp) relative to the line (x1, y1) -> (x2, y2):
-	 * -1 (to the left), 0 (on the line) or 1 (to the right) */
+	/* make sure the vertices are clockwise */
+	if ((y3 - y1)*(x2 - x1) - (x3 - x1)*(y2 - y1) < 0) {
+		SWAP(x2, x3);
+		SWAP(y2, y3);
+	}
 	I64 o1 = n*((ymin - y1)*(x2 - x1) - (xmin - x1)*(y2 - y1));
 	I64 o2 = n*((ymin - y2)*(x3 - x2) - (xmin - x2)*(y3 - y2));
 	I64 o3 = n*((ymin - y3)*(x1 - x3) - (xmin - x3)*(y1 - y3));
@@ -66,7 +70,7 @@ void drawsmoothtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3
 			I64 hits = 0;
 			for (I64 dx = 0; dx < n; dx++) {
 				for (I64 dy = 0; dy < n; dy++) {
-					hits += o1*o2 >= 0 && o2*o3 >= 0 && o1*o3 >= 0;
+					hits += o1 >= 0 && o2 >= 0 && o3 >= 0;
 					o1 += x2 - x1, o2 += x3 - x2, o3 += x1 - x3;
 				}
 				o1 -= (x2 - x1)*n + (y2 - y1);
@@ -83,7 +87,7 @@ void drawsmoothtriangle(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3
 	}
 }
 
-void drawcircle(Image *i, I32 xc, I32 yc, I32 r, Color c)
+void drawcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 {
 	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, 1+xc+r); x++)
 	for (I64 y = CLIPY(i, yc-r); y < CLIPY(i, 1+yc+r); y++)
@@ -91,7 +95,7 @@ void drawcircle(Image *i, I32 xc, I32 yc, I32 r, Color c)
 			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 }
 
-void drawsmoothcircle(Image *i, I32 xc, I32 yc, I32 r, Color c)
+void drawsmoothcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 {
 	const I64 n = 3; /* NOTE: looks ok */
 	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, 1+xc+r); x++)
@@ -111,7 +115,7 @@ void drawsmoothcircle(Image *i, I32 xc, I32 yc, I32 r, Color c)
 	}
 }
 
-void drawrect(Image *i, I32 xtl, I32 ytl, I32 w, I32 h, Color c)
+void drawrect(Image *i, I16 xtl, I16 ytl, I16 w, I16 h, Color c)
 {
 	if (w < 0) {
 		xtl += w;
@@ -121,12 +125,12 @@ void drawrect(Image *i, I32 xtl, I32 ytl, I32 w, I32 h, Color c)
 		ytl += h;
 		h = -h;
 	}
-	for (I32 x = CLIPX(i, xtl); x < CLIPX(i, xtl+w); x++)
-	for (I32 y = CLIPY(i, ytl); y < CLIPY(i, ytl+h); y++)
+	for (I64 x = CLIPX(i, xtl); x < CLIPX(i, xtl+w); x++)
+	for (I64 y = CLIPY(i, ytl); y < CLIPY(i, ytl+h); y++)
 		PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 }
 
-void drawline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, Color c)
+void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 {
 	I64 dx = ABS(x2-x1), dy = ABS(y2-y1);
 	if (dx + dy == 0)
@@ -160,7 +164,7 @@ void drawline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, Color c)
 	}
 }
 
-void drawbezier(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c)
+void drawbezier(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	const I64 n = 100; /* NOTE: looks ok */
 	for (I64 t = 1, xp = x1, yp = y1; t <= n; t++) {
@@ -171,14 +175,13 @@ void drawbezier(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color 
 	}
 }
 
-void drawpixel(Image *i, I32 x, I32 y, Color c)
+void drawpixel(Image *i, I16 x, I16 y, Color c)
 {
 	if (CHECKX(i, x) && CHECKY(i, y))
 		PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 }
 
-/* TODO: overflows can happen here too, it think */
-static void drawthicknonsteep(Image *i, U8 flip, I32 x1, I32 y1, I32 x2, I32 y2, U8 w, Color c)
+static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
 {
 	const I64 n = 3;
 	U64 l2 = SQUARE(x2-x1) + SQUARE(y2-y1);
@@ -188,10 +191,10 @@ static void drawthicknonsteep(Image *i, U8 flip, I32 x1, I32 y1, I32 x2, I32 y2,
 	}
 	I64 xlim = flip*i->h + (1 - flip)*i->w - 1;
 	I64 ylim = flip*i->w + (1 - flip)*i->h - 1;
-	I64 xmin = CLAMP(x1-2*w, 0, xlim), xmax = CLAMP(x2+2*w+1, 0, xlim);
+	I64 xmin = CLAMP(x1 - 2*w, 0, xlim), xmax = CLAMP(x2 + 2*w+1, 0, xlim);
 	for (I64 x = xmin; x < xmax; x++) {
-		I32 yc = y1 + DIVROUND((x-x1)*(y2-y1), (x2-x1));
-		I32 ymin = CLAMP(yc-2*w, 0, ylim), ymax = CLAMP(yc+2*w+1, 0, ylim);
+		I64 yc = y1 + DIVROUND((x - x1)*(y2 - y1), (x2 - x1));
+		I64 ymin = CLAMP(yc-2*w, 0, ylim), ymax = CLAMP(yc+2*w+1, 0, ylim);
 		I64 o1 = n*((x - x1)*(x2 - x1) + (ymin - y1)*(y2 - y1));
 		I64 o2 = n*((x - x2)*(x2 - x1) + (ymin - y2)*(y2 - y1));
 		I64 d  = n*((x - x1)*(y1 - y2) + (ymin - y1)*(x2 - x1));
@@ -217,7 +220,7 @@ static void drawthicknonsteep(Image *i, U8 flip, I32 x1, I32 y1, I32 x2, I32 y2,
 	}
 }
 
-void drawthickline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, U8 w, Color c)
+void drawthickline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
 {
 	if (ABS(x2-x1) + ABS(y2-y1) == 0)
 		return;
