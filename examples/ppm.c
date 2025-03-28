@@ -4,7 +4,6 @@
 #include "image.h"
 #include "draw.h"
 #include "win.h"
-#include "ppm.h"
 #include "io.h"
 
 void drawimage(Image *i, I32 xp, I32 yp, Image *s)

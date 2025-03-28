@@ -2,7 +2,6 @@
 #include "alloc.h"
 #include "color.h"
 #include "image.h"
-#include "ppm.h"
 #include "win.h"
 #include "draw.h"
 
