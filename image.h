@@ -10,3 +10,6 @@ typedef struct {
 #define CHECKY(i, y) ((y) >= 0 && (y) < (i)->h)
 
 Image subimage(Image i, U16 x, U16 y, U16 w, U16 h);
+Image loadppm(const char *path);
+int   savec(Image *i, const char *var, const char *path);
+int   saveppm(Image *i, const char *path);
