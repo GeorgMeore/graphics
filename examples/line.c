@@ -32,7 +32,7 @@ int main(void)
 		drawclear(fb, BLACK);
 		for (int i = 0; i < 2; i++)
 			drawsmoothcircle(fb, pt[i][0], pt[i][1], 5, c[i]);
-		drawbresenham(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], WHITE);
+		drawline(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], WHITE);
 		frameend();
 	}
 	winclose();
