@@ -217,7 +217,7 @@ static void drawthicknonsteep(Image *i, U8 flip, I32 x1, I32 y1, I32 x2, I32 y2,
 	}
 }
 
-void drawthickline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
+void drawthickline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, U8 w, Color c)
 {
 	if (ABS(x2-x1) + ABS(y2-y1) == 0)
 		return;
