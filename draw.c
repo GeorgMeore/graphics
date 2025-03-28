@@ -5,6 +5,9 @@
 #include "image.h"
 #include "draw.h"
 
+/* IDEA: introduce a separate "shadering" rendering step, that would handle
+ * pixel-by-pixel-rendered objects in pararallel using multiple threads */
+
 void drawclear(Image *i, Color c)
 {
 	for (I32 x = 0; x < i->w; x++)
@@ -214,10 +217,10 @@ static void drawthicknonsteep(Image *i, U8 flip, I32 x1, I32 y1, I32 x2, I32 y2,
 	}
 }
 
-/* IDEA: introduce a separate "shadering" rendering step, that would handle
- * those pixel-by-pixel-rendered objects in parallel */
-void drawthickline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, U8 w, Color c)
+void drawthickline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
 {
+	if (ABS(x2-x1) + ABS(y2-y1) == 0)
+		return;
 	if (ABS(x2-x1) >= ABS(y2-y1))
 		drawthicknonsteep(i, 0, x1, y1, x2, y2, w, c);
 	else
