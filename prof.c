@@ -34,6 +34,7 @@ static void statreset(Stat *s)
 {
 	s->n = 0;
 	s->avg = 0;
+	s->stdev2 = 0;
 	s->min = MAXVAL(U64);
 	s->max = 0;
 }
