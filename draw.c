@@ -108,40 +108,6 @@ void drawsmoothcircle(Image *i, I32 xc, I32 yc, I32 r, Color c)
 	}
 }
 
-void drawbresenham(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, Color c)
-{
-	I64 dx = ABS(x2 - x1), dy = -ABS(y2 - y1);
-	I64 sx = SIGN(x2 - x1), sy = SIGN(y2 - y1);
-	I64 x = x1, y = y1, e = dx+dy;
-	for (;;) {
-		if (CHECKX(i, x) && CHECKY(i, y))
-			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
-		if (e*2 >= dy) {
-			if (x == x2)
-				break;
-			x += sx;
-			e += dy;
-		}
-		if (e*2 <= dx) {
-			if (y == y2)
-				break;
-			y += sy;
-			e += dx;
-		}
-	}
-}
-
-void drawbezier(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c)
-{
-	const I64 n = 100; /* NOTE: looks ok */
-	for (I64 t = 1, xp = x1, yp = y1; t <= n; t++) {
-		I64 x = (SQUARE(n-t)*x1 + 2*(n-t)*t*x2 + SQUARE(t)*x3)/SQUARE(n);
-		I64 y = (SQUARE(n-t)*y1 + 2*(n-t)*t*y2 + SQUARE(t)*y3)/SQUARE(n);
-		drawbresenham(i, xp, yp, x, y, c);
-		xp = x, yp = y;
-	}
-}
-
 void drawrect(Image *i, I32 xtl, I32 ytl, I32 w, I32 h, Color c)
 {
 	if (w < 0) {
@@ -167,8 +133,11 @@ void drawline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, Color c)
 			SWAP(x1, x2);
 			SWAP(y1, y2);
 		}
-		for (I64 x = CLIPX(i, x1); x < CLIPX(i, 1+x2); x++) {
-			I32 y = y1 + DIVROUND((x-x1)*(y2-y1), (x2-x1));
+		I64 xmin = CLIPX(i, x1), xmax = CLIPX(i, 1+x2);
+		I64 sy = SIGN(y2-y1), d = (xmin-x1)*dy, y = y1 + sy*(d/dx), e = d%dx;
+		for (I64 x = xmin; x < xmax; x++, e += dy) {
+			if (e*2 >= dx)
+				y += sy, e -= dx;
 			if (CHECKY(i, y))
 				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 		}
@@ -177,11 +146,25 @@ void drawline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, Color c)
 			SWAP(y1, y2);
 			SWAP(x1, x2);
 		}
-		for (I64 y = CLIPY(i, y1); y < CLIPY(i, 1+y2); y++) {
-			I32 x = x1 + DIVROUND((y-y1)*(x2-x1), (y2-y1));
-			if (CHECKX(i, x))
+		I64 ymin = CLIPY(i, y1), ymax = CLIPY(i, 1+y2);
+		I64 sx = SIGN(x2-x1), d = (ymin-y1)*dx, x = x1 + sx*(d/dy), e = d%dy;
+		for (I64 y = ymin; y < ymax; y++, e += dx) {
+			if (e*2 >= dy)
+				x += sx, e -= dy;
+			if (CHECKY(i, x))
 				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 		}
+	}
+}
+
+void drawbezier(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c)
+{
+	const I64 n = 100; /* NOTE: looks ok */
+	for (I64 t = 1, xp = x1, yp = y1; t <= n; t++) {
+		I64 x = (SQUARE(n-t)*x1 + 2*(n-t)*t*x2 + SQUARE(t)*x3)/SQUARE(n);
+		I64 y = (SQUARE(n-t)*y1 + 2*(n-t)*t*y2 + SQUARE(t)*y3)/SQUARE(n);
+		drawline(i, xp, yp, x, y, c);
+		xp = x, yp = y;
 	}
 }
 

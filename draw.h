@@ -6,6 +6,5 @@ void drawsmoothcircle(Image *i, I32 xc, I32 yc, I32 r, Color c);
 void drawbezier(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, I32 x3, I32 y3, Color c);
 void drawrect(Image *i, I32 xtl, I32 ytl, I32 w, I32 h, Color c);
 void drawline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, Color c);
-void drawbresenham(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, Color c);
 void drawthickline(Image *i, I32 x1, I32 y1, I32 x2, I32 y2, U8 w, Color c);
 void drawpixel(Image *i, I32 x, I32 y, Color c);
