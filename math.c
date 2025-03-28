@@ -3,7 +3,7 @@
 
 U64 isqrt(U64 x)
 {
-	U64 l = 0, r = x;
+	U64 l = 1, r = x;
 	while (l < r) {
 		U64 m = l + (r - l)/2;
 		if (m*m > x)
