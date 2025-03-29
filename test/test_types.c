@@ -36,4 +36,10 @@ TESTSUITE("integer type definitions")
 	TESTCASE("check bits per U8") {
 		REQUIRE((U8)(0xFF + 1) == (U8)0);
 	}
+	TESTCASE("floats") {
+		REQUIRE(ISFLOAT(F32) == 1);
+		REQUIRE(ISFLOAT(F64) == 1);
+		REQUIRE(ISFLOAT(U8) == 0);
+		REQUIRE(ISFLOAT(I64) == 0);
+	}
 }

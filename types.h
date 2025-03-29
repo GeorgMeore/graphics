@@ -20,3 +20,5 @@ typedef I64            I; /* the machine address size */
 
 typedef float  F32;
 typedef double F64;
+
+#define ISFLOAT(t) ((t)1.1 != (t)1)
