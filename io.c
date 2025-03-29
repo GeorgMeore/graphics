@@ -214,7 +214,7 @@ int _binput(IOBuffer *b, ...)
 		char *s = va_arg(args, char *);
 		if (s) {
 			if (*s) {
-				for (; *s == bpeek(b); s++)
+				for (; *s && *s == bpeek(b); s++)
 					bread(b);
 				ok = !*s;
 			} else {
