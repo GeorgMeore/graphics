@@ -8,12 +8,6 @@
 	(y) = _tmp;\
 })
 
-#define ETRACE(x, fmt) ({\
-	typeof(x) _tmp = (x);\
-	println("trace: ", #x, " = ", fmt(_tmp));\
-	_tmp;\
-})
-
 #define BOOL(v) (!!(v)) /* non-zero -> 1 */
 
 /* NOTE: this should have been (a > 0) - (a < 0), but gcc

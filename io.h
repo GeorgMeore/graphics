@@ -48,3 +48,9 @@ int _binput(IOBuffer *b, ...);
 
 #define input(...) binput(bin, __VA_ARGS__)
 #define inputln(...) binputln(bin, __VA_ARGS__)
+
+#define ETRACE(x, fmt) ({\
+	typeof(x) _tmp = (x);\
+	println("trace: ", #x, " = ", fmt(_tmp));\
+	_tmp;\
+})
