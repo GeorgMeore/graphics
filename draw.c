@@ -15,6 +15,7 @@ void drawclear(Image *i, Color c)
 		PIXEL(i, x, y) = c; /* NOTE: no blending here */
 }
 
+/* TODO: can I draw smooth triangles with that (maybe do the dot-product stuff for border points)? */
 static void drawhalftriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	if (y1 == y2) {
@@ -57,7 +58,6 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 	const I64 n = 3;
 	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, 1+MAX3(x1, x2, x3));
 	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, 1+MAX3(y1, y2, y3));
-	/* make sure the vertices are clockwise */
 	if ((y3 - y1)*(x2 - x1) - (x3 - x1)*(y2 - y1) < 0) {
 		SWAP(x2, x3);
 		SWAP(y2, y3);
@@ -84,6 +84,35 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 		o1 -= n*((x2 - x1)*(ymax - ymin) + (y2 - y1));
 		o2 -= n*((x3 - x2)*(ymax - ymin) + (y3 - y2));
 		o3 -= n*((x1 - x3)*(ymax - ymin) + (y1 - y3));
+	}
+}
+
+void drawtriangletexture(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Image *t, U16 tx1, U16 ty1, U16 tx2, U16 ty2, U16 tx3, U16 ty3)
+{
+	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, 1+MAX3(x1, x2, x3));
+	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, 1+MAX3(y1, y2, y3));
+	if ((y3 - y1)*(x2 - x1) - (x3 - x1)*(y2 - y1) < 0) {
+		SWAP(x2, x3);
+		SWAP(y2, y3);
+	}
+	I64 os = (x1 - x3)*(y2 - y3) - (x2 - x3)*(y1 - y3);
+	if (!os)
+		return;
+	I64 o1 = (ymin - y1)*(x2 - x1) - (xmin - x1)*(y2 - y1);
+	I64 o2 = (ymin - y2)*(x3 - x2) - (xmin - x2)*(y3 - y2);
+	I64 o3 = (ymin - y3)*(x1 - x3) - (xmin - x3)*(y1 - y3);
+	for (I64 y = ymin; y < ymax; y++) {
+		for (I64 x = xmin; x < xmax; x++) {
+			if (o1 >= 0 && o2 >= 0 && o3 >= 0) {
+				I64 tx = (tx1*o2 + tx2*o3 + tx3*o1)/os;
+				I64 ty = (ty1*o2 + ty2*o3 + ty3*o1)/os;
+				PIXEL(i, x, y) = PIXEL(t, tx, ty);
+			}
+			o1 -= y2 - y1; o2 -= y3 - y2; o3 -= y1 - y3;
+		}
+		o1 += (y2 - y1)*(xmax - xmin) + (x2 - x1);
+		o2 += (y3 - y2)*(xmax - xmin) + (x3 - x2);
+		o3 += (y1 - y3)*(xmax - xmin) + (x1 - x3);
 	}
 }
 
