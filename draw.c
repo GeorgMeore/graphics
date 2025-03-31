@@ -224,6 +224,7 @@ static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2,
 	for (I64 x = xmin; x < xmax; x++) {
 		I64 yc = y1 + DIVROUND((x - x1)*(y2 - y1), (x2 - x1));
 		I64 ymin = CLAMP(yc-2*w, 0, ylim), ymax = CLAMP(yc+2*w+1, 0, ylim);
+		/* NOTE: a fully incremental version I tried didn't perform better */
 		I64 o1 = n*((x - x1)*(x2 - x1) + (ymin - y1)*(y2 - y1));
 		I64 o2 = n*((x - x2)*(x2 - x1) + (ymin - y2)*(y2 - y1));
 		I64 d  = n*((x - x1)*(y1 - y2) + (ymin - y1)*(x2 - x1));
