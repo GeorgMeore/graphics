@@ -16,6 +16,7 @@ void drawclear(Image *i, Color c)
 }
 
 /* TODO: can I draw smooth triangles with that (maybe do the dot-product stuff for border points)? */
+/* TODO: make a textured version of this function and benchmark against the barycentric one */
 static void drawhalftriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	if (y1 == y2) {
