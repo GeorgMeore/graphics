@@ -56,8 +56,8 @@ void drawtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Colo
 void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	const I64 n = 3;
-	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, 1+MAX3(x1, x2, x3));
-	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, 1+MAX3(y1, y2, y3));
+	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, MAX3(x1, x2, x3));
+	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, MAX3(y1, y2, y3));
 	if ((y3 - y1)*(x2 - x1) - (x3 - x1)*(y2 - y1) < 0) {
 		SWAP(x2, x3);
 		SWAP(y2, y3);
@@ -65,8 +65,8 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 	I64 o1 = n*((ymin - y1)*(x2 - x1) - (xmin - x1)*(y2 - y1));
 	I64 o2 = n*((ymin - y2)*(x3 - x2) - (xmin - x2)*(y3 - y2));
 	I64 o3 = n*((ymin - y3)*(x1 - x3) - (xmin - x3)*(y1 - y3));
-	for (I64 x = xmin; x < xmax; x++) {
-		for (I64 y = ymin; y < ymax; y++) {
+	for (I64 x = xmin; x <= xmax; x++) {
+		for (I64 y = ymin; y <= ymax; y++) {
 			I64 hits = 0;
 			for (I64 dx = 0; dx < n; dx++) {
 				for (I64 dy = 0; dy < n; dy++) {
@@ -81,16 +81,16 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 			if (hits)
 				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
 		}
-		o1 -= n*((x2 - x1)*(ymax - ymin) + (y2 - y1));
-		o2 -= n*((x3 - x2)*(ymax - ymin) + (y3 - y2));
-		o3 -= n*((x1 - x3)*(ymax - ymin) + (y1 - y3));
+		o1 -= n*((x2 - x1)*(ymax - ymin + 1) + (y2 - y1));
+		o2 -= n*((x3 - x2)*(ymax - ymin + 1) + (y3 - y2));
+		o3 -= n*((x1 - x3)*(ymax - ymin + 1) + (y1 - y3));
 	}
 }
 
 void drawtriangletexture(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Image *t, U16 tx1, U16 ty1, U16 tx2, U16 ty2, U16 tx3, U16 ty3)
 {
-	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, 1+MAX3(x1, x2, x3));
-	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, 1+MAX3(y1, y2, y3));
+	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, MAX3(x1, x2, x3));
+	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, MAX3(y1, y2, y3));
 	if ((y3 - y1)*(x2 - x1) - (x3 - x1)*(y2 - y1) < 0) {
 		SWAP(x2, x3);
 		SWAP(y2, y3);
@@ -101,8 +101,8 @@ void drawtriangletexture(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y
 	I64 o1 = (ymin - y1)*(x2 - x1) - (xmin - x1)*(y2 - y1);
 	I64 o2 = (ymin - y2)*(x3 - x2) - (xmin - x2)*(y3 - y2);
 	I64 o3 = (ymin - y3)*(x1 - x3) - (xmin - x3)*(y1 - y3);
-	for (I64 y = ymin; y < ymax; y++) {
-		for (I64 x = xmin; x < xmax; x++) {
+	for (I64 y = ymin; y <= ymax; y++) {
+		for (I64 x = xmin; x <= xmax; x++) {
 			if (o1 >= 0 && o2 >= 0 && o3 >= 0) {
 				I64 tx = (tx1*o2 + tx2*o3 + tx3*o1)/os;
 				I64 ty = (ty1*o2 + ty2*o3 + ty3*o1)/os;
@@ -110,16 +110,16 @@ void drawtriangletexture(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y
 			}
 			o1 -= y2 - y1; o2 -= y3 - y2; o3 -= y1 - y3;
 		}
-		o1 += (y2 - y1)*(xmax - xmin) + (x2 - x1);
-		o2 += (y3 - y2)*(xmax - xmin) + (x3 - x2);
-		o3 += (y1 - y3)*(xmax - xmin) + (x1 - x3);
+		o1 += (y2 - y1)*(xmax - xmin + 1) + (x2 - x1);
+		o2 += (y3 - y2)*(xmax - xmin + 1) + (x3 - x2);
+		o3 += (y1 - y3)*(xmax - xmin + 1) + (x1 - x3);
 	}
 }
 
 void drawcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 {
-	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, 1+xc+r); x++)
-	for (I64 y = CLIPY(i, yc-r); y < CLIPY(i, 1+yc+r); y++)
+	for (I64 x = CLIPX(i, xc-r); x <= CLIPX(i, xc+r); x++)
+	for (I64 y = CLIPY(i, yc-r); y <= CLIPY(i, yc+r); y++)
 		if (SQUARE(x-xc) + SQUARE(y-yc) < SQUARE(r))
 			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 }
@@ -127,8 +127,8 @@ void drawcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 void drawsmoothcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 {
 	const I64 n = 3; /* NOTE: looks ok */
-	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, 1+xc+r); x++)
-	for (I64 y = CLIPY(i, yc-r); y < CLIPY(i, 1+yc+r); y++) {
+	for (I64 x = CLIPX(i, xc-r); x <= CLIPX(i, xc+r); x++)
+	for (I64 y = CLIPY(i, yc-r); y <= CLIPY(i, yc+r); y++) {
 		/* NOTE: check if the point is definitely inside the circle */
 		I64 xo = ABS(x-xc), yo = ABS(y-yc);
 		if (xo <= r*43/64 && yo <= r*43/64) {
@@ -169,9 +169,9 @@ void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 			SWAP(x1, x2);
 			SWAP(y1, y2);
 		}
-		I64 xmin = CLIPX(i, x1), xmax = CLIPX(i, 1+x2);
+		I64 xmin = CLIPX(i, x1), xmax = CLIPX(i, x2);
 		I64 sy = SIGN(y2-y1), d = (xmin-x1)*dy, y = y1 + sy*(d/dx), e = d%dx;
-		for (I64 x = xmin; x < xmax; x++, e += dy) {
+		for (I64 x = xmin; x <= xmax; x++, e += dy) {
 			if (e*2 >= dx)
 				y += sy, e -= dx;
 			if (CHECKY(i, y))
@@ -182,9 +182,9 @@ void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 			SWAP(y1, y2);
 			SWAP(x1, x2);
 		}
-		I64 ymin = CLIPY(i, y1), ymax = CLIPY(i, 1+y2);
+		I64 ymin = CLIPY(i, y1), ymax = CLIPY(i, y2);
 		I64 sx = SIGN(x2-x1), d = (ymin-y1)*dx, x = x1 + sx*(d/dy), e = d%dy;
-		for (I64 y = ymin; y < ymax; y++, e += dx) {
+		for (I64 y = ymin; y <= ymax; y++, e += dx) {
 			if (e*2 >= dy)
 				x += sx, e -= dy;
 			if (CHECKX(i, x))
