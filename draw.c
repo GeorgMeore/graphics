@@ -19,15 +19,15 @@ void drawclear(Image *i, Color c)
 static void drawhalftriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	if (y1 == y2) {
-		if (CHECKY(i, y1)) {
-			for (I64 x = CLIPX(i, MIN(x1, x2)); x < CLIPX(i, 1+MAX(x1, x2)); x++)
+		if (y1 < y3 && CHECKY(i, y1)) {
+			for (I64 x = CLIPX(i, MIN(x1, x2)); x <= CLIPX(i, MAX(x1, x2)); x++)
 				PIXEL(i, x, y1) = BLEND(PIXEL(i, x, y1), c);
 		}
 	} else {
-		for (I64 y = CLIPY(i, MIN(y1, y2)); y < CLIPY(i, 1+MAX(y1, y2)); y++) {
+		for (I64 y = CLIPY(i, MIN(y1, y2)) + (y1 > y2); y <= CLIPY(i, MAX(y1, y2)); y++) {
 			I64 x12 = x1 + DIVROUND((y-y1)*(x2-x1), (y2-y1));
 			I64 x13 = x1 + DIVROUND((y-y1)*(x3-x1), (y3-y1));
-			for (I64 x = CLIPX(i, MIN(x12, x13)); x < CLIPX(i, 1+MAX(x12, x13)); x++)
+			for (I64 x = CLIPX(i, MIN(x12, x13)); x <= CLIPX(i, MAX(x12, x13)); x++)
 				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
 		}
 	}
