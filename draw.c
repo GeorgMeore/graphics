@@ -96,6 +96,8 @@ void drawtriangletexture(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y
 	if ((y3 - y1)*(x2 - x1) - (x3 - x1)*(y2 - y1) < 0) {
 		SWAP(x2, x3);
 		SWAP(y2, y3);
+		SWAP(tx2, tx3);
+		SWAP(ty2, ty3);
 	}
 	I64 os = (x1 - x3)*(y2 - y3) - (x2 - x3)*(y1 - y3);
 	if (!os)
