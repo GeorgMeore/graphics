@@ -7,9 +7,6 @@
 #include "math.h"
 
 #define BGCOLOR RGBA(18, 18, 18, 255)
-#define SOFTRED RGBA(110, 70, 70, 200)
-#define SOFTGREEN RGBA(70, 110, 70, 200)
-#define SOFTBLUE RGBA(70, 70, 110, 200)
 
 #define N 6
 
