@@ -7,7 +7,7 @@ LDFLAGS=-lX11
 MOD=win draw prof ntime panic io image alloc math
 SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
-PROGNAMES=split paint io bezier triangle circle line ppm sin y4m
+PROGNAMES=split paint io bezier triangle circle line ppm sin y4m nbody
 PROGS=${PROGNAMES:%=examples/%}
 UTESTNAMES=test_types test_mlib
 UTESTS=${UTESTNAMES:%=test/%}
