@@ -39,9 +39,9 @@ void updatepoint(Image *i, int p[2])
 #define PROFENABLED
 #include "prof.h"
 
-int main(void)
+int main(int, char **argv)
 {
-	winopen(600, 600, "Bezier", 60);
+	winopen(600, 600, argv[0], 60);
 	int tmpcnt = 0, tmp[3][2];
 	Bezier2 *head = 0;
 	int sw = 0;

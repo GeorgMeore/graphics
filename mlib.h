@@ -23,7 +23,7 @@
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
 #define MIN3(a, b, c) MIN(MIN(a, b), MIN(b, c))
 #define MAX3(a, b, c) MAX(MAX(a, b), MAX(b, c))
-#define CLAMP(x, l, r) (MIN(MAX(l, x), r))
+#define CLAMP(x, l, r) MIN(MAX(l, x), r)
 #define ALIGNUP(n, m) (DIVCEIL(n, m) * (m))
 #define ALIGNDOWN(n, m) ((n) / (m) * (m))
 #define LP2(n) ((n) ^ ((n) & ((n) - 1))) /* lowest power of 2 that evenly divides n */
