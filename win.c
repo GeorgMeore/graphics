@@ -114,6 +114,8 @@ void winopen(U16 w, U16 h, const char *title, U16 fps)
 	XColor c = {};
 	Pixmap p = XCreatePixmap(defxwin.d, defxwin.win, 1, 1, 1);
 	defxwin.invis = XCreatePixmapCursor(defxwin.d, p, p, &c, &c, 0, 0);
+	/* NOTE: hacky hack to avoid having a 0x0 window on the first frame */
+	onresize(w, h);
 }
 
 void mouselock(int on)
