@@ -9,7 +9,7 @@
 
 int main(int, char **argv)
 {
-	winopen(600, 600, argv[0], 60);
+	winopen(600, 600, argv[0], 144);
 	F64 t = 0;
 	while (!keyisdown('q')) {
 		Image *fb = framebegin();
