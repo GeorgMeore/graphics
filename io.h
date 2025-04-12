@@ -16,6 +16,8 @@ int bclose(IOBuffer *b);
 
 int bread(IOBuffer *b);
 int bpeek(IOBuffer *b);
+int bseek(IOBuffer *b, U64 byte);
+/* TODO: int bskip(IOBuffer *b, U64 n); */
 int bwrite(IOBuffer *b, U8 v);
 int bflush(IOBuffer *b);
 
