@@ -14,6 +14,18 @@ IOBuffer *bin  = &_bin;
 IOBuffer *bout = &_bout;
 IOBuffer *berr = &_berr;
 
+int bseek(IOBuffer *b, U64 byte)
+{
+	if (b->mode == 'w' && !bflush(b))
+		return 0;
+	off_t ok = lseek(b->fd, byte, SEEK_SET);
+	if (ok == -1)
+		return 0;
+	b->i = 0;
+	b->count = 0;
+	return 1;
+}
+
 int bopen(IOBuffer *b, const char *path, U8 mode)
 {
 	b->mode = mode;
