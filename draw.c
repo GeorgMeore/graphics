@@ -23,14 +23,14 @@ static void drawhalftriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I
 	if (y1 == y2) {
 		if (!skip && CHECKY(i, y1)) {
 			for (I64 x = CLIPX(i, MIN(x1, x2)); x <= CLIPX(i, MAX(x1, x2)); x++)
-				PIXEL(i, x, y1) = BLEND(PIXEL(i, x, y1), c);
+				PIXEL(i, x, y1) = blend(PIXEL(i, x, y1), c);
 		}
 	} else {
 		for (I64 y = CLIPY(i, MIN(y1, y2)) + skip; y <= CLIPY(i, MAX(y1, y2)); y++) {
 			I64 x12 = x1 + DIVROUND((y-y1)*(x2-x1), (y2-y1));
 			I64 x13 = x1 + DIVROUND((y-y1)*(x3-x1), (y3-y1));
 			for (I64 x = CLIPX(i, MIN(x12, x13)); x <= CLIPX(i, MAX(x12, x13)); x++)
-				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
+				PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 		}
 	}
 }
@@ -81,7 +81,7 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 			}
 			o1 += n*(x2-x1 + y2-y1), o2 += n*(x3-x2 + y3-y2), o3 += n*(x1-x3 + y1-y3);
 			if (hits)
-				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+				PIXEL(i, x, y) = blend(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
 		}
 		o1 -= n*((x2 - x1)*(ymax - ymin + 1) + (y2 - y1));
 		o2 -= n*((x3 - x2)*(ymax - ymin + 1) + (y3 - y2));
@@ -125,7 +125,7 @@ void drawcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 	for (I64 x = CLIPX(i, xc-r); x <= CLIPX(i, xc+r); x++)
 	for (I64 y = CLIPY(i, yc-r); y <= CLIPY(i, yc+r); y++)
 		if (SQUARE(x-xc) + SQUARE(y-yc) < SQUARE(r))
-			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
+			PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 }
 
 void drawsmoothcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
@@ -136,14 +136,14 @@ void drawsmoothcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 		/* NOTE: check if the point is definitely inside the circle */
 		I64 xo = ABS(x-xc), yo = ABS(y-yc);
 		if (xo <= r*43/64 && yo <= r*43/64) {
-			PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
+			PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 		} else {
 			I64 hits = 0;
 			for (I64 dx = 0; dx < n; dx++)
 			for (I64 dy = 0; dy < n; dy++)
 				hits += SQUARE(xo*n + dx) + SQUARE(yo*n + dy) < SQUARE(r*n);
 			if (hits)
-				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+				PIXEL(i, x, y) = blend(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
 		}
 	}
 }
@@ -160,7 +160,7 @@ void drawrect(Image *i, I16 xtl, I16 ytl, I16 w, I16 h, Color c)
 	}
 	for (I64 x = CLIPX(i, xtl); x < CLIPX(i, xtl+w); x++)
 	for (I64 y = CLIPY(i, ytl); y < CLIPY(i, ytl+h); y++)
-		PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
+		PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 }
 
 void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
@@ -179,7 +179,7 @@ void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 			if (e*2 >= dx)
 				y += sy, e -= dx;
 			if (CHECKY(i, y))
-				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
+				PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 		}
 	} else {
 		if (y1 > y2) {
@@ -192,7 +192,7 @@ void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 			if (e*2 >= dy)
 				x += sx, e -= dy;
 			if (CHECKX(i, x))
-				PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
+				PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 		}
 	}
 }
@@ -211,7 +211,7 @@ void drawbezier(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color 
 void drawpixel(Image *i, I16 x, I16 y, Color c)
 {
 	if (CHECKX(i, x) && CHECKY(i, y))
-		PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), c);
+		PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 }
 
 static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
@@ -246,9 +246,9 @@ static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2,
 			o1 += n*(y2-y1 - x2+x1), o2 += n*(y2-y1 - x2+x1), d += n*(x2-x1 + y2-y1);
 			if (hits) {
 				if (flip)
-					PIXEL(i, y, x) = BLEND(PIXEL(i, y, x), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+					PIXEL(i, y, x) = blend(PIXEL(i, y, x), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
 				else
-					PIXEL(i, x, y) = BLEND(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+					PIXEL(i, x, y) = blend(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
 			}
 		}
 	}
