@@ -168,7 +168,10 @@ void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 	I64 dx = ABS(x2-x1), dy = ABS(y2-y1);
 	if (dx + dy == 0)
 		return;
+	/* NOTE: we always exclude (x2, y2), because it solves the problem
+	 * of double-painting pixels when we draw a contour of semi-transparent lines. */
 	if (dx >= dy) {
+		x2 -= SIGN(x2 - x1);
 		if (x1 > x2) {
 			SWAP(x1, x2);
 			SWAP(y1, y2);
@@ -182,6 +185,7 @@ void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 				PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 		}
 	} else {
+		y2 -= SIGN(y2 - y1);
 		if (y1 > y2) {
 			SWAP(y1, y2);
 			SWAP(x1, x2);
