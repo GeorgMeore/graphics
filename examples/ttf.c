@@ -6,6 +6,7 @@
 #include "io.h"
 #include "panic.h"
 #include "alloc.h"
+#include "mlib.h"
 
 U64 readbe(IOBuffer *b, U8 bytes)
 {
@@ -36,15 +37,6 @@ void skip(IOBuffer *b, U32 bytes)
 	for (U32 i = 0; i < bytes; i++)
 		bread(b);
 }
-
-typedef enum {
-	OnCurve = 1<<0,
-	XShort  = 1<<1,
-	YShort  = 1<<2,
-	Repeat  = 1<<3,
-	XFlag   = 1<<4,
-	YFlag   = 1<<5,
-} GlyfFlag;
 
 U32 strtag(char s[4])
 {
@@ -96,11 +88,21 @@ FontInfo readfontdir(IOBuffer *font)
 	return fi;
 }
 
+typedef enum {
+	OnCurve = 1<<0,
+	XShort  = 1<<1,
+	YShort  = 1<<2,
+	Repeat  = 1<<3,
+	XFlag   = 1<<4,
+	YFlag   = 1<<5,
+} GlyfFlag;
+
 typedef struct {
 	I16 ncont;
 	U16 *ends;
 	U16 nvert;
 	I16 *xy[2];
+	I16 lim[2][2];
 	U8  *on;
 } GlyfInfo;
 
@@ -110,7 +112,10 @@ GlyfInfo readglyph(IOBuffer *font)
 	gi.ncont = readbe(font, 2);
 	if (!gi.ncont)
 		return gi;
-	skip(font, 2+2+2+2); /* xMin, yMin, xMax, yMax */
+	gi.lim[0][0] = readbe(font, 2);
+	gi.lim[1][0] = readbe(font, 2);
+	gi.lim[0][1] = readbe(font, 2);
+	gi.lim[1][1] = readbe(font, 2);
 	gi.ends = memalloc(gi.ncont * sizeof(U16));
 	for (I16 i = 0; i < gi.ncont; i++)
 		gi.ends[i] = readbe(font, 2);
@@ -131,18 +136,19 @@ GlyfInfo readglyph(IOBuffer *font)
 	gi.xy[1] = memalloc(gi.nvert * sizeof(I16));
 	U8 cflags[2][2] = {{XShort, XFlag}, {YShort, YFlag}};
 	for (I16 comp = 0; comp < 2; comp++) {
-		for (I16 i = 0; i < gi.nvert; i++) {
+		for (I16 i = 0, prev = 0; i < gi.nvert; i++) {
 			if (flags[i] & cflags[comp][0]) {
 				if (flags[i] & cflags[comp][1])
-					gi.xy[comp][i] = readbe(font, 1);
+					gi.xy[comp][i] = prev + readbe(font, 1);
 				else
-					gi.xy[comp][i] = -readbe(font, 1);
+					gi.xy[comp][i] = prev - readbe(font, 1);
 			} else {
 				if (flags[i] & cflags[comp][1])
-					gi.xy[comp][i] = 0;
+					gi.xy[comp][i] = prev;
 				else
-					gi.xy[comp][i] = readbe(font, 2);
+					gi.xy[comp][i] = prev + readbe(font, 2);
 			}
+			prev = gi.xy[comp][i];
 			gi.on[i] = flags[i] & OnCurve;
 		}
 	}
@@ -159,8 +165,97 @@ GlyfInfo readglyphno(IOBuffer *font, FontInfo fi, U16 no)
 	return readglyph(font);
 }
 
-//#define FONT "/usr/share/fonts/TTF/IBMPlexSerif-Regular.ttf"
-#define FONT "/usr/share/fonts/noto/NotoSerif-Regular.ttf"
+typedef struct {
+	I16 x1, y1;
+	I16 x2, y2;
+} Segment;
+
+typedef struct {
+	I16 *xy[2];
+	U16 n;
+} Outline;
+
+void drawbezier2(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
+{
+	I16 x = DIVROUND((x1 + x2) + (x2 + x3), 4);
+	I16 y = DIVROUND((y1 + y2) + (y2 + y3), 4);
+	if (ABS(x1 - x) + ABS(x2 - x) + ABS(y1 - y) + ABS(y2 - y) >= 5) {
+		drawbezier2(i, x1, y1, (x1+x2)/2, (y1+y2)/2, x, y, c);
+		drawbezier2(i, x, y, (x2+x3)/2, (y2+y3)/2, x3, y3, c);
+	} else {
+		drawline(i, x1, y1, x, y, c);
+		drawline(i, x, y, x3, y3, c);
+	}
+}
+
+void outline(Image *f, I16 x0, I16 y0, GlyfInfo gi)
+{
+	//Outline o = {};
+	for (I16 cont = 0; cont < gi.ncont; cont++) {
+		U16 start = cont > 0 ? gi.ends[cont-1]+1 : 0, end = gi.ends[cont], n = end - start + 1;
+		for (U16 i = 0; i < n; i++) {
+			U16 curr = start + i;
+			I16 x1, y1, x2, y2, x3, y3;
+			if (gi.on[curr]) {
+				U16 next = start + MOD(i+1, n), nnext = start + MOD(i+2, n);
+				x1 = gi.xy[0][curr], y1 = gi.xy[1][curr];
+				x2 = gi.xy[0][next], y2 = gi.xy[1][next];
+				if (gi.on[next]) {
+					drawline(f, x0+x1, y0-y1, x0+x2, y0-y2, RGBA(200, 200, 20, 50));
+				} else {
+					if (gi.on[nnext])
+						x3 = gi.xy[0][nnext], y3 = gi.xy[1][nnext];
+					else
+						x3 = (gi.xy[0][next]+gi.xy[0][nnext])/2, y3 = (gi.xy[1][next]+gi.xy[1][nnext])/2;
+					drawbezier2(f, x0+x1, y0-y1, x0+x2, y0-y2, x0+x3, y0-y3, RGBA(200, 200, 20, 50));
+					i += 1;
+				}
+			} else {
+				U16 prev = start + MOD(i-1, n), next = start + MOD(i+1, n);
+				x2 = gi.xy[0][curr], y2 = gi.xy[1][curr];
+				if (gi.on[prev])
+					x1 = gi.xy[0][prev], y1 = gi.xy[1][prev];
+				else
+					x1 = (gi.xy[0][prev]+gi.xy[0][curr])/2, y1 = (gi.xy[1][prev]+gi.xy[1][curr])/2;
+				if (gi.on[next])
+					x3 = gi.xy[0][next], y3 = gi.xy[1][next];
+				else
+					x3 = (gi.xy[0][next]+gi.xy[0][curr])/2, y3 = (gi.xy[1][next]+gi.xy[1][curr])/2;
+				drawbezier2(f, x0+x1, y0-y1, x0+x2, y0-y2, x0+x3, y0-y3, RGBA(200, 200, 20, 50));
+			}
+		}
+	}
+	//return o;
+}
+
+void fill(Image *f, Outline o)
+{
+}
+
+void drawroughoutline(Image *f, I16 x, I16 y, GlyfInfo gi)
+{
+	I16 xp = x, yp = y, xs = 0, ys = 0;
+	for (I16 i = 0, contour = 0, begin = 1; i < gi.nvert; i++) {
+		I16 xc = x + gi.xy[0][i];
+		I16 yc = y + gi.xy[1][i];
+		if (begin) {
+			xs = xc, ys = yc;
+			begin = 0;
+		} else {
+			drawline(f, xp, yp, xc, yc, WHITE);
+			begin = (i == gi.ends[contour]);
+			if (begin) {
+				contour += 1;
+				drawline(f, xs, ys, xc, yc, WHITE);
+			}
+		}
+		drawsmoothcircle(f, xc, yc, 5, WHITE);
+		xp = xc, yp = yc;
+	}
+}
+
+#define FONT "/usr/share/fonts/TTF/IBMPlexSerif-Regular.ttf"
+//#define FONT "/usr/share/fonts/noto/NotoSerif-Regular.ttf"
 
 int main(int, char **argv)
 {
@@ -168,31 +263,24 @@ int main(int, char **argv)
 	if (!bopen(&font, FONT, 'r'))
 		panic("failed to open the font");
 	FontInfo fi = readfontdir(&font);
-	if (!bseek(&font, fi.glyf))
-		panic("failed to seek the glyf table");
-	GlyfInfo gi = readglyphno(&font, fi, 15);
+	U16 n = 11;
+	GlyfInfo gi = readglyphno(&font, fi, n);
+	//Outline o = convert(gi);
 	winopen(1920, 1080, argv[0], 60);
 	while (!keyisdown('q')) {
 		Image *f = framebegin();
 		drawclear(f, RGBA(18, 18, 18, 255));
-		I16 xp = 400, yp = 400, xs = 0, ys = 0;
-		for (I16 i = 0, contour = 0, begin = 1; i < gi.nvert; i++) {
-			I16 xc = xp + gi.xy[0][i];
-			I16 yc = yp + gi.xy[1][i];
-			if (begin) {
-				xs = xc, ys = yc;
-				begin = 0;
-			} else {
-				drawline(f, xp, yp, xc, yc, WHITE);
-				begin = (i == gi.ends[contour]);
-				if (begin) {
-					contour += 1;
-					drawline(f, xs, ys, xc, yc, WHITE);
-				}
-			}
-			drawsmoothcircle(f, xc, yc, 5, WHITE);
-			xp = xc, yp = yc;
+		if (keywaspressed('p') && n > 0) {
+			n -= 1;
+			println(OD(n));
+			gi = readglyphno(&font, fi, n);
 		}
+		if (keywaspressed('n')) {
+			n += 1;
+			println(OD(n));
+			gi = readglyphno(&font, fi, n);
+		}
+		outline(f, 200, 800, gi);
 		frameend();
 	}
 	return 0;
