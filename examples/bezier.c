@@ -90,8 +90,8 @@ void drawbezier2(Image *i, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3, Color
 int main(int, char **argv)
 {
 	winopen(600, 600, argv[0], 60);
-	int tmpcnt = 0, tmp[3][2];
-	Bezier2 *head = 0;
+	int tmpcnt = 0, tmp[3][2] = {95, 372, 106, 286, 365, 202};
+	Bezier2 *head = bezier2(tmp, 0);
 	int sw = 0;
 	while (!keyisdown('q')) {
 		Image *fb = framebegin();

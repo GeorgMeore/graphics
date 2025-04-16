@@ -8,6 +8,10 @@
 #include "alloc.h"
 #include "mlib.h"
 
+//#include <stdlib.h>
+//#define memalloc malloc
+//#define memfree  free
+
 U64 readbe(IOBuffer *b, U8 bytes)
 {
 	U64 n = 0;
@@ -106,16 +110,8 @@ typedef struct {
 	U8  *on;
 } GlyfInfo;
 
-GlyfInfo readglyph(IOBuffer *font)
+GlyfInfo readsimpleglyph(IOBuffer *font, GlyfInfo gi)
 {
-	GlyfInfo gi = {};
-	gi.ncont = readbe(font, 2);
-	if (!gi.ncont)
-		return gi;
-	gi.lim[0][0] = readbe(font, 2);
-	gi.lim[1][0] = readbe(font, 2);
-	gi.lim[0][1] = readbe(font, 2);
-	gi.lim[1][1] = readbe(font, 2);
 	gi.ends = memalloc(gi.ncont * sizeof(U16));
 	for (I16 i = 0; i < gi.ncont; i++)
 		gi.ends[i] = readbe(font, 2);
@@ -152,7 +148,30 @@ GlyfInfo readglyph(IOBuffer *font)
 			gi.on[i] = flags[i] & OnCurve;
 		}
 	}
+	memfree(flags);
 	return gi;
+}
+
+GlyfInfo readcompoundglyph(IOBuffer *font, GlyfInfo gi)
+{
+	println("TODO: support compound glyphs");
+	return gi;
+}
+
+GlyfInfo readglyph(IOBuffer *font)
+{
+	GlyfInfo gi = {};
+	gi.ncont = readbe(font, 2);
+	if (gi.ncont == 0)
+		return gi;
+	gi.lim[0][0] = readbe(font, 2);
+	gi.lim[1][0] = readbe(font, 2);
+	gi.lim[0][1] = readbe(font, 2);
+	gi.lim[1][1] = readbe(font, 2);
+	if (gi.ncont > 0)
+		return readsimpleglyph(font, gi);
+	else
+		return readcompoundglyph(font, gi);
 }
 
 GlyfInfo readglyphno(IOBuffer *font, FontInfo fi, U16 no)
@@ -164,16 +183,6 @@ GlyfInfo readglyphno(IOBuffer *font, FontInfo fi, U16 no)
 	bseek(font, fi.glyf + offset);
 	return readglyph(font);
 }
-
-typedef struct {
-	I16 x1, y1;
-	I16 x2, y2;
-} Segment;
-
-typedef struct {
-	I16 *xy[2];
-	U16 n;
-} Outline;
 
 void drawbezier2(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
@@ -188,9 +197,104 @@ void drawbezier2(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color
 	}
 }
 
-void outline(Image *f, I16 x0, I16 y0, GlyfInfo gi)
+int isectline(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
 {
-	//Outline o = {};
+	I32 o = SIGN((ry - y1)*(x2 - x1) - (rx - x1)*(y2 - y1)) * SIGN(y2 - y1);
+	if (y1 == y2 || ry < MIN(y1, y2) || ry > MAX(y1, y2) || o < 0)
+		return 0;
+	if (ry == y1)
+		return SIGN(y2 - y1);
+	if (ry == y2)
+		return SIGN(y2 - y1);
+	return 2*SIGN(y2 - y1);
+}
+
+int isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
+{
+	if (ry < MIN3(y1, y2, y3) || ry > MAX3(y1, y2, y3))
+		return 0;
+	I64 a = y1 - 2*y2 + y3;
+	I64 b = 2*(y2 - y1);
+	I64 c = y1 - ry;
+	I64 d = b*b - 4*a*c;
+	if (d < 0)
+		return 0;
+	if (d == 0) {
+		if (SIGN(b)*SIGN(a) < 0 || ABS(b) > ABS(2*a))
+			return 0;
+		if ((1 + b)*(1 + b)*x1 + 2*(1 + b)*b*x2 + b*b*x3 < rx*4*a*a)
+			return 0;
+		if (b == 0)
+			return SIGN(y3 - y1);
+		if (b == -2*a)
+			return SIGN(y3 - y1);
+		return 2*SIGN(y3 - y1);
+	}
+	return 0;
+}
+
+int isectcurve2(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
+{
+	const I64 n = 32; /* NOTE: looks ok */
+	int winding = 0;
+	for (I64 t = 1, xp = x1, yp = y1; t <= n; t++) {
+		I64 x = (SQUARE(n-t)*x1 + 2*(n-t)*t*x2 + SQUARE(t)*x3)/SQUARE(n);
+		I64 y = (SQUARE(n-t)*y1 + 2*(n-t)*t*y2 + SQUARE(t)*y3)/SQUARE(n);
+		if (x != xp || y != yp)
+			winding += isectline(rx, ry, xp, yp, x, y);
+		xp = x, yp = y;
+	}
+	return winding;
+}
+
+void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi)
+{
+	for (I16 x = gi.lim[0][0]; x <= gi.lim[0][1]; x++)
+	for (I16 y = gi.lim[1][0]; y <= gi.lim[1][1]; y++) {
+		I32 winding = 0;
+		for (I16 cont = 0; cont < gi.ncont; cont++) {
+			U16 start = cont > 0 ? gi.ends[cont-1]+1 : 0, end = gi.ends[cont], n = end - start + 1;
+			for (U16 i = 0; i < n; i++) {
+				U16 curr = start + i;
+				I16 x1, y1, x2, y2, x3, y3;
+				if (gi.on[curr]) {
+					U16 next = start + MOD(i+1, n), nnext = start + MOD(i+2, n);
+					x1 = gi.xy[0][curr], y1 = gi.xy[1][curr];
+					x2 = gi.xy[0][next], y2 = gi.xy[1][next];
+					if (gi.on[next]) {
+						winding += isectline(x, y, x1, y1, x2, y2);
+					} else {
+						if (gi.on[nnext])
+							x3 = gi.xy[0][nnext], y3 = gi.xy[1][nnext];
+						else
+							x3 = (gi.xy[0][next]+gi.xy[0][nnext])/2, y3 = (gi.xy[1][next]+gi.xy[1][nnext])/2;
+						//winding += isectline(x, y, x1, y1, x3, y3);
+						winding += isectcurve2(x, y, x1, y1, x2, y2, x3, y3);
+						i += 1;
+					}
+				} else {
+					U16 prev = start + MOD(i-1, n), next = start + MOD(i+1, n);
+					x2 = gi.xy[0][curr], y2 = gi.xy[1][curr];
+					if (gi.on[prev])
+						x1 = gi.xy[0][prev], y1 = gi.xy[1][prev];
+					else
+						x1 = (gi.xy[0][prev]+gi.xy[0][curr])/2, y1 = (gi.xy[1][prev]+gi.xy[1][curr])/2;
+					if (gi.on[next])
+						x3 = gi.xy[0][next], y3 = gi.xy[1][next];
+					else
+						x3 = (gi.xy[0][next]+gi.xy[0][curr])/2, y3 = (gi.xy[1][next]+gi.xy[1][curr])/2;
+					//winding += isectline(x, y, x1, y1, x3, y3);
+					winding += isectcurve2(x, y, x1, y1, x2, y2, x3, y3);
+				}
+			}
+		}
+		if (winding && CHECKX(f, x0+x) && CHECKY(f, y0-y))
+			PIXEL(f, x0+x, y0-y) = RGBA(100, 100, 10, 50);
+	}
+}
+
+void drawoutline(Image *f, I16 x0, I16 y0, GlyfInfo gi)
+{
 	for (I16 cont = 0; cont < gi.ncont; cont++) {
 		U16 start = cont > 0 ? gi.ends[cont-1]+1 : 0, end = gi.ends[cont], n = end - start + 1;
 		for (U16 i = 0; i < n; i++) {
@@ -207,7 +311,7 @@ void outline(Image *f, I16 x0, I16 y0, GlyfInfo gi)
 						x3 = gi.xy[0][nnext], y3 = gi.xy[1][nnext];
 					else
 						x3 = (gi.xy[0][next]+gi.xy[0][nnext])/2, y3 = (gi.xy[1][next]+gi.xy[1][nnext])/2;
-					drawbezier2(f, x0+x1, y0-y1, x0+x2, y0-y2, x0+x3, y0-y3, RGBA(200, 200, 20, 50));
+					drawbezier(f, x0+x1, y0-y1, x0+x2, y0-y2, x0+x3, y0-y3, RGBA(200, 200, 20, 50));
 					i += 1;
 				}
 			} else {
@@ -221,36 +325,9 @@ void outline(Image *f, I16 x0, I16 y0, GlyfInfo gi)
 					x3 = gi.xy[0][next], y3 = gi.xy[1][next];
 				else
 					x3 = (gi.xy[0][next]+gi.xy[0][curr])/2, y3 = (gi.xy[1][next]+gi.xy[1][curr])/2;
-				drawbezier2(f, x0+x1, y0-y1, x0+x2, y0-y2, x0+x3, y0-y3, RGBA(200, 200, 20, 50));
+				drawbezier(f, x0+x1, y0-y1, x0+x2, y0-y2, x0+x3, y0-y3, RGBA(200, 200, 20, 50));
 			}
 		}
-	}
-	//return o;
-}
-
-void fill(Image *f, Outline o)
-{
-}
-
-void drawroughoutline(Image *f, I16 x, I16 y, GlyfInfo gi)
-{
-	I16 xp = x, yp = y, xs = 0, ys = 0;
-	for (I16 i = 0, contour = 0, begin = 1; i < gi.nvert; i++) {
-		I16 xc = x + gi.xy[0][i];
-		I16 yc = y + gi.xy[1][i];
-		if (begin) {
-			xs = xc, ys = yc;
-			begin = 0;
-		} else {
-			drawline(f, xp, yp, xc, yc, WHITE);
-			begin = (i == gi.ends[contour]);
-			if (begin) {
-				contour += 1;
-				drawline(f, xs, ys, xc, yc, WHITE);
-			}
-		}
-		drawsmoothcircle(f, xc, yc, 5, WHITE);
-		xp = xc, yp = yc;
 	}
 }
 
@@ -265,7 +342,6 @@ int main(int, char **argv)
 	FontInfo fi = readfontdir(&font);
 	U16 n = 11;
 	GlyfInfo gi = readglyphno(&font, fi, n);
-	//Outline o = convert(gi);
 	winopen(1920, 1080, argv[0], 60);
 	while (!keyisdown('q')) {
 		Image *f = framebegin();
@@ -280,7 +356,10 @@ int main(int, char **argv)
 			println(OD(n));
 			gi = readglyphno(&font, fi, n);
 		}
-		outline(f, 200, 800, gi);
+		if (keyisdown('r'))
+			drawraster(f, 200, 800, gi);
+		else
+			drawoutline(f, 200, 800, gi);
 		frameend();
 	}
 	return 0;
