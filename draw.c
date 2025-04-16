@@ -171,28 +171,30 @@ void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 	/* NOTE: we always exclude (x2, y2), because it solves the problem
 	 * of double-painting pixels when we draw a contour of semi-transparent lines. */
 	if (dx >= dy) {
-		x2 -= SIGN(x2 - x1);
+		I64 xmin, xmax, sy, d, y;
 		if (x1 > x2) {
-			SWAP(x1, x2);
-			SWAP(y1, y2);
+			xmin = CLIPX(i, x2+1), xmax = CLIPX(i, x1);
+			sy = SIGN(y1-y2), d = (xmin-x2)*dy, y = y2 + sy*(d/dx);
+		} else {
+			xmin = CLIPX(i, x1), xmax = CLIPX(i, x2-1);
+			sy = SIGN(y2-y1), d = (xmin-x1)*dy, y = y1 + sy*(d/dx);
 		}
-		I64 xmin = CLIPX(i, x1), xmax = CLIPX(i, x2);
-		I64 sy = SIGN(y2-y1), d = (xmin-x1)*dy, y = y1 + sy*(d/dx), e = d%dx;
-		for (I64 x = xmin; x <= xmax; x++, e += dy) {
+		for (I64 x = xmin, e = d%dx; x <= xmax; x++, e += dy) {
 			if (e*2 >= dx)
 				y += sy, e -= dx;
 			if (CHECKY(i, y))
 				PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 		}
 	} else {
-		y2 -= SIGN(y2 - y1);
+		I64 ymin, ymax, sx, d, x;
 		if (y1 > y2) {
-			SWAP(y1, y2);
-			SWAP(x1, x2);
+			ymin = CLIPY(i, y2+1), ymax = CLIPY(i, y1);
+			sx = SIGN(x1-x2), d = (ymin-y2)*dx, x = x2 + sx*(d/dy);
+		} else {
+			ymin = CLIPY(i, y1), ymax = CLIPY(i, y2-1);
+			sx = SIGN(x2-x1), d = (ymin-y1)*dx, x = x1 + sx*(d/dy);
 		}
-		I64 ymin = CLIPY(i, y1), ymax = CLIPY(i, y2);
-		I64 sx = SIGN(x2-x1), d = (ymin-y1)*dx, x = x1 + sx*(d/dy), e = d%dy;
-		for (I64 y = ymin; y <= ymax; y++, e += dx) {
+		for (I64 y = ymin, e = d%dy; y <= ymax; y++, e += dx) {
 			if (e*2 >= dy)
 				x += sx, e -= dy;
 			if (CHECKX(i, x))
@@ -203,7 +205,7 @@ void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 
 void drawbezier(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
-	const I64 n = 100; /* NOTE: looks ok */
+	const I64 n = 64; /* NOTE: looks ok */
 	for (I64 t = 1, xp = x1, yp = y1; t <= n; t++) {
 		I64 x = (SQUARE(n-t)*x1 + 2*(n-t)*t*x2 + SQUARE(t)*x3)/SQUARE(n);
 		I64 y = (SQUARE(n-t)*y1 + 2*(n-t)*t*y2 + SQUARE(t)*y3)/SQUARE(n);
