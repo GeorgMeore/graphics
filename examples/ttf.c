@@ -54,6 +54,10 @@ typedef struct {
 	U32 head;
 	U32 loca;
 	U8  locasz;
+	U16 maxpts;
+	U16 maxconts;
+	U16 maxcpts;
+	U16 maxcconts;
 } FontInfo;
 
 FontInfo readfontdir(IOBuffer *font)
@@ -88,6 +92,13 @@ FontInfo readfontdir(IOBuffer *font)
 			fi.locasz = 2;
 		if (indexToLocFormat == 1)
 			fi.locasz = 4;
+	}
+	if (fi.maxp && bseek(font, fi.maxp)) {
+		skip(font, 4+2); /* version, numGlyphs */
+		fi.maxpts = readbe(font, 2);
+		fi.maxconts = readbe(font, 2);
+		fi.maxcpts = readbe(font, 2);
+		fi.maxcconts = readbe(font, 2);
 	}
 	return fi;
 }
@@ -152,9 +163,26 @@ GlyfInfo readsimpleglyph(IOBuffer *font, GlyfInfo gi)
 	return gi;
 }
 
+typedef enum {
+	ArgsWords    = 1<<0,
+	ArgsXY       = 1<<1,
+	RoundXY      = 1<<2,
+	HaveScale    = 1<<3,
+	MoreComp     = 1<<5,
+	HaveXYScale  = 1<<6,
+	Have2x2      = 1<<7,
+	HaveInst     = 1<<8,
+	UseMyMetrics = 1<<9,
+	OverlapComp  = 1<<10,
+} CompFlag;
+
 GlyfInfo readcompoundglyph(IOBuffer *font, GlyfInfo gi)
 {
-	println("TODO: support compound glyphs");
+	I16 n = -gi.ncont;
+	for (I16 comp = 0; comp < n; comp++) {
+		U16 flags = readbe(font, 2);
+		U16 index = readbe(font, 2);
+	}
 	return gi;
 }
 
@@ -200,14 +228,28 @@ I32 isectline(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
 
 Trying to figure out a computationally stable and readable version....
 
-I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
+I32 isectcurve(F64 rx, F64 ry, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3)
 {
 	if (ry < MIN3(y1, y2, y3) || ry > MAX3(y1, y2, y3) || rx > MAX3(x1, x2, x3))
 		return 0;
+
+	// ??
+	if (ry == y1 && rx <= x1) {
+		I32 wn = SIGN(y2 - y1);
+	}
+
 	F64 a = y1 - 2*y2 + y3;
 	F64 b = 2*(y2 - y1);
 	F64 c = y1 - ry;
 	F64 d = b*b - 4*a*c;
+
+	/*
+		Ok, what do we need to handle:
+		1) handle explicitly ry == y1 or ry == y3
+		2) handle d=0 explicitly (or is it a good idea? what would the implications of rounding errors be in this case?)
+		3) handle two root situation
+	*/
+
 	if (a < 0)
 		a = -a, b = -b, c = -c;
 	if (d < 0)
@@ -242,22 +284,22 @@ I32 isectcurve2(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 	if (ry < MIN3(y1, y2, y3) || ry > MAX3(y1, y2, y3) || rx > MAX3(x1, x2, x3))
 		return 0;
 	const I64 n = 32;
-	I32 winding = 0;
+	I32 wn = 0;
 	for (I64 t = 1, xp = x1, yp = y1; t <= n; t++) {
 		I64 x = DIVROUND(SQUARE(n-t)*x1 + 2*(n-t)*t*x2 + SQUARE(t)*x3, SQUARE(n));
 		I64 y = DIVROUND(SQUARE(n-t)*y1 + 2*(n-t)*t*y2 + SQUARE(t)*y3, SQUARE(n));
 		if (x != xp || y != yp)
-			winding += isectline(rx, ry, xp, yp, x, y);
+			wn += isectline(rx, ry, xp, yp, x, y);
 		xp = x, yp = y;
 	}
-	return winding;
+	return wn;
 }
 
 void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi)
 {
 	for (I16 x = gi.lim[0][0]; x <= gi.lim[0][1]; x++)
 	for (I16 y = gi.lim[1][0]; y <= gi.lim[1][1]; y++) {
-		I32 winding = 0;
+		I32 wn = 0;
 		for (I16 cont = 0; cont < gi.ncont; cont++) {
 			U16 start = cont > 0 ? gi.ends[cont-1]+1 : 0, end = gi.ends[cont], n = end - start + 1;
 			for (U16 i = 0; i < n; i++) {
@@ -268,13 +310,13 @@ void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi)
 					x1 = gi.xy[0][curr], y1 = gi.xy[1][curr];
 					x2 = gi.xy[0][next], y2 = gi.xy[1][next];
 					if (gi.on[next]) {
-						winding += isectline(x, y, x1, y1, x2, y2);
+						wn += isectline(x, y, x1, y1, x2, y2);
 					} else {
 						if (gi.on[nnext])
 							x3 = gi.xy[0][nnext], y3 = gi.xy[1][nnext];
 						else
 							x3 = (gi.xy[0][next]+gi.xy[0][nnext])/2, y3 = (gi.xy[1][next]+gi.xy[1][nnext])/2;
-						winding += isectcurve2(x, y, x1, y1, x2, y2, x3, y3);
+						wn += isectcurve2(x, y, x1, y1, x2, y2, x3, y3);
 						i += 1;
 					}
 				} else {
@@ -288,11 +330,11 @@ void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi)
 						x3 = gi.xy[0][next], y3 = gi.xy[1][next];
 					else
 						x3 = (gi.xy[0][next]+gi.xy[0][curr])/2, y3 = (gi.xy[1][next]+gi.xy[1][curr])/2;
-					winding += isectcurve2(x, y, x1, y1, x2, y2, x3, y3);
+					wn += isectcurve2(x, y, x1, y1, x2, y2, x3, y3);
 				}
 			}
 		}
-		if (winding && CHECKX(f, x0+x) && CHECKY(f, y0-y))
+		if (wn && CHECKX(f, x0+x) && CHECKY(f, y0-y))
 			PIXEL(f, (x0+x), (y0-y)) = RGBA(100, 100, 10, 50);
 	}
 }
