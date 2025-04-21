@@ -184,62 +184,68 @@ GlyfInfo readglyphno(IOBuffer *font, FontInfo fi, U16 no)
 	return readglyph(font);
 }
 
-void drawbezier2(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
+I32 isectline(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
 {
-	I16 x = DIVROUND((x1 + x2) + (x2 + x3), 4);
-	I16 y = DIVROUND((y1 + y2) + (y2 + y3), 4);
-	if (ABS(x1 - x) + ABS(x2 - x) + ABS(y1 - y) + ABS(y2 - y) >= 5) {
-		drawbezier2(i, x1, y1, (x1+x2)/2, (y1+y2)/2, x, y, c);
-		drawbezier2(i, x, y, (x2+x3)/2, (y2+y3)/2, x3, y3, c);
-	} else {
-		drawline(i, x1, y1, x, y, c);
-		drawline(i, x, y, x3, y3, c);
-	}
-}
-
-int isectline(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
-{
-	I32 o = SIGN((ry - y1)*(x2 - x1) - (rx - x1)*(y2 - y1)) * SIGN(y2 - y1);
-	if (y1 == y2 || ry < MIN(y1, y2) || ry > MAX(y1, y2) || o < 0)
+	if (y1 == y2 || ry < MIN(y1, y2) || ry > MAX(y1, y2) || rx > MAX(x1, x2))
 		return 0;
-	if (ry == y1)
+	if ((ry == y1 && rx <= x1) || (ry == y2 && rx <= x2))
 		return SIGN(y2 - y1);
-	if (ry == y2)
-		return SIGN(y2 - y1);
+	I64 o = SIGN((ry - y1)*(x2 - x1) - (rx - x1)*(y2 - y1)) * SIGN(y2 - y1);
+	if (o < 0)
+		return 0;
 	return 2*SIGN(y2 - y1);
 }
 
-int isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
+#if 0
+
+Trying to figure out a computationally stable and readable version....
+
+I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 {
-	if (ry < MIN3(y1, y2, y3) || ry > MAX3(y1, y2, y3))
+	if (ry < MIN3(y1, y2, y3) || ry > MAX3(y1, y2, y3) || rx > MAX3(x1, x2, x3))
 		return 0;
-	I64 a = y1 - 2*y2 + y3;
-	I64 b = 2*(y2 - y1);
-	I64 c = y1 - ry;
-	I64 d = b*b - 4*a*c;
+	F64 a = y1 - 2*y2 + y3;
+	F64 b = 2*(y2 - y1);
+	F64 c = y1 - ry;
+	F64 d = b*b - 4*a*c;
+	if (a < 0)
+		a = -a, b = -b, c = -c;
 	if (d < 0)
 		return 0;
+	/* -b/2a (tangent) */
 	if (d == 0) {
-		if (SIGN(b)*SIGN(a) < 0 || ABS(b) > ABS(2*a))
+		F64 t = -b/(2*a);
+		if (b > 0 || b < -2*a)
 			return 0;
+		F64 x = (1 + b/(2*a))
 		if ((1 + b)*(1 + b)*x1 + 2*(1 + b)*b*x2 + b*b*x3 < rx*4*a*a)
 			return 0;
-		if (b == 0)
+		if (b == 0 || b == -2*a)
 			return SIGN(y3 - y1);
-		if (b == -2*a)
-			return SIGN(y3 - y1);
-		return 2*SIGN(y3 - y1);
+		return 0;
+	}
+	F64 t1 = (-b - fsqrt(d))/(2*a), t2 = (-b + fsqrt(d))/(2*a);
+	if (t1 > 1)
+		return 0;
+	//if (t1 < 0 || t1 > 1)
+	if (b < 0 && d <= b*b && (-b < 2*a || d >= (2*a + b)*(2*a + b))) {
+	}
+	/* (-b + sqrt(d))/2a */
+	if (0) {
 	}
 	return 0;
 }
+#endif
 
-int isectcurve2(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
+I32 isectcurve2(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 {
-	const I64 n = 32; /* NOTE: looks ok */
-	int winding = 0;
+	if (ry < MIN3(y1, y2, y3) || ry > MAX3(y1, y2, y3) || rx > MAX3(x1, x2, x3))
+		return 0;
+	const I64 n = 32;
+	I32 winding = 0;
 	for (I64 t = 1, xp = x1, yp = y1; t <= n; t++) {
-		I64 x = (SQUARE(n-t)*x1 + 2*(n-t)*t*x2 + SQUARE(t)*x3)/SQUARE(n);
-		I64 y = (SQUARE(n-t)*y1 + 2*(n-t)*t*y2 + SQUARE(t)*y3)/SQUARE(n);
+		I64 x = DIVROUND(SQUARE(n-t)*x1 + 2*(n-t)*t*x2 + SQUARE(t)*x3, SQUARE(n));
+		I64 y = DIVROUND(SQUARE(n-t)*y1 + 2*(n-t)*t*y2 + SQUARE(t)*y3, SQUARE(n));
 		if (x != xp || y != yp)
 			winding += isectline(rx, ry, xp, yp, x, y);
 		xp = x, yp = y;
@@ -268,7 +274,6 @@ void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi)
 							x3 = gi.xy[0][nnext], y3 = gi.xy[1][nnext];
 						else
 							x3 = (gi.xy[0][next]+gi.xy[0][nnext])/2, y3 = (gi.xy[1][next]+gi.xy[1][nnext])/2;
-						//winding += isectline(x, y, x1, y1, x3, y3);
 						winding += isectcurve2(x, y, x1, y1, x2, y2, x3, y3);
 						i += 1;
 					}
@@ -283,13 +288,12 @@ void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi)
 						x3 = gi.xy[0][next], y3 = gi.xy[1][next];
 					else
 						x3 = (gi.xy[0][next]+gi.xy[0][curr])/2, y3 = (gi.xy[1][next]+gi.xy[1][curr])/2;
-					//winding += isectline(x, y, x1, y1, x3, y3);
 					winding += isectcurve2(x, y, x1, y1, x2, y2, x3, y3);
 				}
 			}
 		}
 		if (winding && CHECKX(f, x0+x) && CHECKY(f, y0-y))
-			PIXEL(f, x0+x, y0-y) = RGBA(100, 100, 10, 50);
+			PIXEL(f, (x0+x), (y0-y)) = RGBA(100, 100, 10, 50);
 	}
 }
 
@@ -331,7 +335,10 @@ void drawoutline(Image *f, I16 x0, I16 y0, GlyfInfo gi)
 	}
 }
 
+/* TODO: check out SDF */
+
 #define FONT "/usr/share/fonts/TTF/IBMPlexSerif-Regular.ttf"
+//#define FONT "/usr/share/fonts/TTF/IBMPlexMono-Regular.ttf"
 //#define FONT "/usr/share/fonts/noto/NotoSerif-Regular.ttf"
 
 int main(int, char **argv)
@@ -340,7 +347,7 @@ int main(int, char **argv)
 	if (!bopen(&font, FONT, 'r'))
 		panic("failed to open the font");
 	FontInfo fi = readfontdir(&font);
-	U16 n = 11;
+	U16 n = 0;
 	GlyfInfo gi = readglyphno(&font, fi, n);
 	winopen(1920, 1080, argv[0], 60);
 	while (!keyisdown('q')) {

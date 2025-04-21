@@ -1,5 +1,5 @@
 CC=gcc
-O=0 # no optimisations by default
+O=3 # no optimisations by default
 D=1 # builds are not in debug mode by default
 CDEBUGFLAGS=-g -fsanitize=undefined,address
 CFLAGS=-I. -Wall -Wextra -O$O -mavx2 -mfma
