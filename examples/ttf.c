@@ -7,6 +7,8 @@
 #include "panic.h"
 #include "alloc.h"
 #include "mlib.h"
+#include "poly.h"
+#include "math.h"
 
 //#include <stdlib.h>
 //#define memalloc malloc
@@ -182,6 +184,9 @@ GlyfInfo readcompoundglyph(IOBuffer *font, GlyfInfo gi)
 	for (I16 comp = 0; comp < n; comp++) {
 		U16 flags = readbe(font, 2);
 		U16 index = readbe(font, 2);
+		if (flags & ArgsWords) {
+			skip(font, 2);
+		}
 	}
 	return gi;
 }
@@ -224,60 +229,59 @@ I32 isectline(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
 	return 2*SIGN(y2 - y1);
 }
 
-#if 0
-
-Trying to figure out a computationally stable and readable version....
-
-I32 isectcurve(F64 rx, F64 ry, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3)
+I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 {
 	if (ry < MIN3(y1, y2, y3) || ry > MAX3(y1, y2, y3) || rx > MAX3(x1, x2, x3))
 		return 0;
-
-	// ??
-	if (ry == y1 && rx <= x1) {
-		I32 wn = SIGN(y2 - y1);
-	}
-
 	F64 a = y1 - 2*y2 + y3;
 	F64 b = 2*(y2 - y1);
 	F64 c = y1 - ry;
-	F64 d = b*b - 4*a*c;
-
-	/*
-		Ok, what do we need to handle:
-		1) handle explicitly ry == y1 or ry == y3
-		2) handle d=0 explicitly (or is it a good idea? what would the implications of rounding errors be in this case?)
-		3) handle two root situation
-	*/
-
-	if (a < 0)
-		a = -a, b = -b, c = -c;
+	Poly x = {{x1, 2*(x2 - x1), x1 - 2*x2 + x3}, 2};
+	if (a == 0) {
+		F64 t = -c/b;
+		if (t >= 0 && t <= 1) {
+			if (t == 0)
+				return (rx <= x1) * SIGN(y2 - y1);
+			else if (t == 1)
+				return (rx <= x3) * SIGN(y2 - y1);
+			else if (rx <= eval(x, t))
+				return 2*(SIGN(y2 - y1));
+		}
+		return 0;
+	}
+	I64 d = b*b - 4*a*c;
 	if (d < 0)
 		return 0;
-	/* -b/2a (tangent) */
 	if (d == 0) {
 		F64 t = -b/(2*a);
-		if (b > 0 || b < -2*a)
-			return 0;
-		F64 x = (1 + b/(2*a))
-		if ((1 + b)*(1 + b)*x1 + 2*(1 + b)*b*x2 + b*b*x3 < rx*4*a*a)
-			return 0;
-		if (b == 0 || b == -2*a)
-			return SIGN(y3 - y1);
+		if (t >= 0 && t <= 1) {
+			if (t == 0)
+				return (rx <= x1) * SIGN(y3 - y1);
+			else if (t == 1)
+				return (rx <= x3) * SIGN(y3 - y1);
+		}
 		return 0;
 	}
-	F64 t1 = (-b - fsqrt(d))/(2*a), t2 = (-b + fsqrt(d))/(2*a);
-	if (t1 > 1)
-		return 0;
-	//if (t1 < 0 || t1 > 1)
-	if (b < 0 && d <= b*b && (-b < 2*a || d >= (2*a + b)*(2*a + b))) {
+	I32 wn = 0;
+	F64 t[2] = {(-b - fsqrt(d))/(2*a), (-b + fsqrt(d))/(2*a)};
+	if (a < 0)
+		SWAP(t[0], t[1]);
+	for (int i = 0; i < 2; i++) {
+		if (t[i] >= 0 && t[i] <= 1) {
+			if (t[i] == 0) {
+				wn += (rx <= x1) * SIGN(y2 - y1);
+			} else if (t[i] == 1) {
+				wn += (rx <= x3) * SIGN(y3 - y2);
+			} else if (rx <= eval(x, t[i])) {
+				if (i == 0)
+					wn += 2*SIGN(y2 - y1);
+				else
+					wn += 2*SIGN(y3 - y2);
+			}
+		}
 	}
-	/* (-b + sqrt(d))/2a */
-	if (0) {
-	}
-	return 0;
+	return wn;
 }
-#endif
 
 I32 isectcurve2(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 {
@@ -316,7 +320,7 @@ void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi)
 							x3 = gi.xy[0][nnext], y3 = gi.xy[1][nnext];
 						else
 							x3 = (gi.xy[0][next]+gi.xy[0][nnext])/2, y3 = (gi.xy[1][next]+gi.xy[1][nnext])/2;
-						wn += isectcurve2(x, y, x1, y1, x2, y2, x3, y3);
+						wn += isectcurve(x, y, x1, y1, x2, y2, x3, y3);
 						i += 1;
 					}
 				} else {
@@ -330,7 +334,7 @@ void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi)
 						x3 = gi.xy[0][next], y3 = gi.xy[1][next];
 					else
 						x3 = (gi.xy[0][next]+gi.xy[0][curr])/2, y3 = (gi.xy[1][next]+gi.xy[1][curr])/2;
-					wn += isectcurve2(x, y, x1, y1, x2, y2, x3, y3);
+					wn += isectcurve(x, y, x1, y1, x2, y2, x3, y3);
 				}
 			}
 		}
@@ -389,7 +393,7 @@ int main(int, char **argv)
 	if (!bopen(&font, FONT, 'r'))
 		panic("failed to open the font");
 	FontInfo fi = readfontdir(&font);
-	U16 n = 0;
+	U16 n = 13;
 	GlyfInfo gi = readglyphno(&font, fi, n);
 	winopen(1920, 1080, argv[0], 60);
 	while (!keyisdown('q')) {
