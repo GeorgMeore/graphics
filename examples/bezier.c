@@ -137,7 +137,7 @@ void drawbezier3(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color
 		for (U8 i = 0; i < r.n; i++)
 			if (r.v[i] >= 0 && r.v[i] <= 1)
 				d = min(d, eval(d2, r.v[i]));
-		F64 a = (1 - smoothstep(0, 25, d)) * A(c);
+		F64 a = smoothstep(25, 0, d)*A(c);
 		PIXEL(i, x, y) = blend(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), a));
 	}
 }
