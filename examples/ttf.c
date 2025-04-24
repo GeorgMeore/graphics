@@ -10,9 +10,11 @@
 #include "poly.h"
 #include "math.h"
 
-//#include <stdlib.h>
-//#define memalloc malloc
-//#define memfree  free
+/* TODO: use this sometime later to search for leaks
+#include <stdlib.h>
+#define memalloc malloc
+#define memfree  free
+*/
 
 U64 readbe(IOBuffer *b, U8 bytes)
 {
@@ -239,13 +241,10 @@ I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 	Poly x = {{x1, 2*(x2 - x1), x1 - 2*x2 + x3}, 2};
 	if (a == 0) {
 		F64 t = -c/b;
-		if (t >= 0 && t <= 1) {
-			if (t == 0)
-				return (rx <= x1) * SIGN(y2 - y1);
-			else if (t == 1)
-				return (rx <= x3) * SIGN(y2 - y1);
-			else if (rx <= eval(x, t))
-				return 2*(SIGN(y2 - y1));
+		if (t >= 0 && t <= 1 && rx <= eval(x, t)) {
+			if (t == 0 || t == 1)
+				return SIGN(y2 - y1);
+			return 2*(SIGN(y2 - y1));
 		}
 		return 0;
 	}
@@ -254,12 +253,9 @@ I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 		return 0;
 	if (d == 0) {
 		F64 t = -b/(2*a);
-		if (t >= 0 && t <= 1) {
-			if (t == 0)
-				return (rx <= x1) * SIGN(y3 - y1);
-			else if (t == 1)
-				return (rx <= x3) * SIGN(y3 - y1);
-		}
+		if (t >= 0 && t <= 1 && rx <= eval(x, t))
+			if (t == 0 || t == 1)
+				return SIGN(y3 - y1);
 		return 0;
 	}
 	I32 wn = 0;
@@ -267,17 +263,13 @@ I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 	if (a < 0)
 		SWAP(t[0], t[1]);
 	for (int i = 0; i < 2; i++) {
-		if (t[i] >= 0 && t[i] <= 1) {
-			if (t[i] == 0) {
-				wn += (rx <= x1) * SIGN(y2 - y1);
-			} else if (t[i] == 1) {
-				wn += (rx <= x3) * SIGN(y3 - y2);
-			} else if (rx <= eval(x, t[i])) {
-				if (i == 0)
-					wn += 2*SIGN(y2 - y1);
-				else
-					wn += 2*SIGN(y3 - y2);
-			}
+		if (t[i] >= 0 && t[i] <= 1 && rx <= eval(x, t[i])) {
+			if (t[i] == 0)
+				wn += SIGN(y2 - y1);
+			else if (t[i] == 1)
+				wn += SIGN(y3 - y2);
+			else
+				wn += 2*(i == 0 ? SIGN(y2 - y1) : SIGN(y3 - y2));
 		}
 	}
 	return wn;
