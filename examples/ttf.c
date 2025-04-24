@@ -260,16 +260,16 @@ I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 	}
 	I32 wn = 0;
 	F64 t[2] = {(-b - fsqrt(d))/(2*a), (-b + fsqrt(d))/(2*a)};
-	if (a < 0)
-		SWAP(t[0], t[1]);
 	for (int i = 0; i < 2; i++) {
 		if (t[i] >= 0 && t[i] <= 1 && rx <= eval(x, t[i])) {
 			if (t[i] == 0)
 				wn += SIGN(y2 - y1);
 			else if (t[i] == 1)
 				wn += SIGN(y3 - y2);
+			else if (t[i] < -b/(2*a))
+				wn += 2*SIGN(y2 - y1);
 			else
-				wn += 2*(i == 0 ? SIGN(y2 - y1) : SIGN(y3 - y2));
+				wn += 2*SIGN(y3 - y2);
 		}
 	}
 	return wn;
