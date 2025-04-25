@@ -142,26 +142,43 @@ GlyfInfo readsimpleglyph(IOBuffer *font, GlyfInfo gi)
 				flags[i+1] = flags[i];
 		}
 	}
-	gi.on = memalloc(gi.nvert);
-	gi.xy[0] = memalloc(gi.nvert * sizeof(I16));
-	gi.xy[1] = memalloc(gi.nvert * sizeof(I16));
+	/* NOTE: after filling missing point we'll have at most twice as much points */
+	gi.xy[0] = memalloc(gi.nvert*2 * sizeof(I16));
+	gi.xy[1] = memalloc(gi.nvert*2 * sizeof(I16));
 	U8 cflags[2][2] = {{XShort, XFlag}, {YShort, YFlag}};
 	for (I16 comp = 0; comp < 2; comp++) {
 		for (I16 i = 0, prev = 0; i < gi.nvert; i++) {
 			if (flags[i] & cflags[comp][0]) {
 				if (flags[i] & cflags[comp][1])
-					gi.xy[comp][i] = prev + readbe(font, 1);
+					gi.xy[comp][gi.nvert + i] = prev + readbe(font, 1);
 				else
-					gi.xy[comp][i] = prev - readbe(font, 1);
+					gi.xy[comp][gi.nvert + i] = prev - readbe(font, 1);
 			} else {
 				if (flags[i] & cflags[comp][1])
-					gi.xy[comp][i] = prev;
+					gi.xy[comp][gi.nvert + i] = prev;
 				else
-					gi.xy[comp][i] = prev + readbe(font, 2);
+					gi.xy[comp][gi.nvert + i] = prev + readbe(font, 2);
 			}
-			prev = gi.xy[comp][i];
-			gi.on[i] = flags[i] & OnCurve;
+			prev = gi.xy[comp][gi.nvert + i];
 		}
+	}
+	/* NOTE: now we can actually restore the missing control points */
+	gi.on = memalloc(gi.nvert*2);
+	for (I16 cont = 0, start = 0, j = 0; cont < gi.ncont; cont++) {
+		U16 n = gi.ends[cont]+1-start;
+		for (U16 i = 0; i < n; i++, j++) {
+			U16 curr = start + i, prev = start + MOD(i-1, n);
+			I16 x1 = gi.xy[0][gi.nvert+curr], y1 = gi.xy[1][gi.nvert+curr];
+			if (~flags[curr] & ~flags[prev] & OnCurve) {
+				I16 x2 = gi.xy[0][gi.nvert+prev], y2 = gi.xy[1][gi.nvert+prev];
+				gi.xy[0][j] = (x1+x2)/2, gi.xy[1][j] = (y1+y2)/2, gi.on[j] = 1;
+				j++;
+			}
+			gi.xy[0][j] = x1, gi.xy[1][j] = y1, gi.on[j] = flags[curr] & OnCurve;
+		}
+		/* TODO: handle the [off, on, ..., on] case */
+		gi.ends[cont] = j-1;
+		start += n;
 	}
 	memfree(flags);
 	return gi;
@@ -291,83 +308,47 @@ I32 isectcurve2(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 	return wn;
 }
 
-void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi)
+void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi, Color c)
 {
 	for (I16 x = gi.lim[0][0]; x <= gi.lim[0][1]; x++)
 	for (I16 y = gi.lim[1][0]; y <= gi.lim[1][1]; y++) {
 		I32 wn = 0;
 		for (I16 cont = 0; cont < gi.ncont; cont++) {
-			U16 start = cont > 0 ? gi.ends[cont-1]+1 : 0, end = gi.ends[cont], n = end - start + 1;
-			for (U16 i = 0; i < n; i++) {
-				U16 curr = start + i;
-				I16 x1, y1, x2, y2, x3, y3;
-				if (gi.on[curr]) {
-					U16 next = start + MOD(i+1, n), nnext = start + MOD(i+2, n);
-					x1 = gi.xy[0][curr], y1 = gi.xy[1][curr];
-					x2 = gi.xy[0][next], y2 = gi.xy[1][next];
-					if (gi.on[next]) {
-						wn += isectline(x, y, x1, y1, x2, y2);
-					} else {
-						if (gi.on[nnext])
-							x3 = gi.xy[0][nnext], y3 = gi.xy[1][nnext];
-						else
-							x3 = (gi.xy[0][next]+gi.xy[0][nnext])/2, y3 = (gi.xy[1][next]+gi.xy[1][nnext])/2;
-						wn += isectcurve(x, y, x1, y1, x2, y2, x3, y3);
-						i += 1;
-					}
+			U16 start = cont > 0 ? gi.ends[cont-1]+1 : 0, n = gi.ends[cont]+1-start;
+			for (U16 i = 0; i < n;) {
+				U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
+				I16 x1 = gi.xy[0][curr], y1 = gi.xy[1][curr];
+				I16 x2 = gi.xy[0][next], y2 = gi.xy[1][next];
+				I16 x3 = gi.xy[0][last], y3 = gi.xy[1][last];
+				if (gi.on[next]) {
+					wn += isectline(x, y, x1, y1, x2, y2);
+					i += 1;
 				} else {
-					U16 prev = start + MOD(i-1, n), next = start + MOD(i+1, n);
-					x2 = gi.xy[0][curr], y2 = gi.xy[1][curr];
-					if (gi.on[prev])
-						x1 = gi.xy[0][prev], y1 = gi.xy[1][prev];
-					else
-						x1 = (gi.xy[0][prev]+gi.xy[0][curr])/2, y1 = (gi.xy[1][prev]+gi.xy[1][curr])/2;
-					if (gi.on[next])
-						x3 = gi.xy[0][next], y3 = gi.xy[1][next];
-					else
-						x3 = (gi.xy[0][next]+gi.xy[0][curr])/2, y3 = (gi.xy[1][next]+gi.xy[1][curr])/2;
 					wn += isectcurve(x, y, x1, y1, x2, y2, x3, y3);
+					i += 2;
 				}
 			}
 		}
 		if (wn && CHECKX(f, x0+x) && CHECKY(f, y0-y))
-			PIXEL(f, (x0+x), (y0-y)) = RGBA(100, 100, 10, 50);
+			PIXEL(f, (x0+x), (y0-y)) = c;
 	}
 }
 
-void drawoutline(Image *f, I16 x0, I16 y0, GlyfInfo gi)
+void drawoutline(Image *f, I16 x0, I16 y0, GlyfInfo gi, Color c)
 {
 	for (I16 cont = 0; cont < gi.ncont; cont++) {
-		U16 start = cont > 0 ? gi.ends[cont-1]+1 : 0, end = gi.ends[cont], n = end - start + 1;
-		for (U16 i = 0; i < n; i++) {
-			U16 curr = start + i;
-			I16 x1, y1, x2, y2, x3, y3;
-			if (gi.on[curr]) {
-				U16 next = start + MOD(i+1, n), nnext = start + MOD(i+2, n);
-				x1 = gi.xy[0][curr], y1 = gi.xy[1][curr];
-				x2 = gi.xy[0][next], y2 = gi.xy[1][next];
-				if (gi.on[next]) {
-					drawline(f, x0+x1, y0-y1, x0+x2, y0-y2, RGBA(200, 200, 20, 50));
-				} else {
-					if (gi.on[nnext])
-						x3 = gi.xy[0][nnext], y3 = gi.xy[1][nnext];
-					else
-						x3 = (gi.xy[0][next]+gi.xy[0][nnext])/2, y3 = (gi.xy[1][next]+gi.xy[1][nnext])/2;
-					drawbezier(f, x0+x1, y0-y1, x0+x2, y0-y2, x0+x3, y0-y3, RGBA(200, 200, 20, 50));
-					i += 1;
-				}
+		U16 start = cont > 0 ? gi.ends[cont-1]+1 : 0, n = gi.ends[cont]+1-start;
+		for (U16 i = 0; i < n;) {
+			U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
+			I16 x1 = gi.xy[0][curr], y1 = gi.xy[1][curr];
+			I16 x2 = gi.xy[0][next], y2 = gi.xy[1][next];
+			I16 x3 = gi.xy[0][last], y3 = gi.xy[1][last];
+			if (gi.on[next]) {
+				drawline(f, x0+x1, y0-y1, x0+x2, y0-y2, c);
+				i += 1;
 			} else {
-				U16 prev = start + MOD(i-1, n), next = start + MOD(i+1, n);
-				x2 = gi.xy[0][curr], y2 = gi.xy[1][curr];
-				if (gi.on[prev])
-					x1 = gi.xy[0][prev], y1 = gi.xy[1][prev];
-				else
-					x1 = (gi.xy[0][prev]+gi.xy[0][curr])/2, y1 = (gi.xy[1][prev]+gi.xy[1][curr])/2;
-				if (gi.on[next])
-					x3 = gi.xy[0][next], y3 = gi.xy[1][next];
-				else
-					x3 = (gi.xy[0][next]+gi.xy[0][curr])/2, y3 = (gi.xy[1][next]+gi.xy[1][curr])/2;
-				drawbezier(f, x0+x1, y0-y1, x0+x2, y0-y2, x0+x3, y0-y3, RGBA(200, 200, 20, 50));
+				drawbezier(f, x0+x1, y0-y1, x0+x2, y0-y2, x0+x3, y0-y3, c);
+				i += 2;
 			}
 		}
 	}
@@ -402,9 +383,9 @@ int main(int, char **argv)
 			gi = readglyphno(&font, fi, n);
 		}
 		if (keyisdown('r'))
-			drawraster(f, 200, 800, gi);
+			drawraster(f, 200, 800, gi, RGBA(200, 200, 20, 50));
 		else
-			drawoutline(f, 200, 800, gi);
+			drawoutline(f, 200, 800, gi, RGBA(200, 200, 20, 50));
 		frameend();
 	}
 	return 0;
