@@ -3,7 +3,7 @@
 typedef struct {
 	int fd;
 	U8  bytes[IOBUFSIZE];
-	int i, count;
+	U64 i, count, pos;
 	U8  error, mode;
 } IOBuffer;
 

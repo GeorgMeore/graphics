@@ -60,8 +60,6 @@ typedef struct {
 	U8  locasz;
 	U16 maxpts;
 	U16 maxconts;
-	U16 maxcpts;
-	U16 maxcconts;
 } FontInfo;
 
 FontInfo readfontdir(IOBuffer *font)
@@ -99,10 +97,12 @@ FontInfo readfontdir(IOBuffer *font)
 	}
 	if (fi.maxp && bseek(font, fi.maxp)) {
 		skip(font, 4+2); /* version, numGlyphs */
-		fi.maxpts = readbe(font, 2);
-		fi.maxconts = readbe(font, 2);
-		fi.maxcpts = readbe(font, 2);
-		fi.maxcconts = readbe(font, 2);
+		U16 maxpts = readbe(font, 2);
+		U16 maxconts = readbe(font, 2);
+		U16 maxcpts = readbe(font, 2);
+		U16 maxcconts = readbe(font, 2);
+		fi.maxpts = MAX(maxpts, maxcpts);
+		fi.maxconts = MAX(maxconts, maxcconts);
 	}
 	return fi;
 }
@@ -125,16 +125,18 @@ typedef struct {
 	U8  *on;
 } GlyfInfo;
 
-GlyfInfo readsimpleglyph(IOBuffer *font, GlyfInfo gi)
+void readsimpleglyph(IOBuffer *font, GlyfInfo *gi, I16 ncont)
 {
-	gi.ends = memalloc(gi.ncont * sizeof(U16));
-	for (I16 i = 0; i < gi.ncont; i++)
-		gi.ends[i] = readbe(font, 2);
-	gi.nvert = gi.ends[gi.ncont-1] + 1;
+	U16 nvert = 0;
+	for (I16 i = 0; i < ncont; i++) {
+		U16 idx = readbe(font, 2);
+		gi->ends[gi->ncont+i] = gi->nvert + idx;
+		nvert = idx + 1;
+	}
 	U16 ilen = readbe(font, 2);
 	skip(font, ilen); /* instructions */
-	U8 *flags = memalloc(gi.nvert);
-	for (I16 i = 0; i < gi.nvert; i++) {
+	U8 *flags = memalloc(nvert);
+	for (I16 i = 0; i < nvert; i++) {
 		flags[i] = readbe(font, 1);
 		if (flags[i] & Repeat) {
 			U8 count = readbe(font, 1);
@@ -142,100 +144,131 @@ GlyfInfo readsimpleglyph(IOBuffer *font, GlyfInfo gi)
 				flags[i+1] = flags[i];
 		}
 	}
-	/* NOTE: after filling missing point we'll have at most twice as much points */
-	gi.xy[0] = memalloc(gi.nvert*2 * sizeof(I16));
-	gi.xy[1] = memalloc(gi.nvert*2 * sizeof(I16));
 	U8 cflags[2][2] = {{XShort, XFlag}, {YShort, YFlag}};
 	for (I16 comp = 0; comp < 2; comp++) {
-		for (I16 i = 0, prev = 0; i < gi.nvert; i++) {
+		for (I16 i = 0, prev = 0; i < nvert; i++) {
+			gi->on[gi->nvert + i] = flags[i] & OnCurve;
 			if (flags[i] & cflags[comp][0]) {
 				if (flags[i] & cflags[comp][1])
-					gi.xy[comp][gi.nvert + i] = prev + readbe(font, 1);
+					gi->xy[comp][gi->nvert + i] = prev + readbe(font, 1);
 				else
-					gi.xy[comp][gi.nvert + i] = prev - readbe(font, 1);
+					gi->xy[comp][gi->nvert + i] = prev - readbe(font, 1);
 			} else {
 				if (flags[i] & cflags[comp][1])
-					gi.xy[comp][gi.nvert + i] = prev;
+					gi->xy[comp][gi->nvert + i] = prev;
 				else
-					gi.xy[comp][gi.nvert + i] = prev + readbe(font, 2);
+					gi->xy[comp][gi->nvert + i] = prev + readbe(font, 2);
 			}
-			prev = gi.xy[comp][gi.nvert + i];
+			prev = gi->xy[comp][gi->nvert + i];
 		}
 	}
-	/* NOTE: now we can actually restore the missing control points */
-	gi.on = memalloc(gi.nvert*2);
-	for (I16 cont = 0, start = 0, j = 0; cont < gi.ncont; cont++) {
-		U16 n = gi.ends[cont]+1-start;
-		for (U16 i = 0; i < n; i++, j++) {
-			U16 curr = start + i, prev = start + MOD(i-1, n);
-			I16 x1 = gi.xy[0][gi.nvert+curr], y1 = gi.xy[1][gi.nvert+curr];
-			if (~flags[curr] & ~flags[prev] & OnCurve) {
-				I16 x2 = gi.xy[0][gi.nvert+prev], y2 = gi.xy[1][gi.nvert+prev];
-				gi.xy[0][j] = (x1+x2)/2, gi.xy[1][j] = (y1+y2)/2, gi.on[j] = 1;
-				j++;
-			}
-			gi.xy[0][j] = x1, gi.xy[1][j] = y1, gi.on[j] = flags[curr] & OnCurve;
-		}
-		/* TODO: handle the [off, on, ..., on] case */
-		gi.ends[cont] = j-1;
-		start += n;
-	}
+	gi->nvert += nvert;
+	gi->ncont += ncont;
 	memfree(flags);
-	return gi;
 }
+
+void readnextglyph(IOBuffer *font, FontInfo fi, U16 index, GlyfInfo *gi);
 
 typedef enum {
 	ArgsWords    = 1<<0,
 	ArgsXY       = 1<<1,
-	RoundXY      = 1<<2,
 	HaveScale    = 1<<3,
 	MoreComp     = 1<<5,
 	HaveXYScale  = 1<<6,
 	Have2x2      = 1<<7,
-	HaveInst     = 1<<8,
-	UseMyMetrics = 1<<9,
-	OverlapComp  = 1<<10,
 } CompFlag;
 
-GlyfInfo readcompoundglyph(IOBuffer *font, GlyfInfo gi)
+void readcompoundglyph(IOBuffer *font, FontInfo fi, GlyfInfo *gi)
 {
-	I16 n = -gi.ncont;
-	for (I16 comp = 0; comp < n; comp++) {
+	for (;;) {
 		U16 flags = readbe(font, 2);
+		if (~flags & ArgsXY)
+			panic("point offsets are not yet supported");
+		if (flags & (HaveScale|HaveXYScale|Have2x2))
+			panic("scaling is not yet supported");
 		U16 index = readbe(font, 2);
+		I16 x, y;
 		if (flags & ArgsWords) {
-			skip(font, 2);
+			x = readbe(font, 2);
+			y = readbe(font, 2);
+		} else {
+			x = (I8)readbe(font, 1);
+			y = (I8)readbe(font, 1);
 		}
+		U64 curr = font->pos;
+		U16 start = gi->nvert;
+		readnextglyph(font, fi, index, gi);
+		for (U16 i = start; i < gi->nvert; i++) {
+			gi->xy[0][i] += x;
+			gi->xy[1][i] += y;
+		}
+		bseek(font, curr);
+		if (~flags & MoreComp)
+			break;
 	}
-	return gi;
 }
 
-GlyfInfo readglyph(IOBuffer *font)
+void readnextglyph(IOBuffer *font, FontInfo fi, U16 index, GlyfInfo *gi)
+{
+	bseek(font, fi.loca + index*fi.locasz);
+	U32 offset = readbe(font, fi.locasz);
+	if (fi.locasz == 2)
+		offset *= 2;
+	bseek(font, fi.glyf + offset);
+	I16 ncont = readbe(font, 2);
+	skip(font, 2+2+2+2);
+	if (ncont == 0)
+		return;
+	else if (ncont > 0)
+		readsimpleglyph(font, gi, ncont);
+	else
+		readcompoundglyph(font, fi, gi);
+}
+
+GlyfInfo readglyphno(IOBuffer *font, FontInfo fi, U16 index)
 {
 	GlyfInfo gi = {};
-	gi.ncont = readbe(font, 2);
-	if (gi.ncont == 0)
+	bseek(font, fi.loca + index*fi.locasz);
+	U32 offset = readbe(font, fi.locasz);
+	if (fi.locasz == 2)
+		offset *= 2;
+	bseek(font, fi.glyf + offset);
+	I16 ncont = readbe(font, 2);
+	if (ncont == 0)
 		return gi;
 	gi.lim[0][0] = readbe(font, 2);
 	gi.lim[1][0] = readbe(font, 2);
 	gi.lim[0][1] = readbe(font, 2);
 	gi.lim[1][1] = readbe(font, 2);
-	if (gi.ncont > 0)
-		return readsimpleglyph(font, gi);
-	else
-		return readcompoundglyph(font, gi);
+	/* NOTE: after restoring missing point we'll have at most twice as much points */
+	gi.nvert = fi.maxpts;
+	gi.on = memalloc(fi.maxpts*2);
+	gi.ends = memalloc(fi.maxconts);
+	gi.xy[0] = memalloc(fi.maxpts*2 * sizeof(I16));
+	gi.xy[1] = memalloc(fi.maxpts*2 * sizeof(I16));
+	readnextglyph(font, fi, index, &gi);
+	/* NOTE: now we can actually restore the missing control points */
+	for (I16 cont = 0, start = fi.maxpts, j = 0; cont < gi.ncont; cont++) {
+		U16 n = gi.ends[cont]+1-start;
+		for (U16 i = 0; i < n; i++, j++) {
+			U16 curr = start + i, prev = start + MOD(i-1, n);
+			I16 x1 = gi.xy[0][curr], y1 = gi.xy[1][curr];
+			if (!gi.on[curr] && !gi.on[prev]) {
+				I16 x2 = gi.xy[0][prev], y2 = gi.xy[1][prev];
+				gi.xy[0][j] = (x1+x2)/2, gi.xy[1][j] = (y1+y2)/2, gi.on[j] = 1;
+				j++;
+			}
+			gi.xy[0][j] = x1, gi.xy[1][j] = y1, gi.on[j] = gi.on[curr];
+		}
+		/* TODO: handle the [off, on, ..., on] case */
+		gi.ends[cont] = j-1;
+		start += n;
+		gi.nvert = j;
+	}
+	return gi;
 }
 
-GlyfInfo readglyphno(IOBuffer *font, FontInfo fi, U16 no)
-{
-	bseek(font, fi.loca + no*fi.locasz);
-	U32 offset = readbe(font, fi.locasz);
-	if (fi.locasz == 2)
-		offset *= 2;
-	bseek(font, fi.glyf + offset);
-	return readglyph(font);
-}
-
+/* TODO: this and isectcurve2 are easily avx-able, I should try it out */
 I32 isectline(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
 {
 	if (y1 == y2 || ry < MIN(y1, y2) || ry > MAX(y1, y2) || rx > MAX(x1, x2))
@@ -313,8 +346,8 @@ void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi, Color c)
 	for (I16 x = gi.lim[0][0]; x <= gi.lim[0][1]; x++)
 	for (I16 y = gi.lim[1][0]; y <= gi.lim[1][1]; y++) {
 		I32 wn = 0;
-		for (I16 cont = 0; cont < gi.ncont; cont++) {
-			U16 start = cont > 0 ? gi.ends[cont-1]+1 : 0, n = gi.ends[cont]+1-start;
+		for (I16 cont = 0, start = 0; cont < gi.ncont; cont++) {
+			U16 n = gi.ends[cont]+1-start;
 			for (U16 i = 0; i < n;) {
 				U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
 				I16 x1 = gi.xy[0][curr], y1 = gi.xy[1][curr];
@@ -328,6 +361,7 @@ void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi, Color c)
 					i += 2;
 				}
 			}
+			start += n;
 		}
 		if (wn && CHECKX(f, x0+x) && CHECKY(f, y0-y))
 			PIXEL(f, (x0+x), (y0-y)) = c;
@@ -336,8 +370,8 @@ void drawraster(Image *f, I16 x0, I16 y0, GlyfInfo gi, Color c)
 
 void drawoutline(Image *f, I16 x0, I16 y0, GlyfInfo gi, Color c)
 {
-	for (I16 cont = 0; cont < gi.ncont; cont++) {
-		U16 start = cont > 0 ? gi.ends[cont-1]+1 : 0, n = gi.ends[cont]+1-start;
+	for (I16 cont = 0, start = 0; cont < gi.ncont; cont++) {
+		U16 n = gi.ends[cont]+1-start;
 		for (U16 i = 0; i < n;) {
 			U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
 			I16 x1 = gi.xy[0][curr], y1 = gi.xy[1][curr];
@@ -351,10 +385,12 @@ void drawoutline(Image *f, I16 x0, I16 y0, GlyfInfo gi, Color c)
 				i += 2;
 			}
 		}
+		start += n;
 	}
 }
 
 /* TODO: check out SDF */
+/* TODO: fuck buffered io, just read the whole font file into memory (or mmap) */
 
 #define FONT "/usr/share/fonts/TTF/IBMPlexSerif-Regular.ttf"
 //#define FONT "/usr/share/fonts/TTF/IBMPlexMono-Regular.ttf"
@@ -366,7 +402,7 @@ int main(int, char **argv)
 	if (!bopen(&font, FONT, 'r'))
 		panic("failed to open the font");
 	FontInfo fi = readfontdir(&font);
-	U16 n = 13;
+	U16 n = 205/*94 86*/;
 	GlyfInfo gi = readglyphno(&font, fi, n);
 	winopen(1920, 1080, argv[0], 60);
 	while (!keyisdown('q')) {

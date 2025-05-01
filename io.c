@@ -23,6 +23,7 @@ int bseek(IOBuffer *b, U64 byte)
 		return 0;
 	b->i = 0;
 	b->count = 0;
+	b->pos = byte;
 	return 1;
 }
 
@@ -37,6 +38,7 @@ int bopen(IOBuffer *b, const char *path, U8 mode)
 		b->fd = -1;
 		b->error = 1;
 	}
+	b->pos = 0;
 	return b->fd != -1;
 }
 
@@ -67,6 +69,7 @@ int bread(IOBuffer *b)
 	int c = bpeek(b);
 	if (c != -1)
 		b->i += 1;
+	b->pos += 1;
 	return c;
 }
 
@@ -95,6 +98,7 @@ int bwrite(IOBuffer *b, U8 v)
 		return 0;
 	b->bytes[b->i] = v;
 	b->i += 1;
+	b->pos += 1;
 	return 1;
 }
 
