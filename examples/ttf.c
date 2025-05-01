@@ -243,7 +243,7 @@ GlyfInfo readglyphno(IOBuffer *font, FontInfo fi, U16 index)
 	/* NOTE: after restoring missing point we'll have at most twice as much points */
 	gi.nvert = fi.maxpts;
 	gi.on = memalloc(fi.maxpts*2);
-	gi.ends = memalloc(fi.maxconts);
+	gi.ends = memalloc(fi.maxconts * sizeof(U16));
 	gi.xy[0] = memalloc(fi.maxpts*2 * sizeof(I16));
 	gi.xy[1] = memalloc(fi.maxpts*2 * sizeof(I16));
 	readnextglyph(font, fi, index, &gi);
