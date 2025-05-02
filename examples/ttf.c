@@ -216,7 +216,7 @@ void readnextglyph(IOBuffer *font, FontInfo fi, U16 index, GlyfInfo *gi)
 		offset *= 2;
 	bseek(font, fi.glyf + offset);
 	I16 ncont = readbe(font, 2);
-	skip(font, 2+2+2+2);
+	skip(font, 2+2+2+2); /* xMin, yMin, xMax, yMax */
 	if (ncont == 0)
 		return;
 	else if (ncont > 0)
@@ -266,6 +266,53 @@ GlyfInfo readglyphno(IOBuffer *font, FontInfo fi, U16 index)
 		gi.nvert = j;
 	}
 	return gi;
+}
+
+U16 readglyph(IOBuffer *font, FontInfo fi, U32 code)
+{
+	bseek(font, fi.cmap);
+	skip(font, 2); /* version */
+	U16 ntab = readbe(font, 2);
+	for (U16 i = 0; i < ntab; i++) {
+		U16 platformid = readbe(font, 2);
+		U16 specificid = readbe(font, 2);
+		U32 offset = readbe(font, 4);
+		if (platformid == 0) {
+			bseek(font, fi.cmap + offset);
+			U16 format = readbe(font, 2);
+			if (format != 4)
+				panic("unsupported cmap table format");
+			skip(font, 2+2); /* length, language */
+			U16 segcntx2 = readbe(font, 2);
+			skip(font, 2+2+2); /* searchRange, entrySelector, rangeShift */
+			U16 *start = memalloc(segcntx2/2 * sizeof(U16));
+			U16 *ends = memalloc(segcntx2/2 * sizeof(U16));
+			U16 *iddelta = memalloc(segcntx2/2 * sizeof(U16));
+			U16 *idroff = memalloc(segcntx2/2 * sizeof(U16));
+			for (U16 i = 0; i < segcntx2/2; i++)
+				ends[i] = readbe(font, 2);
+			skip(font, 2); /* reservedPad */
+			for (U16 i = 0; i < segcntx2/2; i++)
+				start[i] = readbe(font, 2);
+			for (U16 i = 0; i < segcntx2/2; i++)
+				iddelta[i] = readbe(font, 2);
+			for (U16 i = 0; i < segcntx2/2; i++)
+				idroff[i] = readbe(font, 2);
+			for (U16 i = 0; i < segcntx2/2; i++) {
+				if (ends[i] >= code) {
+					if (start[i] > code)
+						return 0;
+					if (!idroff[i])
+						return iddelta[i] + code;
+					U16 off = idroff[i] + (code - start[i])*2 - (segcntx2/2 - i)*2;
+					skip(font, off);
+					U16 index = readbe(font, 2);
+					return index;
+				}
+			}
+		}
+	}
+	return 0;
 }
 
 /* TODO: this and isectcurve2 are easily avx-able, I should try it out */
@@ -402,7 +449,7 @@ int main(int, char **argv)
 	if (!bopen(&font, FONT, 'r'))
 		panic("failed to open the font");
 	FontInfo fi = readfontdir(&font);
-	U16 n = 205/*94 86*/;
+	U16 n = readglyph(&font, fi, '9')/*94 86*/;
 	GlyfInfo gi = readglyphno(&font, fi, n);
 	winopen(1920, 1080, argv[0], 60);
 	while (!keyisdown('q')) {
