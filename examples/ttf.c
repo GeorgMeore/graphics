@@ -54,12 +54,18 @@ U32 strtag(char s[4])
 typedef struct {
 	U32 glyf;
 	U32 cmap;
+	U32 hmtx;
+	U32 hhea;
 	U32 maxp;
 	U32 head;
 	U32 loca;
 	U8  locasz;
 	U16 maxpts;
 	U16 maxconts;
+	I16 ascend;
+	I16 descend;
+	I16 linegap;
+	U16 numhw;
 } FontInfo;
 
 FontInfo readfontdir(IOBuffer *font)
@@ -77,6 +83,10 @@ FontInfo readfontdir(IOBuffer *font)
 			fi.glyf = offset;
 		if (tag == strtag("cmap"))
 			fi.cmap = offset;
+		if (tag == strtag("hmtx"))
+			fi.hmtx = offset;
+		if (tag == strtag("hhea"))
+			fi.hhea = offset;
 		if (tag == strtag("maxp"))
 			fi.maxp = offset;
 		if (tag == strtag("head"))
@@ -104,6 +114,17 @@ FontInfo readfontdir(IOBuffer *font)
 		fi.maxpts = MAX(maxpts, maxcpts);
 		fi.maxconts = MAX(maxconts, maxcconts);
 	}
+	if (fi.hhea && bseek(font, fi.hhea)) {
+		skip(font, 2+2); /* majorVersion, minorVersion */
+		fi.ascend = readbe(font, 2);
+		fi.descend = readbe(font, 2);
+		fi.linegap = readbe(font, 2);
+		/* advanceWidthMax, minLeftSideBearing, minRightSideBearing,
+		 * xMaxExtent, caretSlopeRise, caretSlopeRun, caretOffset,
+		 * reserved(4*2), metricDataFormat */
+		skip(font, 2+2+2+2+2+2+2+4*2+2);
+		fi.numhw = readbe(font, 2);
+	}
 	return fi;
 }
 
@@ -123,6 +144,8 @@ typedef struct {
 	I16 *xy[2];
 	I16 lim[2][2];
 	U8  *on;
+	U16 advance;
+	I16 lsb;
 } GlyfInfo;
 
 void readsimpleglyph(IOBuffer *font, GlyfInfo *gi, I16 ncont)
@@ -265,17 +288,28 @@ GlyfInfo readglyphno(IOBuffer *font, FontInfo fi, U16 index)
 		start += n;
 		gi.nvert = j;
 	}
+	bseek(font, fi.hmtx);
+	if (index < fi.numhw) {
+		skip(font, index*(2 + 2));
+		gi.advance = readbe(font, 2);
+		gi.lsb = readbe(font, 2);
+	} else {
+		skip(font, (fi.numhw - 1)*(2 + 2));
+		gi.advance = readbe(font, 2);
+		skip(font, (index - fi.numhw + 1)*2);
+		gi.lsb = readbe(font, 2);
+	}
 	return gi;
 }
 
-U16 readglyph(IOBuffer *font, FontInfo fi, U32 code)
+U16 findglyph(IOBuffer *font, FontInfo fi, U32 code)
 {
 	bseek(font, fi.cmap);
 	skip(font, 2); /* version */
 	U16 ntab = readbe(font, 2);
 	for (U16 i = 0; i < ntab; i++) {
 		U16 platformid = readbe(font, 2);
-		U16 specificid = readbe(font, 2);
+		skip(font, 2); /* platformSpecificID */
 		U32 offset = readbe(font, 4);
 		if (platformid == 0) {
 			bseek(font, fi.cmap + offset);
@@ -449,8 +483,9 @@ int main(int, char **argv)
 	if (!bopen(&font, FONT, 'r'))
 		panic("failed to open the font");
 	FontInfo fi = readfontdir(&font);
-	U16 n = readglyph(&font, fi, '9')/*94 86*/;
+	U16 n = findglyph(&font, fi, '9')/*94 86*/;
 	GlyfInfo gi = readglyphno(&font, fi, n);
+	GlyfInfo gi2 = readglyphno(&font, fi, n+1);
 	winopen(1920, 1080, argv[0], 60);
 	while (!keyisdown('q')) {
 		Image *f = framebegin();
@@ -459,16 +494,21 @@ int main(int, char **argv)
 			n -= 1;
 			println(OD(n));
 			gi = readglyphno(&font, fi, n);
+			gi2 = readglyphno(&font, fi, n+1);
 		}
 		if (keywaspressed('n')) {
 			n += 1;
 			println(OD(n));
 			gi = readglyphno(&font, fi, n);
+			gi2 = readglyphno(&font, fi, n+1);
 		}
-		if (keyisdown('r'))
-			drawraster(f, 200, 800, gi, RGBA(200, 200, 20, 50));
-		else
-			drawoutline(f, 200, 800, gi, RGBA(200, 200, 20, 50));
+		if (keyisdown('r')) {
+			drawraster(f, 200+gi.lsb, 800, gi, RGBA(200, 200, 20, 50));
+			drawraster(f, 200+gi.advance+gi2.lsb, 800, gi2, RGBA(200, 200, 20, 50));
+		} else {
+			drawoutline(f, 200+gi.lsb, 800, gi, RGBA(200, 200, 20, 50));
+			drawoutline(f, 200+gi.advance+gi2.lsb, 800, gi2, RGBA(200, 200, 20, 50));
+		}
 		frameend();
 	}
 	return 0;
