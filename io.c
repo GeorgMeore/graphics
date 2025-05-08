@@ -19,8 +19,10 @@ int bseek(IOBuffer *b, U64 byte)
 	if (b->mode == 'w' && !bflush(b))
 		return 0;
 	off_t ok = lseek(b->fd, byte, SEEK_SET);
-	if (ok == -1)
+	if (ok == -1) {
+		b->error = 1;
 		return 0;
+	}
 	b->i = 0;
 	b->count = 0;
 	b->pos = byte;
