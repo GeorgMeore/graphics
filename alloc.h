@@ -14,7 +14,6 @@ typedef struct {
 	Zone *tail;
 } Arena;
 
-Arena arena(void);
 void *aralloc(Arena *a, U size);
 void *aralloca(Arena *a, U size, U align);
 void arclear(Arena *a);

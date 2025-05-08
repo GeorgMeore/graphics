@@ -47,12 +47,6 @@ struct Zone {
  *   `--------------^ `------------------'   `--^
  */
 
-Arena arena(void)
-{
-	Arena a = {};
-	return a;
-}
-
 static Zone *addzone(Arena *a, U zsize)
 {
 	U allocsize = ALIGNUP(zsize + sizeof(Zone), PAGE_SIZE);
@@ -92,8 +86,9 @@ void *aralloca(Arena *a, U size, U align)
 			return 0;
 	}
 	z->free -= asize;
+	void *p = z->mem;
 	z->mem += asize;
-	return (void *)ALIGNUP((U)z->mem, align);
+	return (void *)ALIGNUP((U)p, align);
 }
 
 void *aralloc(Arena *a, U size)
