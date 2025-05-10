@@ -268,6 +268,7 @@ static void parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
 	 * reserved(4*2), metricDataFormat */
 	skip(b, 2+2+2+2+2+2+2+4*2+2);
 	U16 numhw = readbe(b, 2);
+	ASSERT(b, numhw <= f->nglyph);
 	bseek(b, hmtx);
 	CHECKPOINT(b);
 	for (U16 i = 0, advance = 0; i < f->nglyph; i++) {
@@ -279,6 +280,7 @@ static void parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
 	}
 }
 
+/* TODO: support format 12 tables */
 static void parsectable(IOBuffer *b, Font *f, U32 cmap)
 {
 	bseek(b, cmap);
@@ -289,52 +291,52 @@ static void parsectable(IOBuffer *b, Font *f, U32 cmap)
 		U16 platformid = readbe(b, 2);
 		skip(b, 2); /* platformSpecificID */
 		U32 offset = readbe(b, 4);
-		if (platformid == 0) {
-			bseek(b, cmap + offset);
-			U16 format = readbe(b, 2);
-			if (format != 4)
-				continue;
-			skip(b, 2+2); /* length, language */
-			U16 segcnt = readbe(b, 2)/2;
-			skip(b, 2+2+2); /* searchRange, entrySelector, rangeShift */
-			U64 table = b->pos;
-			U32 npoints = 0;
-			CHECKPOINT(b);
-			for (U16 i = 0; i < segcnt; i++) {
-				bseek(b, table + i*2);
-				U16 end = readbe(b, 2);
-				skip(b, segcnt*2);
-				U16 start = readbe(b, 2);
-				ASSERT(b, start <= end);
-				npoints += end - start + 1;
-			}
-			CHECKPOINT(b);
-			f->npoints = npoints;
-			f->ctable[0] = aralloc(&f->mem, npoints*sizeof(U16));
-			f->ctable[1] = aralloc(&f->mem, npoints*sizeof(U16));
-			for (U16 i = 0, j = 0; i < segcnt; i++) {
-				bseek(b, table + i*2);
-				U16 end = readbe(b, 2);
-				skip(b, segcnt*2);
-				U16 start = readbe(b, 2);
-				skip(b, segcnt*2 - 2);
-				U16 iddelta = readbe(b, 2);
-				skip(b, segcnt*2 - 2);
-				U16 idroff = readbe(b, 2);
-				if (idroff)
-					skip(b, idroff - 2);
-				CHECKPOINT(b);
-				for (U32 p = start; p <= end; p++, j++) {
-					f->ctable[0][j] = p;
-					if (!idroff)
-						f->ctable[1][j] = iddelta + p;
-					else
-						f->ctable[1][j] = readbe(b, 2);
-					ASSERT(b, f->ctable[1][j] < f->nglyph);
-				}
-			}
-			return;
+		if (platformid != 0)
+			continue;
+		bseek(b, cmap + offset);
+		U16 format = readbe(b, 2);
+		if (format != 4)
+			continue;
+		skip(b, 2+2); /* length, language */
+		U16 segcnt = readbe(b, 2)/2;
+		skip(b, 2+2+2); /* searchRange, entrySelector, rangeShift */
+		U64 table = b->pos;
+		U32 npoints = 0;
+		CHECKPOINT(b);
+		for (U16 i = 0; i < segcnt; i++) {
+			bseek(b, table + i*2);
+			U16 end = readbe(b, 2);
+			skip(b, segcnt*2);
+			U16 start = readbe(b, 2);
+			ASSERT(b, start <= end);
+			npoints += end - start + 1;
 		}
+		CHECKPOINT(b);
+		f->npoints = npoints;
+		f->ctable[0] = aralloc(&f->mem, npoints*sizeof(U16));
+		f->ctable[1] = aralloc(&f->mem, npoints*sizeof(U16));
+		for (U16 i = 0, j = 0; i < segcnt; i++) {
+			bseek(b, table + i*2);
+			U16 end = readbe(b, 2);
+			skip(b, segcnt*2);
+			U16 start = readbe(b, 2);
+			skip(b, segcnt*2 - 2);
+			U16 iddelta = readbe(b, 2);
+			skip(b, segcnt*2 - 2);
+			U16 idroff = readbe(b, 2);
+			if (idroff)
+				skip(b, idroff - 2);
+			CHECKPOINT(b);
+			for (U32 p = start; p <= end; p++, j++) {
+				f->ctable[0][j] = p;
+				if (!idroff)
+					f->ctable[1][j] = iddelta + p;
+				else
+					f->ctable[1][j] = readbe(b, 2);
+				ASSERT(b, f->ctable[1][j] < f->nglyph);
+			}
+		}
+		return;
 	}
 }
 
