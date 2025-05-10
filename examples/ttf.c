@@ -16,25 +16,21 @@
 #define memfree  free
 */
 
-U64 readbe(IOBuffer *b, U8 bytes)
+static U64 readbe(IOBuffer *b, U8 bytes)
 {
 	U64 n = 0;
-	for (U8 i = 0; i < bytes; i++) {
-		I c = bread(b);
-		if (c == -1)
-			return -1;
-		n = n << 8 | c;
-	}
+	for (U8 i = 0; i < bytes; i++)
+		n = n << 8 | bread(b);
 	return n;
 }
 
-void skip(IOBuffer *b, U32 bytes)
+static void skip(IOBuffer *b, U32 bytes)
 {
 	for (U32 i = 0; i < bytes; i++)
 		bread(b);
 }
 
-U32 strtag(char s[4])
+static U32 strtag(char s[4])
 {
 	return s[3]<<(0*8)|s[2]<<(1*8)|s[1]<<(2*8)|s[0]<<(3*8);
 }
@@ -51,10 +47,12 @@ typedef struct {
 } Glyph;
 
 typedef struct {
+	Arena mem;
 	I16   ascend;
 	I16   descend;
 	I16   linegap;
 	U16   upm;
+	I16   lim[2][2];
 	U16   nglyph;
 	Glyph *glyphs;
 	U16   npoints;
@@ -68,22 +66,36 @@ typedef enum {
 	Repeat  = 1<<3,
 	XFlag   = 1<<4,
 	YFlag   = 1<<5,
-} GlyfFlag;
+} SimpFlag;
 
-static void parsesimpleglyph(IOBuffer *b, Glyph *g, I16 ncont)
+/* NOTE: Checking every read/seek operation would be too tedious, so instead I only
+ * do that at specific checkpoints (e.g. loops/allocations based on what's read)
+ * to find out if any error has occured up to this point (and early exit).
+ *
+ * To handle malformed files we also do some assertions, which at least guarantee
+ * that there won't be any out-of-bounds reads or writes. */
+
+#define CHECKPOINT(b) ({if ((b)->error) return;})
+#define ASSERT(b, e) ({if (!(e)) {(b)->error = 1; return;}})
+
+static void parsesimpleglyph(IOBuffer *b, Glyph *g, I16 ncont, U16 maxpts)
 {
 	U16 nvert = 0;
 	for (I16 i = 0; i < ncont; i++) {
 		U16 idx = readbe(b, 2);
 		g->ends[g->ncont+i] = g->nvert + idx;
+		ASSERT(b, nvert < idx + 1);
 		nvert = idx + 1;
 	}
+	ASSERT(b, nvert <= maxpts);
 	U16 ilen = readbe(b, 2);
 	skip(b, ilen); /* instructions */
+	CHECKPOINT(b);
 	for (I16 i = 0; i < nvert; i++) {
 		g->on[g->nvert+i] = readbe(b, 1);
 		if (g->on[g->nvert+i] & Repeat) {
 			U8 count = readbe(b, 1);
+			ASSERT(b, count < nvert - i);
 			for (; count; count--, i++)
 				g->on[g->nvert+i+1] = g->on[g->nvert+i];
 		}
@@ -120,10 +132,11 @@ typedef enum {
 	Have2x2      = 1<<7,
 } CompFlag;
 
-static void parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations)
+static void parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
 {
 	for (;;) {
 		U16 flags = readbe(b, 2);
+		CHECKPOINT(b);
 		if (~flags & ArgsXY)
 			panic("point offsets are not yet supported");
 		if (flags & (HaveScale|HaveXYScale|Have2x2))
@@ -141,11 +154,14 @@ static void parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations)
 		U16 start = g->nvert;
 		bseek(b, glyf + locations[index]);
 		I16 ncont = readbe(b, 2);
+		ASSERT(b, ncont <= maxconts);
 		skip(b, 2+2+2+2); /* xMin, yMin, xMax, yMax */
+		CHECKPOINT(b);
 		if (ncont > 0)
-			parsesimpleglyph(b, g, ncont);
+			parsesimpleglyph(b, g, ncont, maxpts);
 		if (ncont < 0)
-			parsecompoundglyph(b, g, glyf, locations);
+			parsecompoundglyph(b, g, glyf, locations, maxconts, maxpts);
+		CHECKPOINT(b);
 		for (U16 i = start; i < g->nvert; i++) {
 			g->xy[0][i] += x;
 			g->xy[1][i] += y;
@@ -156,26 +172,30 @@ static void parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations)
 	}
 }
 
-static void parseglyph(IOBuffer *b, Glyph *g, U16 index, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
+static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
 {
 	bseek(b, glyf + locations[index]);
 	I16 ncont = readbe(b, 2);
-	if (ncont == 0)
-		return;
+	ASSERT(b, ncont <= maxconts);
+	Glyph *g = &f->glyphs[index];
 	g->lim[0][0] = readbe(b, 2);
 	g->lim[1][0] = readbe(b, 2);
 	g->lim[0][1] = readbe(b, 2);
 	g->lim[1][1] = readbe(b, 2);
+	if (ncont == 0)
+		return;
 	/* NOTE: after restoring missing point we'll have at most twice as much points */
 	g->nvert = maxpts;
-	g->on = memalloc(maxpts*2);
-	g->ends = memalloc(maxconts * sizeof(U16));
-	g->xy[0] = memalloc(maxpts*2 * sizeof(I16));
-	g->xy[1] = memalloc(maxpts*2 * sizeof(I16));
+	g->on = aralloc(&f->mem, maxpts*2);
+	g->ends = aralloc(&f->mem, maxconts * sizeof(U16));
+	g->xy[0] = aralloc(&f->mem, maxpts*2 * sizeof(I16));
+	g->xy[1] = aralloc(&f->mem, maxpts*2 * sizeof(I16));
+	CHECKPOINT(b);
 	if (ncont > 0)
-		parsesimpleglyph(b, g, ncont);
+		parsesimpleglyph(b, g, ncont, maxpts);
 	else
-		parsecompoundglyph(b, g, glyf, locations);
+		parsecompoundglyph(b, g, glyf, locations, maxconts, maxpts);
+	CHECKPOINT(b);
 	/* NOTE: now we can actually restore the missing control points */
 	for (I16 cont = 0, start = maxpts, j = 0; cont < g->ncont; cont++) {
 		U16 n = g->ends[cont]+1-start;
@@ -211,25 +231,29 @@ static void parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 
 	/* version, fontRevision, checkSumAdjustment, magicNumber, flags */
 	skip(b, 4+4+4+4+2);
 	f->upm = readbe(b, 2);
-	/* created, modified, xMin, yMin, xMax, yMax,
-	 * macStyle, lowestRecPPEM, fontDirectionHint */
-	skip(b, 8+8+2+2+2+2+2+2+2);
+	skip(b, 8+8); /* created, modified */
+	f->lim[0][0] = readbe(b, 2);
+	f->lim[1][0] = readbe(b, 2);
+	f->lim[0][1] = readbe(b, 2);
+	f->lim[1][1] = readbe(b, 2);
+	skip(b, 2+2+2); /* macStyle, lowestRecPPEM, fontDirectionHint */
 	I16 indextolocformat = readbe(b, 2);
 	I16 locasize = 2 << indextolocformat;
 	I16 locascale = 2 - indextolocformat;
 	bseek(b, loca);
-	U32 *locations = memalloc(nglyph * sizeof(U32));
+	CHECKPOINT(b);
+	U32 *locations = aralloc(&f->mem, nglyph * sizeof(U32));
 	for (U16 i = 0; i < nglyph; i++) {
 		U32 offset = readbe(b, locasize);
 		locations[i] = offset*locascale;
 	}
+	CHECKPOINT(b);
 	f->nglyph = nglyph;
-	f->glyphs = memalloc(f->nglyph * sizeof(Glyph));
+	f->glyphs = aralloc(&f->mem, f->nglyph * sizeof(Glyph));
 	for (U16 i = 0; i < f->nglyph; i++) {
 		f->glyphs[i] = (Glyph){};
-		parseglyph(b, &f->glyphs[i], i, glyf, locations, maxconts, maxpts);
+		parseglyph(b, f, i, glyf, locations, maxconts, maxpts);
 	}
-	memfree(locations);
 }
 
 static void parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
@@ -245,6 +269,7 @@ static void parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
 	skip(b, 2+2+2+2+2+2+2+4*2+2);
 	U16 numhw = readbe(b, 2);
 	bseek(b, hmtx);
+	CHECKPOINT(b);
 	for (U16 i = 0, advance = 0; i < f->nglyph; i++) {
 		if (i < numhw)
 			advance = readbe(b, 2);
@@ -259,6 +284,7 @@ static void parsectable(IOBuffer *b, Font *f, U32 cmap)
 	bseek(b, cmap);
 	skip(b, 2); /* version */
 	U16 ntab = readbe(b, 2);
+	CHECKPOINT(b);
 	for (U16 i = 0; i < ntab; i++) {
 		U16 platformid = readbe(b, 2);
 		skip(b, 2); /* platformSpecificID */
@@ -273,17 +299,19 @@ static void parsectable(IOBuffer *b, Font *f, U32 cmap)
 			skip(b, 2+2+2); /* searchRange, entrySelector, rangeShift */
 			U64 table = b->pos;
 			U32 npoints = 0;
+			CHECKPOINT(b);
 			for (U16 i = 0; i < segcnt; i++) {
 				bseek(b, table + i*2);
 				U16 end = readbe(b, 2);
 				skip(b, segcnt*2);
 				U16 start = readbe(b, 2);
+				ASSERT(b, start <= end);
 				npoints += end - start + 1;
 			}
+			CHECKPOINT(b);
 			f->npoints = npoints;
-			U16 *t = memalloc(npoints*2 * sizeof(U16));
-			f->ctable[0] = t;
-			f->ctable[1] = t + npoints;
+			f->ctable[0] = aralloc(&f->mem, npoints*sizeof(U16));
+			f->ctable[1] = aralloc(&f->mem, npoints*sizeof(U16));
 			for (U16 i = 0, j = 0; i < segcnt; i++) {
 				bseek(b, table + i*2);
 				U16 end = readbe(b, 2);
@@ -295,12 +323,14 @@ static void parsectable(IOBuffer *b, Font *f, U32 cmap)
 				U16 idroff = readbe(b, 2);
 				if (idroff)
 					skip(b, idroff - 2);
+				CHECKPOINT(b);
 				for (U32 p = start; p <= end; p++, j++) {
 					f->ctable[0][j] = p;
 					if (!idroff)
 						f->ctable[1][j] = iddelta + p;
 					else
 						f->ctable[1][j] = readbe(b, 2);
+					ASSERT(b, f->ctable[1][j] < f->nglyph);
 				}
 			}
 			return;
@@ -340,6 +370,8 @@ Font parsettf(IOBuffer *b)
 	parseglyphs(b, &f, head, maxp, glyf, loca);
 	parsemetrics(b, &f, hmtx, hhea);
 	parsectable(b, &f, cmap);
+	if (b->error)
+		panic("parsing failed");
 	return f;
 }
 
