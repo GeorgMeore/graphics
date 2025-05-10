@@ -87,7 +87,7 @@ static void parsesimpleglyph(IOBuffer *b, Glyph *g, I16 ncont, U16 maxpts)
 		ASSERT(b, nvert < idx + 1);
 		nvert = idx + 1;
 	}
-	ASSERT(b, nvert <= maxpts);
+	ASSERT(b, g->nvert + nvert <= 2*maxpts);
 	U16 ilen = readbe(b, 2);
 	skip(b, ilen); /* instructions */
 	CHECKPOINT(b);
@@ -154,7 +154,7 @@ static void parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations, 
 		U16 start = g->nvert;
 		bseek(b, glyf + locations[index]);
 		I16 ncont = readbe(b, 2);
-		ASSERT(b, ncont <= maxconts);
+		ASSERT(b, g->ncont + ncont <= maxconts);
 		skip(b, 2+2+2+2); /* xMin, yMin, xMax, yMax */
 		CHECKPOINT(b);
 		if (ncont > 0)
@@ -186,6 +186,7 @@ static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations
 	if (ncont == 0)
 		return;
 	/* NOTE: after restoring missing point we'll have at most twice as much points */
+	g->ncont = 0;
 	g->nvert = maxpts;
 	g->on = aralloc(&f->mem, maxpts*2);
 	g->ends = aralloc(&f->mem, maxconts * sizeof(U16));
@@ -238,6 +239,7 @@ static void parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 
 	f->lim[1][1] = readbe(b, 2);
 	skip(b, 2+2+2); /* macStyle, lowestRecPPEM, fontDirectionHint */
 	I16 indextolocformat = readbe(b, 2);
+	ASSERT(b, indextolocformat == 0 || indextolocformat == 1);
 	I16 locasize = 2 << indextolocformat;
 	I16 locascale = 2 - indextolocformat;
 	bseek(b, loca);
@@ -250,10 +252,8 @@ static void parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 
 	CHECKPOINT(b);
 	f->nglyph = nglyph;
 	f->glyphs = aralloc(&f->mem, f->nglyph * sizeof(Glyph));
-	for (U16 i = 0; i < f->nglyph; i++) {
-		f->glyphs[i] = (Glyph){};
+	for (U16 i = 0; i < f->nglyph; i++)
 		parseglyph(b, f, i, glyf, locations, maxconts, maxpts);
-	}
 }
 
 static void parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
