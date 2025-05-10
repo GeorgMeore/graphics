@@ -182,6 +182,7 @@ static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations
 	g->lim[1][0] = readbe(b, 2);
 	g->lim[0][1] = readbe(b, 2);
 	g->lim[1][1] = readbe(b, 2);
+	CHECKPOINT(b);
 	if (ncont == 0)
 		return;
 	/* NOTE: after restoring missing point we'll have at most twice as much points */
@@ -190,7 +191,6 @@ static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations
 	g->ends = aralloc(&f->mem, maxconts * sizeof(U16));
 	g->xy[0] = aralloc(&f->mem, maxpts*2 * sizeof(I16));
 	g->xy[1] = aralloc(&f->mem, maxpts*2 * sizeof(I16));
-	CHECKPOINT(b);
 	if (ncont > 0)
 		parsesimpleglyph(b, g, ncont, maxpts);
 	else
