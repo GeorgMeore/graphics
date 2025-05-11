@@ -74,9 +74,39 @@ typedef enum {
  *
  * To handle malformed files we also do some assertions, which at least guarantee
  * that there won't be any out-of-bounds reads or writes. */
-
 #define CHECKPOINT(b) ({if ((b)->error) return;})
 #define ASSERT(b, e) ({if (!(e)) {(b)->error = 1; return;}})
+
+/* NOTE: When starting to parse a glyph we don't know how many points we'll have
+ * to restore, but we can be sure that after the restoration the number of points
+ * can at most double. We also know the max number of points a glyph can have.
+ *
+ * So we can do the following:
+ *  1) allocate enough memory to hold twice the max number of points
+ *  2) read all the points from the font file into the "upper" half
+ *  3) move the points into the "lower" half, while restoring missing points */
+static void restorepts(Glyph *g, U16 maxpts)
+{
+	for (I16 cont = 0, start = maxpts, j = 0; cont < g->ncont; cont++) {
+		U16 n = g->ends[cont]+1-start;
+		I16 first = j;
+		for (U16 i = 0; i < n; i++, j++) {
+			U16 curr = start + i, prev = start + MOD(i-1, n);
+			I16 x1 = g->xy[0][curr], y1 = g->xy[1][curr];
+			if (!g->on[curr] && !g->on[prev]) {
+				I16 x2 = g->xy[0][prev], y2 = g->xy[1][prev];
+				g->xy[0][j] = (x1+x2)/2, g->xy[1][j] = (y1+y2)/2, g->on[j] = 1;
+				j++;
+			}
+			g->xy[0][j] = x1, g->xy[1][j] = y1, g->on[j] = g->on[curr];
+		}
+		if (!g->on[first])
+			panic("first off curve not yet supported");
+		g->ends[cont] = j-1;
+		start += n;
+		g->nvert = j;
+	}
+}
 
 static void parsesimpleglyph(IOBuffer *b, Glyph *g, I16 ncont, U16 maxpts)
 {
@@ -138,9 +168,9 @@ static void parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations, 
 		U16 flags = readbe(b, 2);
 		CHECKPOINT(b);
 		if (~flags & ArgsXY)
-			panic("point offsets are not yet supported");
+			panic("point offsets not yet supported");
 		if (flags & (HaveScale|HaveXYScale|Have2x2))
-			panic("scaling is not yet supported");
+			panic("scaling not yet supported");
 		U16 index = readbe(b, 2);
 		I16 x, y;
 		if (flags & ArgsWords) {
@@ -185,7 +215,6 @@ static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations
 	CHECKPOINT(b);
 	if (ncont == 0)
 		return;
-	/* NOTE: after restoring missing point we'll have at most twice as much points */
 	g->ncont = 0;
 	g->nvert = maxpts;
 	g->on = aralloc(&f->mem, maxpts*2);
@@ -197,24 +226,7 @@ static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations
 	else
 		parsecompoundglyph(b, g, glyf, locations, maxconts, maxpts);
 	CHECKPOINT(b);
-	/* NOTE: now we can actually restore the missing control points */
-	for (I16 cont = 0, start = maxpts, j = 0; cont < g->ncont; cont++) {
-		U16 n = g->ends[cont]+1-start;
-		for (U16 i = 0; i < n; i++, j++) {
-			U16 curr = start + i, prev = start + MOD(i-1, n);
-			I16 x1 = g->xy[0][curr], y1 = g->xy[1][curr];
-			if (!g->on[curr] && !g->on[prev]) {
-				I16 x2 = g->xy[0][prev], y2 = g->xy[1][prev];
-				g->xy[0][j] = (x1+x2)/2, g->xy[1][j] = (y1+y2)/2, g->on[j] = 1;
-				j++;
-			}
-			g->xy[0][j] = x1, g->xy[1][j] = y1, g->on[j] = g->on[curr];
-		}
-		/* TODO: handle the [off, on, ..., on] case */
-		g->ends[cont] = j-1;
-		start += n;
-		g->nvert = j;
-	}
+	restorepts(g, maxpts);
 }
 
 static void parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 loca)
@@ -377,22 +389,31 @@ Font parsettf(IOBuffer *b)
 	return f;
 }
 
-Glyph findglyph(Font f, U32 code)
+Font openttf(const char *path)
+{
+	IOBuffer b = {};
+	if (!bopen(&b, path, 'r'))
+		panic("failed to open the b");
+	Font f = parsettf(&b);
+	bclose(&b);
+	return f;
+}
+
+U16 findglyph(Font f, U32 code)
 {
 	if (!f.ctable[0])
-		return f.glyphs[0];
-	U16 idx = 0;
+		return 0;
 	U16 l = 0, r = f.npoints;
-	while (l < r && !idx) {
+	while (l < r) {
 		U16 m = l + (r - l)/2;
 		if (f.ctable[0][m] == code)
-			idx = f.ctable[1][m];
-		else if (f.ctable[0][m] < code)
+			return f.ctable[1][m];
+		if (f.ctable[0][m] < code)
 			l = m + 1;
 		else
 			r = m;
 	}
-	return f.glyphs[idx];
+	return 0;
 }
 
 /* TODO: this and isectcurve2 are easily avx-able, I should try it out */
@@ -468,42 +489,48 @@ I32 isectcurve2(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 	return wn;
 }
 
-void drawraster(Image *f, I16 x0, I16 y0, Glyph g, Color c)
+void drawraster(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale, U8 ss)
 {
-	for (I16 x = g.lim[0][0]; x <= g.lim[0][1]; x++)
-	for (I16 y = g.lim[1][0]; y <= g.lim[1][1]; y++) {
-		I32 wn = 0;
-		for (I16 cont = 0, start = 0; cont < g.ncont; cont++) {
-			U16 n = g.ends[cont]+1-start;
-			for (U16 i = 0; i < n;) {
-				U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
-				I16 x1 = g.xy[0][curr], y1 = g.xy[1][curr];
-				I16 x2 = g.xy[0][next], y2 = g.xy[1][next];
-				I16 x3 = g.xy[0][last], y3 = g.xy[1][last];
-				if (g.on[next]) {
-					wn += isectline(x, y, x1, y1, x2, y2);
-					i += 1;
-				} else {
-					wn += isectcurve(x, y, x1, y1, x2, y2, x3, y3);
-					i += 2;
+	for (I16 x = g.lim[0][0]*scale; x <= g.lim[0][1]*scale; x++)
+	for (I16 y = g.lim[1][0]*scale; y <= g.lim[1][1]*scale; y++) {
+		I32 hits = 0;
+		for (I16 dx = 0; dx < ss; dx++)
+		for (I16 dy = 0; dy < ss; dy++) {
+			I32 wn = 0;
+			for (I16 cont = 0, start = 0; cont < g.ncont; cont++) {
+				U16 n = g.ends[cont]+1-start;
+				for (U16 i = 0; i < n;) {
+					U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
+					I16 x1 = g.xy[0][curr]*ss*scale, y1 = g.xy[1][curr]*ss*scale;
+					I16 x2 = g.xy[0][next]*ss*scale, y2 = g.xy[1][next]*ss*scale;
+					I16 x3 = g.xy[0][last]*ss*scale, y3 = g.xy[1][last]*ss*scale;
+					if (g.on[next]) {
+						wn += isectline(x*ss + dx, y*ss + dy, x1, y1, x2, y2);
+						i += 1;
+					} else {
+						wn += isectcurve2(x*ss + dx, y*ss + dy, x1, y1, x2, y2, x3, y3);
+						i += 2;
+					}
 				}
+				start += n;
 			}
-			start += n;
+			if (wn)
+				hits += 1;
 		}
-		if (wn && CHECKX(f, x0+x) && CHECKY(f, y0-y))
-			PIXEL(f, (x0+x), (y0-y)) = c;
+		if (hits && CHECKX(f, x0+x) && CHECKY(f, y0-y))
+			PIXEL(f, (x0+x), (y0-y)) = RGBA(R(c)*hits/(ss*ss), G(c)*hits/(ss*ss), B(c)*hits/(ss*ss), A(c)*hits/(ss*ss));
 	}
 }
 
-void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c)
+void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 {
 	for (I16 cont = 0, start = 0; cont < g.ncont; cont++) {
 		U16 n = g.ends[cont]+1-start;
 		for (U16 i = 0; i < n;) {
 			U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
-			I16 x1 = g.xy[0][curr], y1 = g.xy[1][curr];
-			I16 x2 = g.xy[0][next], y2 = g.xy[1][next];
-			I16 x3 = g.xy[0][last], y3 = g.xy[1][last];
+			I16 x1 = g.xy[0][curr]*scale, y1 = g.xy[1][curr]*scale;
+			I16 x2 = g.xy[0][next]*scale, y2 = g.xy[1][next]*scale;
+			I16 x3 = g.xy[0][last]*scale, y3 = g.xy[1][last]*scale;
 			if (g.on[next]) {
 				drawline(f, x0+x1, y0-y1, x0+x2, y0-y2, c);
 				i += 1;
@@ -519,29 +546,41 @@ void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c)
 /* TODO: check out SDF */
 /* TODO: fuck buffered io, just read the whole font file into memory (or mmap) */
 
-#define FONT "/usr/share/fonts/TTF/IBMPlexSerif-Regular.ttf"
-//#define FONT "/usr/share/fonts/TTF/IBMPlexMono-Regular.ttf"
+//#define FONT "/usr/share/fonts/noto/NotoSansMono-Regular.ttf"
+//#define FONT "/usr/share/fonts/TTF/IBMPlexSerif-Regular.ttf"
+#define FONT "/usr/share/fonts/TTF/IBMPlexMono-Regular.ttf"
 //#define FONT "/usr/share/fonts/noto/NotoSerif-Regular.ttf"
 //#define FONT "/usr/share/fonts/liberation/LiberationSans-Regular.ttf"
 
+#define ARRSIZE(a) (sizeof(a)/sizeof((a)[0]))
+
 int main(int, char **argv)
 {
-	IOBuffer file = {};
-	if (!bopen(&file, FONT, 'r'))
-		panic("failed to open the file");
-	Font fn = parsettf(&file);
-	bclose(&file);
+	Font fn = openttf(FONT);
 	winopen(1920, 1080, argv[0], 60);
-	U32 s[] = {'T', 'e', 's', 't'};
-	U32 n = sizeof(s)/sizeof(s[0]);
+	U32 s[] = {'$', ' ', 'T', 'e', 's', 't'};
+	//U32 s[] = {/*1046, 1077, 1085, 1100, 1082, 1072, '-', */1076, 1091, 1088, 1072, 1095, 1086, 1082};
+	Glyph g[ARRSIZE(s)] = {};
+	//Image bmp[ARRSIZE(s)] = {};
+	F64 scale = 40.0/fn.upm;
+	I16 len = 0;
+	for (U64 i = 0; i < ARRSIZE(s); i++) {
+		g[i] = fn.glyphs[findglyph(fn, s[i])];
+		len += g[i].advance*scale;
+	}
 	while (!keyisdown('q')) {
 		Image *f = framebegin();
+		if (keyisdown('u'))
+			scale *= 1.1;
+		if (keyisdown('d'))
+			scale /= 1.1;
 		drawclear(f, RGBA(18, 18, 18, 255));
-		I16 x = 200, y = 800;
-		for (U32 i = 0; i < n; i++) {
-			Glyph g = findglyph(fn, s[i]);
-			drawoutline(f, x+g.lsb, y, g, RGBA(200, 200, 20, 50));
-			x += g.advance;
+		//I16 x = mousex() - len/2, y = mousey();
+		I16 x = 200, y = 200;
+		for (U32 i = 0; i < ARRSIZE(s); i++) {
+			if (s[i] != ' ' && s[i] != '\n' && s[i] != '\t')
+				drawraster(f, x, y, g[i], RGBA(255, 255, 255, 200), scale, 3);
+			x += g[i].advance*scale;
 		}
 		frameend();
 	}
