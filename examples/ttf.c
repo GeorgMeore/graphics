@@ -88,7 +88,7 @@ typedef enum {
 static void restorepts(Glyph *g, U16 maxpts)
 {
 	for (I16 cont = 0, start = maxpts, j = 0; cont < g->ncont; cont++) {
-		U16 n = g->ends[cont]+1-start;
+		U16 n = g->ends[cont] + 1 - start;
 		I16 first = j;
 		for (U16 i = 0; i < n; i++, j++) {
 			U16 curr = start + i, prev = start + MOD(i-1, n);
@@ -212,6 +212,9 @@ static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations
 	g->lim[1][0] = readbe(b, 2);
 	g->lim[0][1] = readbe(b, 2);
 	g->lim[1][1] = readbe(b, 2);
+	ASSERT(b, g->lim[0][0] < g->lim[0][1] && g->lim[1][0] < g->lim[1][1]);
+	ASSERT(b, g->lim[0][0] >= f->lim[0][0] && g->lim[0][1] <= f->lim[0][1]);
+	ASSERT(b, g->lim[1][0] >= f->lim[1][0] && g->lim[1][1] <= f->lim[1][1]);
 	CHECKPOINT(b);
 	if (ncont == 0)
 		return;
@@ -226,6 +229,9 @@ static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations
 	else
 		parsecompoundglyph(b, g, glyf, locations, maxconts, maxpts);
 	CHECKPOINT(b);
+	for (I16 comp = 0; comp < 2; comp++)
+	for (U16 i = maxpts; i < g->nvert; i++)
+		ASSERT(b, g->xy[comp][i] >= g->lim[comp][0] && g->xy[comp][i] <= g->lim[comp][1]);
 	restorepts(g, maxpts);
 }
 
