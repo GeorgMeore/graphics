@@ -108,9 +108,10 @@ static void restorepts(Glyph *g, U16 maxpts)
 	}
 }
 
-static void parsesimpleglyph(IOBuffer *b, Glyph *g, I16 ncont, U16 maxpts)
+static void parsesimpleglyph(IOBuffer *b, Glyph *g, I16 ncont, U16 maxconts, U16 maxpts)
 {
 	U16 nvert = 0;
+	ASSERT(b, g->ncont + ncont <= maxconts);
 	for (I16 i = 0; i < ncont; i++) {
 		U16 idx = readbe(b, 2);
 		g->ends[g->ncont+i] = g->nvert + idx;
@@ -182,13 +183,14 @@ static void parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations, 
 		}
 		U64 curr = b->pos;
 		U16 start = g->nvert;
+		if (locations[index] == locations[index+1])
+			continue;
 		bseek(b, glyf + locations[index]);
 		I16 ncont = readbe(b, 2);
-		ASSERT(b, g->ncont + ncont <= maxconts);
 		skip(b, 2+2+2+2); /* xMin, yMin, xMax, yMax */
 		CHECKPOINT(b);
 		if (ncont > 0)
-			parsesimpleglyph(b, g, ncont, maxpts);
+			parsesimpleglyph(b, g, ncont, maxconts, maxpts);
 		if (ncont < 0)
 			parsecompoundglyph(b, g, glyf, locations, maxconts, maxpts);
 		CHECKPOINT(b);
@@ -204,6 +206,8 @@ static void parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations, 
 
 static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
 {
+	if (locations[index] == locations[index+1])
+		return;
 	bseek(b, glyf + locations[index]);
 	I16 ncont = readbe(b, 2);
 	ASSERT(b, ncont <= maxconts);
@@ -218,14 +222,13 @@ static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations
 	CHECKPOINT(b);
 	if (ncont == 0)
 		return;
-	g->ncont = 0;
 	g->nvert = maxpts;
 	g->on = aralloc(&f->mem, maxpts*2);
 	g->ends = aralloc(&f->mem, maxconts * sizeof(U16));
 	g->xy[0] = aralloc(&f->mem, maxpts*2 * sizeof(I16));
 	g->xy[1] = aralloc(&f->mem, maxpts*2 * sizeof(I16));
 	if (ncont > 0)
-		parsesimpleglyph(b, g, ncont, maxpts);
+		parsesimpleglyph(b, g, ncont, maxconts, maxpts);
 	else
 		parsecompoundglyph(b, g, glyf, locations, maxconts, maxpts);
 	CHECKPOINT(b);
@@ -270,8 +273,10 @@ static void parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 
 	CHECKPOINT(b);
 	f->nglyph = nglyph;
 	f->glyphs = aralloc(&f->mem, f->nglyph * sizeof(Glyph));
-	for (U16 i = 0; i < f->nglyph; i++)
+	for (U16 i = 0; i < f->nglyph; i++) {
+		f->glyphs[i] = (Glyph){};
 		parseglyph(b, f, i, glyf, locations, maxconts, maxpts);
+	}
 }
 
 static void parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
@@ -497,8 +502,10 @@ I32 isectcurve2(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 
 void drawraster(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale, U8 ss)
 {
-	for (I16 x = g.lim[0][0]*scale; x <= g.lim[0][1]*scale; x++)
-	for (I16 y = g.lim[1][0]*scale; y <= g.lim[1][1]*scale; y++) {
+	if (!g.ncont)
+		return;
+	for (I16 x = g.lim[0][0]*scale; x <= g.lim[0][1]*scale + 0.5; x++)
+	for (I16 y = g.lim[1][0]*scale - 1; y <= g.lim[1][1]*scale + 0.5; y++) {
 		I32 hits = 0;
 		for (I16 dx = 0; dx < ss; dx++)
 		for (I16 dy = 0; dy < ss; dy++) {
@@ -584,8 +591,7 @@ int main(int, char **argv)
 		//I16 x = mousex() - len/2, y = mousey();
 		I16 x = 200, y = 200;
 		for (U32 i = 0; i < ARRSIZE(s); i++) {
-			if (s[i] != ' ' && s[i] != '\n' && s[i] != '\t')
-				drawraster(f, x, y, g[i], RGBA(255, 255, 255, 200), scale, 3);
+			drawraster(f, x, y, g[i], RGBA(255, 255, 255, 200), scale, 3);
 			x += g[i].advance*scale;
 		}
 		frameend();
