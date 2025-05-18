@@ -427,8 +427,29 @@ U16 findglyph(Font f, U32 code)
 	return 0;
 }
 
-/* TODO: this and isectcurve2 are easily avx-able, I should try it out */
-I32 isectline(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
+/*
+ * To get a correct winding count with join points, I used a trick where if a ray hits
+ * exactly a segment`s start or end point, we add a "half" of it`s y-direction at that point.
+ *
+ * For lines the rules are:
+ *
+ * y            (dy > 0)            (dy < 0)
+ * ^          ^                   v
+ * |  ray     |                   |
+ * | ----->   |  +2     .  +1     |  -2     .  -1   (and horizontals give +0)
+ * |          |         |         |         |
+ * |          ^         ^         v         v
+ * '----------------------------------------------->x
+ *
+ * This guarantees correct handling of segment joins, e.g.
+ *
+ *               _   _/  /
+ *              / \ /    |
+ *
+ * For parabolas it's a bit more tricky, but the idea is the same.
+ */
+
+static I32 isectline(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
 {
 	if (y1 == y2 || ry < MIN(y1, y2) || ry > MAX(y1, y2) || rx > MAX(x1, x2))
 		return 0;
@@ -440,7 +461,7 @@ I32 isectline(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
 	return 2*SIGN(y2 - y1);
 }
 
-I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
+static I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 {
 	if (ry < MIN3(y1, y2, y3) || ry > MAX3(y1, y2, y3) || rx > MAX3(x1, x2, x3))
 		return 0;
@@ -484,7 +505,7 @@ I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 	return wn;
 }
 
-I32 isectcurve2(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
+static I32 isectcurve2(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 {
 	if (ry < MIN3(y1, y2, y3) || ry > MAX3(y1, y2, y3) || rx > MAX3(x1, x2, x3))
 		return 0;
