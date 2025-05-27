@@ -62,6 +62,7 @@ F64 eval(Poly p, F64 x)
 /* NOTE: this function assumes that p has a positive leading
  * coefficient and that either p(l) < 0 (p(r) > 0) or you must
  * be able to get to a negative (positive) value by doubling l (r) */
+/* TODO: try bracketed Newton bisection */
 static F64 bisectroot(Poly p, F64 l, F64 r)
 {
 	while (eval(p, l) > 0)
