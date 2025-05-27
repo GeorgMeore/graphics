@@ -3,7 +3,7 @@
 typedef struct {
 	int fd;
 	U8  bytes[IOBUFSIZE];
-	int i, count;
+	U64 i, count, pos;
 	U8  error, mode;
 } IOBuffer;
 
@@ -16,6 +16,7 @@ int bclose(IOBuffer *b);
 
 int bread(IOBuffer *b);
 int bpeek(IOBuffer *b);
+int bseek(IOBuffer *b, U64 byte);
 int bwrite(IOBuffer *b, U8 v);
 int bflush(IOBuffer *b);
 
