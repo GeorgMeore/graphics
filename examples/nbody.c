@@ -46,27 +46,17 @@ int main(int, char **argv)
 			for (int j = i+1; j < N; j++) {
 				F64 dx = c[j][0] - c[i][0], dy = c[j][1] - c[i][1];
 				F64 d = fsqrt(dx*dx + dy*dy);
-				if (d < 5) {
-					//F64 s = r[i] + r[j] - d;
-					//F64 k = ((v[j][0] - v[i][0])*dx + (v[j][1] - v[i][1])*dy) / ((dx*dx + dy*dy) * (m[i] + m[j]));
-					//v[i][0] = v[i][0] + 2*m[j]*k*dx;
-					//v[i][1] = v[i][1] + 2*m[j]*k*dy;
-					//v[j][0] = v[j][0] - 2*m[i]*k*dx;
-					//v[j][1] = v[j][1] - 2*m[i]*k*dy;
-					//c[i][0] -= s*dx/d/2;
-					//c[i][1] -= s*dy/d/2;
-					//c[j][0] += s*dx/d/2;
-					//c[j][1] += s*dy/d/2;
-					//dx = c[j][0] - c[i][0], dy = c[j][1] - c[i][1], d = fsqrt(dx*dx + dy*dy);
-					v[i][0] -= 10000 * dt * m[j] * dx / (d*d*d);
-					v[j][0] += 10000 * dt * m[i] * dx / (d*d*d);
-					v[i][1] -= 10000 * dt * m[j] * dy / (d*d*d);
-					v[j][1] += 10000 * dt * m[i] * dy / (d*d*d);
+				if (d < r[i]+r[j]) {
+					F64 s = r[i] + r[j] - d;
+					v[i][0] -= 1e6 * s / m[i] * dx/d * dt;
+					v[j][0] += 1e6 * s / m[j] * dy/d * dt;
+					v[i][1] -= 1e6 * s / m[i] * dx/d * dt;
+					v[j][1] += 1e6 * s / m[j] * dy/d * dt;
 				} else {
-					v[i][0] += 10000 * dt * m[j] * dx / (d*d*d);
-					v[j][0] -= 10000 * dt * m[i] * dx / (d*d*d);
-					v[i][1] += 10000 * dt * m[j] * dy / (d*d*d);
-					v[j][1] -= 10000 * dt * m[i] * dy / (d*d*d);
+					v[i][0] += 1e4 * m[j] * dx / (d*d*d) * dt;
+					v[j][0] -= 1e4 * m[i] * dx / (d*d*d) * dt;
+					v[i][1] += 1e4 * m[j] * dy / (d*d*d) * dt;
+					v[j][1] -= 1e4 * m[i] * dy / (d*d*d) * dt;
 				}
 			}
 			for (int i = 0; i < N; i++) {
