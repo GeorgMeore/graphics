@@ -20,6 +20,9 @@ void updatepoint(Image *i, int p[2])
 	}
 }
 
+#define PROFENABLED
+#include "prof.h"
+
 int main(void)
 {
 	winopen(600, 600, "Triangle", 60);
@@ -30,15 +33,20 @@ int main(void)
 		Image *fb = framebegin();
 		for (int i = 0; i < 3; i++)
 			updatepoint(fb, pt[i]);
-		if (keywaspressed('s'))
+		if (keywaspressed('s')) {
 			smooth = !smooth;
+			profreset("render");
+		}
 		drawclear(fb, BLACK);
 		for (int i = 0; i < 3; i++)
 			drawsmoothcircle(fb, pt[i][0], pt[i][1], 5, c[i]);
+		profbegin("render");
 		if (smooth)
-			drawsmoothtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], WHITE);
+			drawsmoothtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], RGBA(200, 200, 200, 150));
 		else
-			drawtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], WHITE);
+			drawtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], RGBA(200, 200, 200, 150));
+		profend();
+		profdump();
 		frameend();
 	}
 	winclose();
