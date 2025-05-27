@@ -9,12 +9,11 @@
 #include "image.h"
 #include "win.h"
 
-#define KEYCOUNT (MAXVAL(U8) + 1)
-#define BTNCOUNT 6
-
 #define RMASK RGBA(0xFF, 0, 0, 0)
 #define GMASK RGBA(0, 0xFF, 0, 0)
 #define BMASK RGBA(0, 0, 0xFF, 0)
+
+#define COUNT 256 /* keys/buttons */
 
 typedef struct {
 	Image fb;
@@ -25,10 +24,10 @@ typedef struct {
 	Window win;
 	int depth;
 	GC gc;
-	int keydown[KEYCOUNT];
-	int prevkeydown[KEYCOUNT];
-	int btndown[BTNCOUNT];
-	int prevbtndown[BTNCOUNT];
+	U8 keydown[COUNT];
+	U8 prevkeydown[COUNT];
+	U8 btndown[COUNT];
+	U8 prevbtndown[COUNT];
 	int mousex;
 	int mousey;
 	U64 targetns;
@@ -224,9 +223,9 @@ void frameend(void)
 	if (!defxwin.d)
 		return;
 	flush();
-	for (int i = 0; i < BTNCOUNT; i++)
+	for (int i = 0; i < COUNT; i++)
 		defxwin.prevbtndown[i] = defxwin.btndown[i];
-	for (int i = 0; i < KEYCOUNT; i++)
+	for (int i = 0; i < COUNT; i++)
 		defxwin.prevkeydown[i] = defxwin.keydown[i];
 	while (XPending(defxwin.d)) {
 		XEvent e;
