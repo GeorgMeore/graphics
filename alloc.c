@@ -57,12 +57,11 @@ static Zone *addzone(Arena *a, U zsize)
 	z->free = allocsize - sizeof(Zone);
 	z->mem = z + 1;
 	z->next = 0;
-	if (a->tail) {
+	if (a->tail)
 		a->tail->next = z;
-	} else {
+	else
 		a->head = z;
-		a->tail = z;
-	}
+	a->tail = z;
 	return z;
 }
 
