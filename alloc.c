@@ -111,6 +111,7 @@ void arreset(Arena *a)
 		U zsize = z->free + (U)z->mem - (U)(z);
 		munmap(z, zsize);
 	}
+	a->tail = 0;
 }
 
 typedef struct Segment Segment;
