@@ -103,6 +103,16 @@ void arclear(Arena *a)
 	}
 }
 
+void ardrop(Arena *a)
+{
+	for (Zone *z = a->head; z;) {
+		Zone *next = z->next;
+		U zsize = z->free + (U)z->mem - (U)(z);
+		munmap(z, zsize);
+		z = next;
+	}
+}
+
 typedef struct Segment Segment;
 typedef struct Chunk Chunk;
 
