@@ -53,15 +53,6 @@ typedef struct {
 	U16   *ctable[2];
 } Font;
 
-typedef enum {
-	OnCurve = 1<<0,
-	XShort  = 1<<1,
-	YShort  = 1<<2,
-	Repeat  = 1<<3,
-	XFlag   = 1<<4,
-	YFlag   = 1<<5,
-} SimpFlag;
-
 /* NOTE: Checking every read/seek operation would be too tedious, so instead I only
  * do that at specific checkpoints (e.g. loops/allocations based on what's read)
  * to find out if any error has occured up to this point (and early exit).
@@ -101,6 +92,15 @@ static void restorepts(Glyph *g, U16 maxpts)
 		g->nvert = j;
 	}
 }
+
+typedef enum {
+	OnCurve = 1<<0,
+	XShort  = 1<<1,
+	YShort  = 1<<2,
+	Repeat  = 1<<3,
+	XFlag   = 1<<4,
+	YFlag   = 1<<5,
+} SimpFlag;
 
 static void parsesimpleglyph(IOBuffer *b, Glyph *g, I16 ncont, U16 maxconts, U16 maxpts)
 {
