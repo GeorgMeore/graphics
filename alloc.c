@@ -5,6 +5,9 @@
 #include "types.h"
 #include "alloc.h"
 
+/* IDEA: make all allocators accept the memory region to be managed
+ * and provide a way of adding new regions. */
+
 static void *pagemap(U size)
 {
 	void *p = mmap(0, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
