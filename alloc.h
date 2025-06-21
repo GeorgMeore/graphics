@@ -17,7 +17,7 @@ typedef struct {
 void *aralloc(Arena *a, U size);
 void *aralloca(Arena *a, U size, U align);
 void arclear(Arena *a);
-void ardrop(Arena *a);
+void arreset(Arena *a);
 
 /* TODO: I actually have a really cool idea, I can try to integrate
  * reference counting into the allocator implementation and introduce, say,

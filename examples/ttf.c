@@ -591,5 +591,6 @@ int main(int argc, char **argv)
 		}
 		frameend();
 	}
+	arreset(&fn.mem);
 	return 0;
 }
