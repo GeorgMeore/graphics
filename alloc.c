@@ -106,7 +106,7 @@ void arclear(Arena *a)
 	}
 }
 
-void arreset(Arena *a)
+void arfree(Arena *a)
 {
 	while (a->head) {
 		Zone *z = a->head;
