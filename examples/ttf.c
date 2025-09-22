@@ -70,7 +70,7 @@ typedef struct {
  *  1) allocate enough memory to hold twice the max number of points
  *  2) read all the points from the font file into the "upper" half
  *  3) move the points into the "lower" half, while restoring missing points */
-static void restorepts(Glyph *g, U16 maxpts)
+static void restorepts(IOBuffer *b, Glyph *g, U16 maxpts)
 {
 	for (I16 cont = 0, start = maxpts, j = 0; cont < g->ncont; cont++) {
 		U16 n = g->ends[cont] + 1 - start;
@@ -85,8 +85,7 @@ static void restorepts(Glyph *g, U16 maxpts)
 			}
 			g->xy[0][j] = x1, g->xy[1][j] = y1, g->on[j] = g->on[curr];
 		}
-		if (!g->on[first])
-			panic("first off curve not yet supported");
+		ASSERT(b, g->on[first]); /* TODO: handle first off curve */
 		g->ends[cont] = j-1;
 		start += n;
 		g->nvert = j;
@@ -162,10 +161,8 @@ static void parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations, 
 	for (;;) {
 		U16 flags = readbe(b, 2);
 		CHECKPOINT(b);
-		if (~flags & ArgsXY)
-			panic("point offsets not yet supported");
-		if (flags & (HaveScale|HaveXYScale|Have2x2))
-			panic("scaling not yet supported");
+		ASSERT(b, flags & ArgsXY); /* TODO: point offsets */
+		ASSERT(b, !(flags & (HaveScale|HaveXYScale|Have2x2))); /* TODO: scaling */
 		U16 index = readbe(b, 2);
 		I16 x, y;
 		if (flags & ArgsWords) {
@@ -229,7 +226,7 @@ static void parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations
 	for (I16 comp = 0; comp < 2; comp++)
 	for (U16 i = maxpts; i < g->nvert; i++)
 		ASSERT(b, g->xy[comp][i] >= g->lim[comp][0] && g->xy[comp][i] <= g->lim[comp][1]);
-	restorepts(g, maxpts);
+	restorepts(b, g, maxpts);
 }
 
 static void parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 loca)
