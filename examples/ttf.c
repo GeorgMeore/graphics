@@ -577,7 +577,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	Font fn = openttf(argv[1]);
-	winopen(1920, 1080, argv[0], 60);
+	winopen(1920, 1080, argv[0], 0);
 	U32 s[] = {'$', ' ', 'T', 'e', 's', 't', ' ', '1', '2', '3', '!'};
 	Glyph g[ARRSIZE(s)] = {};
 	F64 scale = 40.0/fn.upm;

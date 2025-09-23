@@ -104,11 +104,17 @@ void winopen(U16 w, U16 h, const char *title, U16 fps)
 		panic("The default display visual doesn't support 32-bit RGB");
 	defxwin.win = XCreateSimpleWindow(defxwin.d, RootWindow(defxwin.d, s), 0, 0, w, h, 0, 0, 0);
 	defxwin.gc = DefaultGC(defxwin.d, s);
-	XSelectInput(defxwin.d, defxwin.win, KeyPressMask|ButtonPressMask|ButtonReleaseMask|KeyReleaseMask|StructureNotifyMask);
+	XSelectInput(defxwin.d, defxwin.win,
+		KeyPressMask|ButtonPressMask|ButtonReleaseMask|KeyReleaseMask|
+		StructureNotifyMask|PointerMotionMask|ExposureMask);
+	XSetGraphicsExposures(defxwin.d, defxwin.gc, False); /* X11 is very stupid */
 	XStoreName(defxwin.d, defxwin.win, title);
 	XMapWindow(defxwin.d, defxwin.win);
 	defxwin.needswap = byteorder() != defxwin.d->byte_order;
-	defxwin.targetns = 1000000000 / fps;
+	if (fps)
+		defxwin.targetns = 1e9 / fps;
+	else
+		defxwin.targetns = 0;
 	/* NOTE: hacky hacks to get an invisible cursor */
 	XColor c = {};
 	Pixmap p = XCreatePixmap(defxwin.d, defxwin.win, 1, 1, 1);
@@ -227,6 +233,10 @@ void frameend(void)
 		defxwin.prevbtndown[i] = defxwin.btndown[i];
 	for (int i = 0; i < COUNT; i++)
 		defxwin.prevkeydown[i] = defxwin.keydown[i];
+	if (!defxwin.targetns) {
+		while (!XPending(defxwin.d))
+			sleepns(1e8);
+	}
 	while (XPending(defxwin.d)) {
 		XEvent e;
 		XNextEvent(defxwin.d, &e);
