@@ -235,7 +235,7 @@ void frameend(void)
 		defxwin.prevkeydown[i] = defxwin.keydown[i];
 	if (!defxwin.targetns) {
 		while (!XPending(defxwin.d))
-			sleepns(1e8);
+			sleepns(1.5e6); /* NOTE: often enough, but not too often */
 	}
 	while (XPending(defxwin.d)) {
 		XEvent e;
