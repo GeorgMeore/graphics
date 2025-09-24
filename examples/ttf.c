@@ -544,6 +544,52 @@ void drawraster(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale, U8 ss)
 	}
 }
 
+void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
+{
+	I16 xmin = g.lim[0][0]*scale - 1, xmax = g.lim[0][1]*scale + 1;
+	I16 ymin = g.lim[1][0]*scale - 1, ymax = g.lim[1][1]*scale + 1;
+	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
+	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++)
+		PIXEL(f, x, y) = 0;
+	for (I16 cont = 0, start = 0; cont < g.ncont; cont++) {
+		U16 n = g.ends[cont]+1-start;
+		for (U16 i = 0; i < n;) {
+			U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
+			I16 x1 = g.xy[0][curr]*scale, y1 = g.xy[1][curr]*scale;
+			I16 x2 = g.xy[0][next]*scale, y2 = g.xy[1][next]*scale;
+			I16 x3 = g.xy[0][last]*scale, y3 = g.xy[1][last]*scale;
+			if (g.on[next]) {
+				I16 xlo = MIN(x1, x2), ylo = MIN(y1, y2);
+				I16 xhi = MAX(x1, x2), yhi = MAX(y1, y2);
+				for (I16 y = CLIPY(f, y0 - yhi); y < CLIPY(f, y0 - ylo + 1); y++) {
+					I32 left = isectline(xlo, y0 - y, x1, y1, x2, y2);
+					for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xlo + 1); x++)
+						PIXEL(f, x, y) += left;
+					for (I16 x = CLIPX(f, x0 + xlo + 1); x < CLIPX(f, x0 + xhi + 1); x++)
+						PIXEL(f, x, y) += isectline(x - x0, y0 - y, x1, y1, x2, y2);
+				}
+				i += 1;
+			} else {
+				I16 xlo = MIN3(x1, x2, x3), ylo = MIN3(y1, y2, y3);
+				I16 xhi = MAX3(x1, x2, x3), yhi = MAX3(y1, y2, y3);
+				for (I16 y = CLIPY(f, y0 - yhi); y < CLIPY(f, y0 - ylo + 1); y++) {
+					I32 left = isectcurve(xlo, y0 - y, x1, y1, x2, y2, x3, y3);
+					for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xlo + 1); x++)
+						PIXEL(f, x, y) += left;
+					for (I16 x = CLIPX(f, x0 + xlo + 1); x < CLIPX(f, x0 + xhi + 1); x++)
+						PIXEL(f, x, y) += isectcurve(x - x0, y0 - y, x1, y1, x2, y2, x3, y3);
+				}
+				i += 2;
+			}
+		}
+		start += n;
+	}
+	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
+	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++)
+		if (PIXEL(f, x, y))
+			PIXEL(f, x, y) = c;
+}
+
 void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 {
 	for (I16 cont = 0, start = 0; cont < g.ncont; cont++) {
