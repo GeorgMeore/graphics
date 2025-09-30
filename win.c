@@ -24,18 +24,18 @@ typedef struct {
 	Window win;
 	int depth;
 	GC gc;
-	U8 keydown[COUNT];
-	U8 prevkeydown[COUNT];
-	U8 btndown[COUNT];
-	U8 prevbtndown[COUNT];
+	OK keydown[COUNT];
+	OK prevkeydown[COUNT];
+	OK btndown[COUNT];
+	OK prevbtndown[COUNT];
 	int mousex;
 	int mousey;
 	U64 targetns;
 	U64 startns;
 	U64 framens;
-	int needswap;
+	OK needswap;
 	Cursor invis;
-	int mouselocked;
+	OK mouselocked;
 } X11;
 
 static X11 defxwin;
@@ -123,7 +123,7 @@ void winopen(U16 w, U16 h, const char *title, U16 fps)
 	onresize(w, h);
 }
 
-void mouselock(int on)
+void mouselock(OK on)
 {
 	defxwin.mouselocked = on;
 	if (on)
@@ -133,32 +133,32 @@ void mouselock(int on)
 }
 
 /* TODO: a more proper input handling */
-static void onkey(U8 k, int isdown)
+static void onkey(U8 k, OK isdown)
 {
 	defxwin.keydown[k] = isdown;
 }
 
-int keyisdown(U8 k)
+OK keyisdown(U8 k)
 {
 	return defxwin.keydown[k];
 }
 
-int keywaspressed(U8 k)
+OK keywaspressed(U8 k)
 {
 	return !defxwin.keydown[k] && defxwin.prevkeydown[k];
 }
 
-static void onbtn(U8 b, int isdown)
+static void onbtn(U8 b, OK isdown)
 {
 	defxwin.btndown[b] = isdown;
 }
 
-int btnisdown(U8 b)
+OK btnisdown(U8 b)
 {
 	return defxwin.btndown[b];
 }
 
-int btnwaspressed(U8 b)
+OK btnwaspressed(U8 b)
 {
 	return !defxwin.btndown[b] && defxwin.prevbtndown[b];
 }
@@ -183,12 +183,12 @@ Image *framebegin(void)
 	return &defxwin.fb;
 }
 
-int mousex(void)
+I mousex(void)
 {
 	return defxwin.mousex;
 }
 
-int mousey(void)
+I mousey(void)
 {
 	return defxwin.mousey;
 }

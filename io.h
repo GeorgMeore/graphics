@@ -11,14 +11,14 @@ extern IOBuffer *bin;
 extern IOBuffer *bout;
 extern IOBuffer *berr;
 
-int bopen(IOBuffer *b, const char *path, U8 mode);
-int bclose(IOBuffer *b);
+OK bopen(IOBuffer *b, const char *path, U8 mode);
+OK bclose(IOBuffer *b);
 
-int bread(IOBuffer *b);
-int bpeek(IOBuffer *b);
-int bseek(IOBuffer *b, U64 byte);
-int bwrite(IOBuffer *b, U8 v);
-int bflush(IOBuffer *b);
+I  bread(IOBuffer *b);
+I  bpeek(IOBuffer *b);
+OK bseek(IOBuffer *b, U64 byte);
+OK bwrite(IOBuffer *b, U8 v);
+OK bflush(IOBuffer *b);
 
 #define _INTFMT(type) (ISUNSIGNED(type)<<8 | sizeof(type))
 
@@ -28,7 +28,7 @@ int bflush(IOBuffer *b);
 #define OH(v) (U)0, _INTFMT(typeof(v)), 16, (U64)(v)
 #define OB(v) (U)0, _INTFMT(typeof(v)), 2,  (U64)(v)
 
-int _bprint(IOBuffer *b, ...);
+OK _bprint(IOBuffer *b, ...);
 
 #define bprint(b, ...) _bprint(b, __VA_ARGS__, FMTEND)
 #define bprintln(b, ...) bprint(b, __VA_ARGS__, "\n")
@@ -42,7 +42,7 @@ int _bprint(IOBuffer *b, ...);
 #define IWS    "", (U)-1
 #define IWS1   "", (U)1
 
-int _binput(IOBuffer *b, ...);
+OK _binput(IOBuffer *b, ...);
 
 #define binput(b, ...) _binput(b, __VA_ARGS__, FMTEND)
 #define binputln(b, ...) binput(b, __VA_ARGS__, "\n")

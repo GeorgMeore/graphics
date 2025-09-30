@@ -14,7 +14,7 @@ IOBuffer *bin  = &_bin;
 IOBuffer *bout = &_bout;
 IOBuffer *berr = &_berr;
 
-int bseek(IOBuffer *b, U64 byte)
+OK bseek(IOBuffer *b, U64 byte)
 {
 	if (b->mode == 'w' && !bflush(b))
 		return 0;
@@ -29,7 +29,7 @@ int bseek(IOBuffer *b, U64 byte)
 	return 1;
 }
 
-int bopen(IOBuffer *b, const char *path, U8 mode)
+OK bopen(IOBuffer *b, const char *path, U8 mode)
 {
 	b->mode = mode;
 	if (mode == 'r') {
@@ -44,12 +44,12 @@ int bopen(IOBuffer *b, const char *path, U8 mode)
 	return b->fd != -1;
 }
 
-int bclose(IOBuffer *b)
+OK bclose(IOBuffer *b)
 {
 	return (b->mode == 'r' || bflush(b)) && !close(b->fd);
 }
 
-int bpeek(IOBuffer *b)
+I bpeek(IOBuffer *b)
 {
 	if (b->i == b->count) {
 		if (b->error)
@@ -66,16 +66,16 @@ int bpeek(IOBuffer *b)
 	return b->bytes[b->i];
 }
 
-int bread(IOBuffer *b)
+I bread(IOBuffer *b)
 {
-	int c = bpeek(b);
+	I c = bpeek(b);
 	if (c != -1)
 		b->i += 1;
 	b->pos += 1;
 	return c;
 }
 
-int bflush(IOBuffer *b)
+OK bflush(IOBuffer *b)
 {
 	if (b->error)
 		return 0;
@@ -92,7 +92,7 @@ int bflush(IOBuffer *b)
 	return 1;
 }
 
-int bwrite(IOBuffer *b, U8 v)
+OK bwrite(IOBuffer *b, U8 v)
 {
 	if (b->i == IOBUFSIZE)
 		bflush(b);
@@ -135,7 +135,7 @@ static void bprinti(U64 x, IOBuffer *b, U8 bytes)
 #define FMTUNSIGNED(fmt) ((fmt) & 0xFF00)
 #define FMTSIZE(fmt)     ((fmt) & 0x00FF)
 
-int _bprint(IOBuffer *b, ...)
+OK _bprint(IOBuffer *b, ...)
 {
 	va_list args;
 	va_start(args, b);
@@ -159,12 +159,12 @@ int _bprint(IOBuffer *b, ...)
 	}
 }
 
-static int isdecimal(I c)
+static OK isdecimal(I c)
 {
 	return c >= '0' && c <= '9';
 }
 
-static int isws(I c)
+static OK isws(I c)
 {
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
@@ -198,7 +198,7 @@ static void fmtstore(int fmt, void *p, U64 val)
 	}
 }
 
-static int binputi(IOBuffer *b, int fmt, void *p)
+static OK binputi(IOBuffer *b, int fmt, void *p)
 {
 	I neg = 0;
 	if (bpeek(b) == '-') {
@@ -223,7 +223,7 @@ static int binputi(IOBuffer *b, int fmt, void *p)
 	return 1;
 }
 
-int _binput(IOBuffer *b, ...)
+OK _binput(IOBuffer *b, ...)
 {
 	va_list args;
 	va_start(args, b);

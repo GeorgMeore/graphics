@@ -9,8 +9,9 @@ typedef unsigned       U32;
 typedef int            I32;
 typedef unsigned long  U64;
 typedef long           I64;
-typedef U64            U; /* the machine address size */
-typedef I64            I; /* the machine address size */
+typedef U64            U; /* address sized unsigned */
+typedef I64            I; /* address sized signed */
+typedef U8             OK; /* bool-ish */
 
 #define ISUNSIGNED(t) ((t)(-1) > 0)
 #define ISSIGNED(t) (!ISUNSIGNED(t))

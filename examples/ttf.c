@@ -14,7 +14,7 @@ static U64 readbe(IOBuffer *b, U8 bytes)
 {
 	U64 n = 0;
 	for (U8 i = 0; i < bytes; i++) {
-		int c = bread(b);
+		I c = bread(b);
 		if (c == -1)
 			return 0;
 		n = n << 8 | c;
@@ -65,7 +65,7 @@ typedef struct {
  *  1) allocate enough memory to hold twice the max number of points
  *  2) read all the points from the font file into the "upper" half
  *  3) move the points into the "lower" half, while restoring missing points */
-static int restorepts(Glyph *g, U16 maxpts)
+static OK restorepts(Glyph *g, U16 maxpts)
 {
 	for (I16 cont = 0, start = maxpts, j = 0; cont < g->ncont; cont++) {
 		U16 n = g->ends[cont] + 1 - start;
@@ -98,7 +98,7 @@ typedef enum {
 	YFlag   = 1<<5,
 } SimpFlag;
 
-static int parsesimpleglyph(IOBuffer *b, Glyph *g, I16 ncont, U16 maxconts, U16 maxpts)
+static OK parsesimpleglyph(IOBuffer *b, Glyph *g, I16 ncont, U16 maxconts, U16 maxpts)
 {
 	if (g->ncont + ncont > maxconts)
 		return 0;
@@ -157,7 +157,7 @@ typedef enum {
 	Have2x2      = 1<<7,
 } CompFlag;
 
-static int parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
+static OK parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
 {
 	for (;;) {
 		U16 flags = readbe(b, 2);
@@ -181,7 +181,7 @@ static int parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations, U
 		bseek(b, glyf + locations[index]);
 		I16 ncont = readbe(b, 2);
 		skip(b, 2+2+2+2); /* xMin, yMin, xMax, yMax */
-		int ok;
+		OK ok;
 		if (ncont > 0)
 			ok = parsesimpleglyph(b, g, ncont, maxconts, maxpts);
 		if (ncont < 0)
@@ -199,7 +199,7 @@ static int parsecompoundglyph(IOBuffer *b, Glyph *g, U32 glyf, U32 *locations, U
 	return 1;
 }
 
-static int parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
+static OK parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
 {
 	if (locations[index] == locations[index+1])
 		return 1;
@@ -214,7 +214,7 @@ static int parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations,
 	g->lim[1][0] = readbe(b, 2);
 	g->lim[0][1] = readbe(b, 2);
 	g->lim[1][1] = readbe(b, 2);
-	int ok = g->lim[0][0] < g->lim[0][1] && g->lim[1][0] < g->lim[1][1] &&
+	OK ok = g->lim[0][0] < g->lim[0][1] && g->lim[1][0] < g->lim[1][1] &&
 		g->lim[0][0] >= f->lim[0][0] && g->lim[0][1] <= f->lim[0][1] &&
 		g->lim[1][0] >= f->lim[1][0] && g->lim[1][1] <= f->lim[1][1];
 	if (!ok)
@@ -239,7 +239,7 @@ static int parseglyph(IOBuffer *b, Font *f, U16 index, U32 glyf, U32 *locations,
 	return 1;
 }
 
-static int parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 loca)
+static OK parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 loca)
 {
 	bseek(b, maxp);
 	skip(b, 4); /* version */
@@ -278,7 +278,7 @@ static int parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 l
 	return 1;
 }
 
-static int parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
+static OK parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
 {
 	bseek(b, hhea);
 	skip(b, 2+2); /* majorVersion, minorVersion */
@@ -304,7 +304,7 @@ static int parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
 }
 
 /* TODO: support format 12 tables */
-static int parsectable(IOBuffer *b, Font *f, U32 cmap)
+static OK parsectable(IOBuffer *b, Font *f, U32 cmap)
 {
 	bseek(b, cmap);
 	skip(b, 2); /* version */
@@ -395,7 +395,7 @@ Font parsettf(IOBuffer *b)
 	}
 	if (!glyf || !cmap || !hmtx || !hhea || !maxp || !head || !loca)
 		return f;
-	int ok = parseglyphs(b, &f, head, maxp, glyf, loca) &&
+	OK ok = parseglyphs(b, &f, head, maxp, glyf, loca) &&
 		parsemetrics(b, &f, hmtx, hhea) &&
 		parsectable(b, &f, cmap);
 	if (!ok || b->error)
@@ -495,7 +495,7 @@ static I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I1
 	}
 	I32 wn = 0;
 	F64 t[2] = {(-b - fsqrt(d))/(2*a), (-b + fsqrt(d))/(2*a)};
-	for (int i = 0; i < 2; i++) {
+	for (I i = 0; i < 2; i++) {
 		if (t[i] >= 0 && t[i] <= 1 && rx <= eval(x, t[i])) {
 			if (t[i] == 0)
 				wn += SIGN(y2 - y1);
