@@ -23,6 +23,19 @@ typedef union {
 	};
 } _F64;
 
+OK sign(F64 x)
+{
+	_F64 _x = {x};
+	return _x.sign;
+}
+
+F64 setsign(F64 x, OK v)
+{
+	_F64 _x = {x};
+	_x.sign = !!v;
+	return _x.v;
+}
+
 F64 ffloor(F64 x)
 {
 	if (x == 0)
