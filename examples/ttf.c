@@ -546,8 +546,51 @@ void drawraster(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale, U8 ss)
 	}
 }
 
+/* TODO: more stuff for SDF */
+void drawsdf(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
+{
+	if (!g.ncont)
+		return;
+	I16 xmin = g.lim[0][0]*scale - 1, xmax = g.lim[0][1]*scale + 1;
+	I16 ymin = g.lim[1][0]*scale - 1, ymax = g.lim[1][1]*scale + 1;
+	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
+	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
+		I32 wn = 0;
+		F64 d = INF;
+		for (I16 cont = 0, start = 0; cont < g.ncont; cont++) {
+			U16 n = g.ends[cont]+1-start;
+			for (U16 i = 0; i < n;) {
+				U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
+				I16 x1 = g.xy[0][curr]*scale, y1 = g.xy[1][curr]*scale;
+				I16 x2 = g.xy[0][next]*scale, y2 = g.xy[1][next]*scale;
+				I16 x3 = g.xy[0][last]*scale, y3 = g.xy[1][last]*scale;
+				if (g.on[next]) {
+					wn += isectline(x - x0, y0 - y, x1, y1, x2, y2);
+					i += 1;
+					x3 = x2, y3 = y2;
+				} else {
+					wn += isectcurve(x - x0, y0 - y, x1, y1, x2, y2, x3, y3);
+					i += 2;
+				}
+				Poly dx = {{(x1 - x + x0), 2*(x2 - x1), x3 + x1 - 2*x2}, 2};
+				Poly dy = {{(y1 - y0 + y), 2*(y2 - y1), y3 + y1 - 2*y2}, 2};
+				Poly d2 = padd(pmul(dx, dx), pmul(dy, dy));
+				Roots r = roots(ddx(d2));
+				d = MIN3(d, eval(d2, 0), eval(d2, 1));
+				for (U8 i = 0; i < r.n; i++)
+					if (r.v[i] > 0 && r.v[i] < 1)
+						d = MIN(d, eval(d2, r.v[i]));
+			}
+			start += n;
+		}
+		*(F32 *)&PIXEL(f, x, y) = setsign(d, wn);
+	}
+}
+
 void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 {
+	if (!g.ncont)
+		return;
 	I16 xmin = g.lim[0][0]*scale - 1, xmax = g.lim[0][1]*scale + 1;
 	I16 ymin = g.lim[1][0]*scale - 1, ymax = g.lim[1][1]*scale + 1;
 	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
@@ -613,7 +656,6 @@ void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 	}
 }
 
-/* TODO: check out SDF */
 /* TODO: maybe read the whole font file into memory (or mmap)? */
 
 #define ARRSIZE(a) (sizeof(a)/sizeof((a)[0]))

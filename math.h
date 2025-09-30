@@ -1,4 +1,5 @@
 #define PI 3.14159265358979323846
+#define INF (1e250 * 1e250)
 
 U64 isqrt(U64 x);
 
