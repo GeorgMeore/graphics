@@ -19,10 +19,18 @@
 #define DIVROUND(n, d) ((ABS(n) + ABS(d)/2) / d * SIGN(n))
 #define SQUARE(n) ((n) * (n))
 #define MOD(a, b) ((((a) % (b)) + (b)) % (b))
-#define MIN(a, b) ((a) > (b) ? (b) : (a))
-#define MAX(a, b) ((a) < (b) ? (b) : (a))
-#define MIN3(a, b, c) MIN(MIN(a, b), MIN(b, c))
-#define MAX3(a, b, c) MAX(MAX(a, b), MAX(b, c))
+#define MIN(a, b) ({\
+	typeof(a) _av = (a);\
+	typeof(a) _bv = (b);\
+	((_av) > (_bv) ? (_bv) : (_av));\
+})
+#define MAX(a, b) ({\
+	typeof(a) _av = (a);\
+	typeof(a) _bv = (b);\
+	((_av) < (_bv) ? (_bv) : (_av));\
+})
+#define MIN3(a, b, c) MIN(a, MIN(b, c))
+#define MAX3(a, b, c) MAX(a, MAX(b, c))
 #define CLAMP(x, l, r) (MIN(MAX(l, x), r))
 #define ALIGNUP(n, m) (DIVCEIL(n, m) * (m))
 #define ALIGNDOWN(n, m) ((n) / (m) * (m))
