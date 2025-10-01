@@ -585,6 +585,15 @@ void drawsdf(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 		}
 		*(F32 *)&PIXEL(f, x, y) = setsign(d, wn);
 	}
+	/* NOTE: this code is for debugging */
+	/*
+	 * for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
+	 * for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
+	 * 	F32 d = *(F32 *)&PIXEL(f, x, y);
+	 * 	F32 a = smoothstep(5, 0, ABS(d)) * 255;
+	 * 	PIXEL(f, x, y) = RGBA(a, a, a, 255);
+	 * }
+	 */
 }
 
 void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
