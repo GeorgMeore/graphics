@@ -1,4 +1,5 @@
 #include "types.h"
+#include "mlib.h"
 #include "math.h"
 
 U64 isqrt(U64 x)
@@ -32,7 +33,7 @@ OK sign(F64 x)
 F64 setsign(F64 x, OK v)
 {
 	_F64 _x = {x};
-	_x.sign = !!v;
+	_x.sign = BOOL(v);
 	return _x.v;
 }
 
@@ -114,4 +115,10 @@ F64 fsin(F64 x)
 F64 fcos(F64 x)
 {
 	return fsin(x + PI/2);
+}
+
+F64 smoothstep(F64 e0, F64 e1, F64 x)
+{
+	x = CLAMP((x - e0)/(e1 - e0), 0, 1);
+	return x*x*(3 - 2*x);
 }

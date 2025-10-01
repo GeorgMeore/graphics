@@ -21,12 +21,12 @@
 #define MOD(a, b) ((((a) % (b)) + (b)) % (b))
 #define MIN(a, b) ({\
 	typeof(a) _av = (a);\
-	typeof(a) _bv = (b);\
+	typeof(b) _bv = (b);\
 	((_av) > (_bv) ? (_bv) : (_av));\
 })
 #define MAX(a, b) ({\
 	typeof(a) _av = (a);\
-	typeof(a) _bv = (b);\
+	typeof(b) _bv = (b);\
 	((_av) < (_bv) ? (_bv) : (_av));\
 })
 #define MIN3(a, b, c) MIN(a, MIN(b, c))
