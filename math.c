@@ -76,7 +76,7 @@ F64 fsqrt(F64 x)
 		_x.exp = 0b11111111111;
 	if (_x.exp == 0b11111111111)
 		return _x.v;
-	_x.exp = (_x.exp + 1023 + 1)/2;
+	_x.exp = (_x.exp + 1023)/2;
 	F64 s = _x.v;
 	for (F64 i = 0, p = s-1; i < 15 && p != s; i++)
 		p = s, s = (s + x/s)/2;
