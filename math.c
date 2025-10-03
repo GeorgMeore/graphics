@@ -37,6 +37,18 @@ F64 setsign(F64 x, OK v)
 	return _x.v;
 }
 
+OK fisnan(F64 x)
+{
+	_F64 _x = {x};
+	return _x.exp == 0b11111111111 && _x.frac;
+}
+
+OK fisinf(F64 x)
+{
+	_F64 _x = {x};
+	return _x.exp == 0b11111111111 && !_x.frac;
+}
+
 F64 ffloor(F64 x)
 {
 	if (x == 0)
