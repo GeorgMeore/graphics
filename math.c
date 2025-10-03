@@ -65,12 +65,10 @@ F64 fsqrt(F64 x)
 	if (_x.exp == 0b11111111111)
 		return _x.v;
 	_x.exp = (_x.exp + 1023 + 1)/2;
-	F64 a = x, b = a-1;
-	while (b != a) {
-		b = a;
-		a = (a + x/a)/2;
-	}
-	return a;
+	F64 s = _x.v;
+	for (F64 i = 0, p = s-1; i < 15 && p != s; i++)
+		p = s, s = (s + x/s)/2;
+	return s;
 }
 
 /* TODO: binary search is computationally more predictable but
