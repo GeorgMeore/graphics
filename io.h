@@ -20,17 +20,17 @@ OK bseek(IOBuffer *b, U64 byte);
 OK bwrite(IOBuffer *b, U8 v);
 OK bflush(IOBuffer *b);
 
-#define _INTFMT(type) (ISUNSIGNED(type)<<8 | sizeof(type))
+#define _INTFMT(type) ((U)(ISUNSIGNED(type)<<8 | sizeof(type)))
 
-#define FMTEND (U)0, 0 /* End of arguments, isn't supposed to be used explicitly */
+#define _FMTEND (U)0, (U)0, (U)0 /* End of arguments, isn't supposed to be used explicitly */
 
-#define OD(v) (U)0, _INTFMT(typeof(v)), 10, (U64)(v)
-#define OH(v) (U)0, _INTFMT(typeof(v)), 16, (U64)(v)
-#define OB(v) (U)0, _INTFMT(typeof(v)), 2,  (U64)(v)
+#define OD(v) (U)0, _INTFMT(typeof(v)), (U)10, (U64)(v)
+#define OH(v) (U)0, _INTFMT(typeof(v)), (U)16, (U64)(v)
+#define OB(v) (U)0, _INTFMT(typeof(v)), (U)2,  (U64)(v)
 
 OK _bprint(IOBuffer *b, ...);
 
-#define bprint(b, ...) _bprint(b, __VA_ARGS__, FMTEND)
+#define bprint(b, ...) _bprint(b, __VA_ARGS__, _FMTEND)
 #define bprintln(b, ...) bprint(b, __VA_ARGS__, "\n")
 
 #define print(...) bprint(bout, __VA_ARGS__)
@@ -39,12 +39,12 @@ OK _bprint(IOBuffer *b, ...);
 #define eprintln(...) bprintln(berr, __VA_ARGS__)
 
 #define ID(v)  (U)0, _INTFMT(typeof(*(v))), (U)(v)
-#define IWS    "", (U)-1
-#define IWS1   "", (U)1
+#define IWS    (U)0, (U)0, (U)-1
+#define IWS1   (U)0, (U)0, (U)1
 
 OK _binput(IOBuffer *b, ...);
 
-#define binput(b, ...) _binput(b, __VA_ARGS__, FMTEND)
+#define binput(b, ...) _binput(b, __VA_ARGS__, _FMTEND)
 #define binputln(b, ...) binput(b, __VA_ARGS__, "\n")
 
 #define input(...) binput(bin, __VA_ARGS__)

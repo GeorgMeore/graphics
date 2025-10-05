@@ -113,13 +113,13 @@ static void bprintu(U64 x, IOBuffer *b, U8 base, U8 bytes)
 	}
 	/* mask out bits that came from sign extension */
 	x &= MASK(0, bytes*8);
-	int c;
+	U c;
 	for (c = 0; x; c++) {
 		/* a little bit of hacky hex digit calculation */
 		digits[c] = '0' + x%base%10 + x%base/10*('a' - '0');
 		x /= base;
 	}
-	for (int i = 0; i < c; i++)
+	for (U i = 0; i < c; i++)
 		bwrite(b, digits[c-1-i]);
 }
 
@@ -145,12 +145,12 @@ OK _bprint(IOBuffer *b, ...)
 			for (; *s; s++)
 				bwrite(b, *s);
 		} else {
-			int fmt = va_arg(args, int);
+			U fmt = va_arg(args, U);
 			if (fmt == 0) {
 				va_end(args);
 				return bflush(b);
 			}
-			int base = va_arg(args, int);
+			U base = va_arg(args, U);
 			if (base == 2 || base == 16 || FMTUNSIGNED(fmt))
 				bprintu(va_arg(args, U64), b, base, FMTSIZE(fmt));
 			else if (base == 10)
@@ -169,11 +169,11 @@ static OK isws(I c)
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
-static U64 fmtmaxabs(int fmt, int neg)
+static U64 fmtmaxabs(U fmt, OK neg)
 {
 	switch (fmt) {
-	case _INTFMT(I8):  return neg ? -(U64)MINVAL(I8) : MAXVAL(I8);
-	case _INTFMT(U8):  return neg ? -(U64)MINVAL(U8) : MAXVAL(U8);
+	case _INTFMT(I8):  return neg ? -(U64)MINVAL(I8)  : MAXVAL(I8);
+	case _INTFMT(U8):  return neg ? -(U64)MINVAL(U8)  : MAXVAL(U8);
 	case _INTFMT(I16): return neg ? -(U64)MINVAL(I16) : MAXVAL(I16);
 	case _INTFMT(U16): return neg ? -(U64)MINVAL(U16) : MAXVAL(U16);
 	case _INTFMT(I32): return neg ? -(U64)MINVAL(I32) : MAXVAL(I32);
@@ -184,7 +184,7 @@ static U64 fmtmaxabs(int fmt, int neg)
 	return 0;
 }
 
-static void fmtstore(int fmt, void *p, U64 val)
+static void fmtstore(U fmt, void *p, U64 val)
 {
 	switch (fmt) {
 	case _INTFMT(U8):  *(U8 *)p = val; break;
@@ -198,9 +198,9 @@ static void fmtstore(int fmt, void *p, U64 val)
 	}
 }
 
-static OK binputi(IOBuffer *b, int fmt, void *p)
+static OK binputi(IOBuffer *b, U fmt, void *p)
 {
-	I neg = 0;
+	OK neg = 0;
 	if (bpeek(b) == '-') {
 		if (FMTUNSIGNED(fmt))
 			return 0;
@@ -231,27 +231,24 @@ OK _binput(IOBuffer *b, ...)
 	while (ok) {
 		char *s = va_arg(args, char *);
 		if (s) {
-			if (*s) {
-				for (; *s && *s == bpeek(b); s++)
-					bread(b);
-				ok = !*s;
-			} else {
-				U c = va_arg(args, U);
-				ok = isws(bpeek(b));
-				for (; c && isws(bpeek(b)); c--)
-					bread(b);
-			}
+			for (; *s && *s == bpeek(b); s++)
+				bread(b);
+			ok = !*s;
 		} else {
-			int fmt = va_arg(args, int);
-			if (!fmt)
-				break;
-			void *p = va_arg(args, void *);
-			if (FMTSIZE(fmt) == 1) {
+			U fmt = va_arg(args, U);
+			U p = va_arg(args, U);
+			if (!fmt) {
+				if (!p)
+					break;
+				ok = isws(bpeek(b));
+				for (; p && isws(bpeek(b)); p--)
+					bread(b);
+			} else if (FMTSIZE(fmt) == 1) {
 				I c = bread(b);
-				fmtstore(fmt, p, c);
+				fmtstore(fmt, (void *)p, c);
 				ok = c != -1;
 			} else {
-				ok = binputi(b, fmt, p);
+				ok = binputi(b, fmt, (void *)p);
 			}
 		}
 	}
