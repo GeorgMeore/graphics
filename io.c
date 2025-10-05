@@ -227,7 +227,7 @@ OK _binput(IOBuffer *b, ...)
 {
 	va_list args;
 	va_start(args, b);
-	int ok = 1;
+	OK ok = 1;
 	while (ok) {
 		char *s = va_arg(args, char *);
 		if (s) {
