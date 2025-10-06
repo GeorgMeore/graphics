@@ -28,6 +28,7 @@ typedef struct {
 	OK prevkeydown[COUNT];
 	OK btndown[COUNT];
 	OK prevbtndown[COUNT];
+	OK gotpress;
 	int mousex;
 	int mousey;
 	U64 targetns;
@@ -66,7 +67,7 @@ static void onresize(U16 w, U16 h)
 	defxwin.bb = XCreatePixmap(defxwin.d, defxwin.win, w, h, defxwin.depth);
 }
 
-static int isrgb32(Display *d, Visual *v, int depth)
+static OK isrgb32(Display *d, Visual *v, int depth)
 {
 	if (v->class != TrueColor)
 		return 0;
@@ -133,9 +134,21 @@ void mouselock(OK on)
 }
 
 /* TODO: a more proper input handling */
+/* NOTE: When you hold down a keyboard key the X server
+ * sends you repeated "Release/Press" pairs, when you
+ * scroll with mouse or touchpad you get repeated "Press/Release".
+ * That's why we need to handle button and key states a bit differently. */
 static void onkey(U8 k, OK isdown)
 {
+	defxwin.gotpress |= !isdown;
 	defxwin.keydown[k] = isdown;
+}
+
+static void onbtn(U8 b, OK isdown)
+{
+	defxwin.gotpress |= !isdown;
+	defxwin.prevbtndown[b] = defxwin.btndown[b];
+	defxwin.btndown[b] = isdown;
 }
 
 OK keyisdown(U8 k)
@@ -146,11 +159,6 @@ OK keyisdown(U8 k)
 OK keywaspressed(U8 k)
 {
 	return !defxwin.keydown[k] && defxwin.prevkeydown[k];
-}
-
-static void onbtn(U8 b, OK isdown)
-{
-	defxwin.btndown[b] = isdown;
 }
 
 OK btnisdown(U8 b)
@@ -201,8 +209,8 @@ I mousey(void)
 
 static void swaprgb32(Image *i)
 {
-	for (int x = 0; x < i->w; x++)
-	for (int y = 0; y < i->h; y++)
+	for (I x = 0; x < i->w; x++)
+	for (I y = 0; y < i->h; y++)
 		PIXEL(i, x, y) = REVERSE4(PIXEL(i, x, y));
 }
 
@@ -229,14 +237,15 @@ void frameend(void)
 	if (!defxwin.d)
 		return;
 	flush();
-	for (int i = 0; i < COUNT; i++)
+	for (I i = 0; i < COUNT; i++) {
 		defxwin.prevbtndown[i] = defxwin.btndown[i];
-	for (int i = 0; i < COUNT; i++)
 		defxwin.prevkeydown[i] = defxwin.keydown[i];
-	if (!defxwin.targetns) {
+	}
+	if (!defxwin.targetns && !defxwin.gotpress) {
 		while (!XPending(defxwin.d))
 			sleepns(1.5e6); /* NOTE: often enough, but not too often */
 	}
+	defxwin.gotpress = 0;
 	while (XPending(defxwin.d)) {
 		XEvent e;
 		XNextEvent(defxwin.d, &e);
