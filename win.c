@@ -241,6 +241,8 @@ void frameend(void)
 		defxwin.prevbtndown[i] = defxwin.btndown[i];
 		defxwin.prevkeydown[i] = defxwin.keydown[i];
 	}
+	/* NOTE: in the "event based" mode we want draw the next
+	 * frame when a key or a button was pressed */
 	if (!defxwin.targetns && !defxwin.gotpress) {
 		while (!XPending(defxwin.d))
 			sleepns(1.5e6); /* NOTE: often enough, but not too often */
