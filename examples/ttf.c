@@ -686,7 +686,7 @@ int main(int argc, char **argv)
 		len += g[i].advance;
 	}
 	while (!keyisdown('q')) {
-		Image *f = framebegin();
+		Image *f = frame();
 		if (keywaspressed('u'))
 			scale *= 1.1;
 		if (keywaspressed('d'))
@@ -697,8 +697,8 @@ int main(int argc, char **argv)
 			drawraster(f, x, y, g[i], RGBA(255, 255, 255, 200), scale, 3);
 			x += g[i].advance*scale;
 		}
-		frameend();
 	}
+	winclose();
 	arfree(&fn.mem);
 	return 0;
 }

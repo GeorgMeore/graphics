@@ -85,12 +85,12 @@ void undopoint(Picture *p)
 	memfree(pt);
 }
 
-void drawcurves(Image *fb, Picture p)
+void drawcurves(Image *f, Picture p)
 {
 	for (Curve *c = p; c; c = c->next) {
 		for (Point *p1 = c->last; p1 && p1->next; p1 = p1->next) {
 			Point *p2 = p1->next;
-			drawline(fb, p1->x, p1->y, p2->x, p2->y, LINECOLOR);
+			drawline(f, p1->x, p1->y, p2->x, p2->y, LINECOLOR);
 		}
 	}
 }
@@ -107,7 +107,7 @@ int main(void)
 	Picture p = {};
 	winopen(640, 480, "paint", 60);
 	for (;;) {
-		Image *fb = framebegin();
+		Image *f = frame();
 		if (keywaspressed('q'))
 			break;
 		if (keyisdown('u'))
@@ -118,11 +118,10 @@ int main(void)
 			addpoint(&p, mousex(), mousey());
 		else
 			endcurve(&p);
-		drawclear(fb, BGCOLOR);
-		drawcurves(fb, p);
+		drawclear(f, BGCOLOR);
+		drawcurves(f, p);
 		if (keywaspressed('s'))
-			saveppm(fb, "out.ppm");
-		frameend();
+			saveppm(f, "out.ppm");
 	}
 	winclose();
 	return 0;

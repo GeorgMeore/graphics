@@ -26,14 +26,13 @@ int main(void)
 	int pt[2][2] = {{100, 100}, {200, 200}};
 	Color c[2] = {RED, GREEN};
 	while (!keyisdown('q')) {
-		Image *fb = framebegin();
+		Image *f = frame();
 		for (int i = 0; i < 2; i++)
-			updatepoint(fb, pt[i]);
-		drawclear(fb, BLACK);
+			updatepoint(f, pt[i]);
+		drawclear(f, BLACK);
 		for (int i = 0; i < 2; i++)
-			drawsmoothcircle(fb, pt[i][0], pt[i][1], 5, c[i]);
-		drawline(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], WHITE);
-		frameend();
+			drawsmoothcircle(f, pt[i][0], pt[i][1], 5, c[i]);
+		drawline(f, pt[0][0], pt[0][1], pt[1][0], pt[1][1], WHITE);
 	}
 	winclose();
 	return 0;

@@ -28,19 +28,18 @@ int main(void)
 	Color c[2] = {RED, GREEN};
 	int smooth = 1;
 	while (!keyisdown('q')) {
-		Image *fb = framebegin();
+		Image *f = frame();
 		for (int i = 0; i < 2; i++)
-			updatepoint(fb, pt[i]);
+			updatepoint(f, pt[i]);
 		if (keywaspressed('s'))
 			smooth = !smooth;
-		drawclear(fb, BLACK);
+		drawclear(f, BLACK);
 		if (smooth)
-			drawsmoothcircle(fb, pt[0][0], pt[0][1], isqrt(SQUARE(pt[1][0]-pt[0][0]) + SQUARE(pt[1][1]-pt[0][1])), WHITE);
+			drawsmoothcircle(f, pt[0][0], pt[0][1], isqrt(SQUARE(pt[1][0]-pt[0][0]) + SQUARE(pt[1][1]-pt[0][1])), WHITE);
 		else
-			drawcircle(fb, pt[0][0], pt[0][1], isqrt(SQUARE(pt[1][0]-pt[0][0]) + SQUARE(pt[1][1]-pt[0][1])), WHITE);
+			drawcircle(f, pt[0][0], pt[0][1], isqrt(SQUARE(pt[1][0]-pt[0][0]) + SQUARE(pt[1][1]-pt[0][1])), WHITE);
 		for (int i = 0; i < 2; i++)
-			drawsmoothcircle(fb, pt[i][0], pt[i][1], 5, c[i]);
-		frameend();
+			drawsmoothcircle(f, pt[i][0], pt[i][1], 5, c[i]);
 	}
 	winclose();
 	return 0;

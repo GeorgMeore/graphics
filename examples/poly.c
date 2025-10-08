@@ -31,7 +31,7 @@ int main(int, char **argv)
 	I16 xstep = tickstep(xscale), ystep = tickstep(yscale);
 	winopen(1920, 1080, argv[0], 60);
 	while (!keyisdown('q')) {
-		Image *f = framebegin();
+		Image *f = frame();
 		if (keyisdown('x') && keyisdown('o'))
 			xscale *= 1.025, xstep = tickstep(xscale);
 		if (keyisdown('x') && keyisdown('i'))
@@ -63,6 +63,7 @@ int main(int, char **argv)
 		}
 		for (U8 i = 0; i < r.n; i++)
 			drawsmoothcircle(f, r.v[i]/xscale + f->w/2, f->h/2, 5, RED);
-		frameend();
 	}
+	winclose();
+	return 0;
 }

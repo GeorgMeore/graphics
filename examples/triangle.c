@@ -27,7 +27,7 @@ int main(void)
 	Color c[3] = {RED, GREEN, BLUE};
 	int smooth = 1;
 	while (!keyisdown('q')) {
-		Image *fb = framebegin();
+		Image *fb = frame();
 		for (int i = 0; i < 3; i++)
 			updatepoint(fb, pt[i]);
 		if (keywaspressed('s'))
@@ -39,7 +39,6 @@ int main(void)
 			drawsmoothtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], WHITE);
 		else
 			drawtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], WHITE);
-		frameend();
 	}
 	winclose();
 	return 0;

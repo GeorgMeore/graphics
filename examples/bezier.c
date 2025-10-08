@@ -42,7 +42,7 @@ int main(void)
 	int tmpcnt = 0, tmp[3][2];
 	Bezier2 *head = 0;
 	while (!keyisdown('q')) {
-		Image *fb = framebegin();
+		Image *fb = frame();
 		if (btnwaspressed(3)) {
 			tmp[tmpcnt][0] = mousex();
 			tmp[tmpcnt][1] = mousey();
@@ -73,7 +73,6 @@ int main(void)
 		}
 		for (int i = 0; i < tmpcnt; i++)
 			drawsmoothcircle(fb, tmp[i][0], tmp[i][1], 6, RED);
-		frameend();
 	}
 	winclose();
 	return 0;

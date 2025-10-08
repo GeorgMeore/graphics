@@ -63,19 +63,19 @@ int main()
 	winopen(600, 600, "Example", 60);
 	for (;;) {
 		profbegin("frame preparation");
-		Image *fb = framebegin();
-		Image l = subimage(*fb, 0, 0, fb->w/2, fb->h);
-		Image r = subimage(*fb, fb->w/2, 0, fb->w - fb->w/2, fb->h);
+		Image *f = frame();
+		Image l = subimage(*f, 0, 0, f->w/2, f->h);
+		Image r = subimage(*f, f->w/2, 0, f->w - f->w/2, f->h);
 		int mx = mousex(), my = mousey();
 		profend();
 
 		profbegin("drawing");
 		drawgradients(&l, dy, dx);
 		drawshapes(&r, dx, dy);
-		drawrect(fb, mx, my, 50, 50, RGBA(0, 0, 255, 100));
-		drawrect(fb, mx, my, -50, -50, RGBA(200, 200, 0, 100));
-		drawrect(fb, mx, my, 50, -50, RGBA(255, 0, 0, 100));
-		drawrect(fb, mx, my, -50, 50, RGBA(255, 0, 255, 100));
+		drawrect(f, mx, my, 50, 50, RGBA(0, 0, 255, 100));
+		drawrect(f, mx, my, -50, -50, RGBA(200, 200, 0, 100));
+		drawrect(f, mx, my, 50, -50, RGBA(255, 0, 0, 100));
+		drawrect(f, mx, my, -50, 50, RGBA(255, 0, 255, 100));
 		profend();
 
 		if (keyisdown('q')) break;
@@ -84,9 +84,6 @@ int main()
 		if (keyisdown('s')) dy -= 4;
 		if (keyisdown('w')) dy += 4;
 
-		profbegin("frame finalization");
-		frameend();
-		profend();
 		profdump();
 	}
 	winclose();

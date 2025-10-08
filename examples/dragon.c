@@ -30,7 +30,7 @@ int main(int, char **argv)
 	winopen(1920, 1080, argv[0], 0);
 	U n = 1;
 	while (!keyisdown('q')) {
-		Image *f = framebegin();
+		Image *f = frame();
 		drawclear(f, BLACK);
 		if (btnwaspressed(4))
 			n += 1;
@@ -38,6 +38,7 @@ int main(int, char **argv)
 			n -= 1;
 		I x = mousex(), y = mousey();
 		dragon(f, x, y, x+SIZE, y+SIZE, x+SIZE+SIZE, y, n, 1);
-		frameend();
 	}
+	winclose();
+	return 0;
 }

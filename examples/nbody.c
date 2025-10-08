@@ -33,7 +33,7 @@ int main(int, char **argv)
 		RGBA(110, 110, 70, 200)
 	};
 	while (!keyisdown('q')) {
-		Image *f = framebegin();
+		Image *f = frame();
 		if (!keyisdown(' ')) {
 			F64 dt = lastframetime()/2e9;
 			for (int i = 0; i < N; i++)
@@ -74,7 +74,7 @@ int main(int, char **argv)
 		drawclear(f, BGCOLOR);
 		for (int i = 0; i < N; i++)
 			drawsmoothcircle(f, c[i][0], c[i][1], r[i], col[i]);
-		frameend();
 	}
+	winclose();
 	return 0;
 }

@@ -26,10 +26,10 @@ int main(int argc, char **argv)
 	}
 	winopen(600, 600, argv[0], 60);
 	while (!keyisdown('q')) {
-		Image *fb = framebegin();
-		drawclear(fb, BLACK);
-		drawimage(fb, mousex() - i.w/2, mousey() - i.h/2, &i);
-		frameend();
+		Image *f = frame();
+		drawclear(f, BLACK);
+		drawimage(f, mousex() - i.w/2, mousey() - i.h/2, &i);
 	}
+	winclose();
 	return 0;
 }

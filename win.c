@@ -171,26 +171,6 @@ OK btnwaspressed(U8 b)
 	return !defxwin.btndown[b] && defxwin.prevbtndown[b];
 }
 
-Image *framebegin(void)
-{
-	if (!defxwin.d)
-		return 0;
-	Window r, c;
-	int rx, ry;
-	unsigned int mask;
-	XQueryPointer(defxwin.d, defxwin.win, &r, &c, &rx, &ry, &defxwin.mousex, &defxwin.mousey, &mask);
-	if (defxwin.mouselocked) {
-		defxwin.mousex -= defxwin.fb.w/2;
-		defxwin.mousey -= defxwin.fb.h/2;
-		XWarpPointer(defxwin.d, None, defxwin.win, 0, 0, 0, 0, defxwin.fb.w/2, defxwin.fb.h/2);
-		/* NOTE: XSync must me used here to make sure that the cursor is actually warped before
-		 * the user moves the mouse in during a new frame, or the movent can be lost. */
-		XSync(defxwin.d, 0);
-	}
-	defxwin.startns = timens();
-	return &defxwin.fb;
-}
-
 I mousex(void)
 {
 	return defxwin.mousex;
@@ -232,11 +212,8 @@ void flush(void)
 	XSync(defxwin.d, 0);
 }
 
-void frameend(void)
+static void evpoll(void)
 {
-	if (!defxwin.d)
-		return;
-	flush();
 	for (I i = 0; i < COUNT; i++) {
 		defxwin.prevbtndown[i] = defxwin.btndown[i];
 		defxwin.prevkeydown[i] = defxwin.keydown[i];
@@ -266,4 +243,26 @@ void frameend(void)
 	if (defxwin.framens < defxwin.targetns)
 		sleepns(defxwin.targetns - defxwin.framens);
 	defxwin.framens = timens() - defxwin.startns;
+}
+
+Image *frame(void)
+{
+	if (!defxwin.d)
+		return 0;
+	flush();
+	evpoll();
+	Window r, c;
+	int rx, ry;
+	unsigned int mask;
+	XQueryPointer(defxwin.d, defxwin.win, &r, &c, &rx, &ry, &defxwin.mousex, &defxwin.mousey, &mask);
+	if (defxwin.mouselocked) {
+		defxwin.mousex -= defxwin.fb.w/2;
+		defxwin.mousey -= defxwin.fb.h/2;
+		XWarpPointer(defxwin.d, None, defxwin.win, 0, 0, 0, 0, defxwin.fb.w/2, defxwin.fb.h/2);
+		/* NOTE: XSync must me used here to make sure that the cursor is actually warped before
+		 * the user moves the mouse in during a new frame, or the movent can be lost. */
+		XSync(defxwin.d, 0);
+	}
+	defxwin.startns = timens();
+	return &defxwin.fb;
 }

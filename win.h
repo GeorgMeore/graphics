@@ -1,7 +1,6 @@
 void   winopen(U16 w, U16 h, const char *title, U16 fps);
 void   winclose(void);
-Image* framebegin(void);
-void   frameend(void);
+Image* frame(void);
 void   flush(void);
 U64    lastframetime(void);
 OK     keyisdown(U8 k);
