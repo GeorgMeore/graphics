@@ -10,7 +10,7 @@ F64 fsin(F64);
 F64 fcos(F64);
 F64 smoothstep(F64 e0, F64 e1, F64 x);
 
-OK  sign(F64 x);
-F64 setsign(F64 x, OK v);
+OK  fsign(F64 x);
+F64 fsetsign(F64 x, OK v);
 OK  fisnan(F64 x);
 OK  fisinf(F64 x);

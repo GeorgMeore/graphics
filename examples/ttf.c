@@ -583,7 +583,7 @@ void drawsdf(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 			}
 			start += n;
 		}
-		*(F32 *)&PIXEL(f, x, y) = setsign(d, wn);
+		*(F32 *)&PIXEL(f, x, y) = fsetsign(d, wn);
 	}
 	/* NOTE: this code is for debugging */
 	/*
