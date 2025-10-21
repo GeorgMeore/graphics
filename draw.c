@@ -135,7 +135,7 @@ void drawsmoothcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 	for (I64 y = CLIPY(i, yc-r); y < CLIPY(i, yc+r+1); y++) {
 		/* NOTE: check if the point is definitely inside the circle */
 		I64 xo = ABS(x-xc), yo = ABS(y-yc);
-		if (xo <= r*43/64 && yo <= r*43/64) {
+		if (xo <= r*45/64 && yo <= r*45/64) {
 			PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 		} else {
 			I64 hits = 0;
