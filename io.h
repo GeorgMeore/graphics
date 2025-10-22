@@ -27,6 +27,7 @@ OK bflush(IOBuffer *b);
 #define OD(v) (U)0, _INTFMT(typeof(v)), (U)10, (U64)(v)
 #define OH(v) (U)0, _INTFMT(typeof(v)), (U)16, (U64)(v)
 #define OB(v) (U)0, _INTFMT(typeof(v)), (U)2,  (U64)(v)
+#define OS(s) (U)0, (U)0, (U)1, (U)(s)
 
 OK _bprint(IOBuffer *b, ...);
 

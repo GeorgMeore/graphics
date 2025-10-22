@@ -132,6 +132,12 @@ static void bprinti(U64 x, IOBuffer *b, U8 bytes)
 	bprintu(x, b, 10, bytes);
 }
 
+static void bprints(const char *s, IOBuffer *b)
+{
+	for (; *s; s++)
+		bwrite(b, *s);
+}
+
 #define FMTUNSIGNED(fmt) ((fmt) & 0xFF00)
 #define FMTSIZE(fmt)     ((fmt) & 0x00FF)
 
@@ -142,21 +148,29 @@ OK _bprint(IOBuffer *b, ...)
 	for (;;) {
 		char *s = va_arg(args, char *);
 		if (s) {
-			for (; *s; s++)
-				bwrite(b, *s);
+			bprints(s, b);
 		} else {
 			U fmt = va_arg(args, U);
-			if (fmt == 0) {
-				va_end(args);
-				return bflush(b);
+			if (!fmt) {
+				U v = va_arg(args, U);
+				if (!v)
+					break;
+				s = va_arg(args, char *);
+				if (s)
+					bprints(s, b);
+				else
+					bprints("(null)", b);
+			} else {
+				U base = va_arg(args, U);
+				if (base == 2 || base == 16 || FMTUNSIGNED(fmt))
+					bprintu(va_arg(args, U64), b, base, FMTSIZE(fmt));
+				else if (base == 10)
+					bprinti(va_arg(args, U64), b, FMTSIZE(fmt));
 			}
-			U base = va_arg(args, U);
-			if (base == 2 || base == 16 || FMTUNSIGNED(fmt))
-				bprintu(va_arg(args, U64), b, base, FMTSIZE(fmt));
-			else if (base == 10)
-				bprinti(va_arg(args, U64), b, FMTSIZE(fmt));
 		}
 	}
+	va_end(args);
+	return bflush(b);
 }
 
 static OK isdecimal(I c)
