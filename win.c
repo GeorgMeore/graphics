@@ -83,8 +83,8 @@ static OK isrgb32(Display *d, Visual *v, int depth)
 
 static int byteorder(void)
 {
-	int x = 1;
-	return *(char *)&x == 1 ? LSBFirst : MSBFirst;
+	U32 x = 1;
+	return *(U8 *)&x == 1 ? LSBFirst : MSBFirst;
 }
 
 /* TODO: more proper error handling */
