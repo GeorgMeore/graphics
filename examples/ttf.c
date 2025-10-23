@@ -695,9 +695,12 @@ int main(int argc, char **argv)
 	}
 	Font fn = openttf(argv[1]);
 	U64 n, r[MAXRUNES]/* = {'$', 'T', 'e', 's', 't', ' ', '5', '.', '4', '9', '2', '6', '7', '8', '4', '&'}*/;
-	for (n = 0; n < MAXRUNES && *argv[2]; n++)
+	for (n = 0; *argv[2]; n++) {
 		if (!utf8(&argv[2], &r[n]))
 			panic("invalid UTF8 string");
+		if (n >= MAXRUNES)
+			panic("string too long");
+	}
 	Glyph g[MAXRUNES] = {};
 	F64 scale = 100.0/fn.upm;
 	I16 len = 0;
