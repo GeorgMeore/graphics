@@ -413,7 +413,7 @@ Font openttf(const char *path)
 	return f;
 }
 
-U16 findglyph(Font f, U32 code)
+U16 findglyph(Font f, U64 code)
 {
 	if (!f.ctable[0])
 		return 0;
@@ -667,33 +667,54 @@ void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 
 /* TODO: maybe read the whole font file into memory (or mmap)? */
 
-#define ARRSIZE(a) (sizeof(a)/sizeof((a)[0]))
+
+OK utf8(char **s, U64 *c)
+{
+	U8 mask = 0b10000000, n = 0;
+	while (**s & mask) {
+		n += 1;
+		mask >>= 1;
+	}
+	*c = **s & ((mask << 1) - 1);
+	for (*s += 1; n > 1; n--) {
+		if ((**s & 0b11000000) != 0b10000000)
+			return 0;
+		*c = (*c << 6) | (**s & 0b00111111);
+		*s += 1;
+	}
+	return 1;
+}
+
+#define MAXRUNES 4096
 
 int main(int argc, char **argv)
 {
-	if (argc != 2) {
-		println("usage: ", argv[0], " FONT.ttf");
+	if (argc != 3) {
+		println("usage: ", argv[0], " FONT.ttf STRING");
 		return 1;
 	}
 	Font fn = openttf(argv[1]);
-	winopen(1920, 1080, argv[0], 0);
-	U32 s[] = {'$', ' ', 'T', 'e', 's', 't', ' ', '1', '2', '3', '!'};
-	Glyph g[ARRSIZE(s)] = {};
-	F64 scale = 40.0/fn.upm;
+	U64 n, r[MAXRUNES]/* = {'$', 'T', 'e', 's', 't', ' ', '5', '.', '4', '9', '2', '6', '7', '8', '4', '&'}*/;
+	for (n = 0; n < MAXRUNES && *argv[2]; n++)
+		if (!utf8(&argv[2], &r[n]))
+			panic("invalid UTF8 string");
+	Glyph g[MAXRUNES] = {};
+	F64 scale = 100.0/fn.upm;
 	I16 len = 0;
-	for (U64 i = 0; i < ARRSIZE(s); i++) {
-		g[i] = fn.glyphs[findglyph(fn, s[i])];
+	for (U64 i = 0; i < n; i++) {
+		g[i] = fn.glyphs[findglyph(fn, r[i])];
 		len += g[i].advance;
 	}
+	winopen(1920, 1080, argv[0], 0);
 	while (!keyisdown('q')) {
 		Image *f = frame();
-		if (keywaspressed('u'))
+		if (btnwaspressed(4))
 			scale *= 1.1;
-		if (keywaspressed('d'))
+		if (btnwaspressed(5))
 			scale /= 1.1;
 		drawclear(f, RGBA(18, 18, 18, 255));
 		I16 x = mousex() - len*scale/2, y = mousey();
-		for (U32 i = 0; i < ARRSIZE(s); i++) {
+		for (U32 i = 0; i < n; i++) {
 			drawraster(f, x, y, g[i], RGBA(255, 255, 255, 200), scale, 3);
 			x += g[i].advance*scale;
 		}
