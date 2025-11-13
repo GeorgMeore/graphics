@@ -612,6 +612,8 @@ void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 			I16 x1 = g.xy[0][curr]*scale, y1 = g.xy[1][curr]*scale;
 			I16 x2 = g.xy[0][next]*scale, y2 = g.xy[1][next]*scale;
 			I16 x3 = g.xy[0][last]*scale, y3 = g.xy[1][last]*scale;
+			/* TODO: This can be made even faster if I find the roots just once
+			 * for each y value and then just iterate between them */
 			if (g.on[next]) {
 				I16 xlo = MIN(x1, x2), ylo = MIN(y1, y2);
 				I16 xhi = MAX(x1, x2), yhi = MAX(y1, y2);
