@@ -612,8 +612,6 @@ void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 			I16 x1 = g.xy[0][curr]*scale, y1 = g.xy[1][curr]*scale;
 			I16 x2 = g.xy[0][next]*scale, y2 = g.xy[1][next]*scale;
 			I16 x3 = g.xy[0][last]*scale, y3 = g.xy[1][last]*scale;
-			/* TODO: This can be made even faster if I find the roots just once
-			 * for each y value and then just iterate between them */
 			if (g.on[next]) {
 				I16 xlo = MIN(x1, x2), ylo = MIN(y1, y2);
 				I16 xhi = MAX(x1, x2), yhi = MAX(y1, y2);
@@ -637,6 +635,132 @@ void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 				}
 				i += 2;
 			}
+		}
+		start += n;
+	}
+	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
+	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++)
+		if (PIXEL(f, x, y))
+			PIXEL(f, x, y) = c;
+}
+
+typedef struct {
+	I16 x[2];
+	I8  wn[2];
+	I8  n;
+} Isects;
+
+static Isects isectline2(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
+{
+	Isects i = {0};
+	if (y1 == y2)
+		return i;
+	i.n = 1;
+	if (ry == y1) {
+		i.x[0] = x1, i.wn[0] = SIGN(y2 - y1);
+	} else if (ry == y2) {
+		i.x[0] = x2, i.wn[0] = SIGN(y2 - y1);
+	} else {
+		i.x[0] = (x1*(y2 - y1) + (ry - y1)*(x2 - x1))/(y2 - y1);
+		i.wn[0] = 2*SIGN(y2 - y1);
+	}
+	return i;
+}
+
+static Isects isectcurve2(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
+{
+	F64 a = y1 - 2*y2 + y3;
+	F64 b = 2*(y2 - y1);
+	F64 c = y1 - ry;
+	Poly x = {{x1, 2*(x2 - x1), x1 - 2*x2 + x3}, 2};
+	Isects i = {0};
+	if (a == 0) {
+		F64 t = -c/b;
+		if (t >= 0 && t <= 1) {
+			i.n = 1;
+			i.x[0] = eval(x, t);
+			if (t == 0 || t == 1)
+				i.wn[0] = SIGN(y2 - y1);
+			else
+				i.wn[0] = 2*SIGN(y2 - y1);
+		}
+		return i;
+	}
+	I64 d = b*b - 4*a*c;
+	if (d < 0)
+		return i;
+	if (d == 0) {
+		F64 t = -b/(2*a);
+		if (t >= 0 && t <= 1) {
+			i.n = 1;
+			i.x[0] = eval(x, t);
+			if (t == 0 || t == 1)
+				i.wn[0] = SIGN(y3 - y1);
+		}
+		return i;
+	}
+	F64 t[2] = {(-b - fsqrt(d))/(2*a), (-b + fsqrt(d))/(2*a)};
+	for (I j = 0; j < 2; j++) {
+		if (t[j] >= 0 && t[j] <= 1) {
+			i.x[i.n] = eval(x, t[j]);
+			if (t[j] == 0)
+				i.wn[i.n] = SIGN(y2 - y1);
+			else if (t[j] == 1)
+				i.wn[i.n] = SIGN(y3 - y2);
+			else if (t[j] < -b/(2*a))
+				i.wn[i.n] = 2*SIGN(y2 - y1);
+			else
+				i.wn[i.n] = 2*SIGN(y3 - y2);
+			i.n += 1;
+		}
+	}
+	if (i.n == 2 && i.x[0] > i.x[1]) {
+		SWAP(i.x[0], i.x[1]);
+		SWAP(i.wn[0], i.wn[1]);
+	}
+	return i;
+}
+
+void drawraster3(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
+{
+	if (!g.ncont)
+		return;
+	I16 xmin = g.lim[0][0]*scale - 1, xmax = g.lim[0][1]*scale + 1;
+	I16 ymin = g.lim[1][0]*scale - 1, ymax = g.lim[1][1]*scale + 1;
+	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
+	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++)
+		PIXEL(f, x, y) = 0;
+	for (I16 cont = 0, start = 0; cont < g.ncont; cont++) {
+		U16 n = g.ends[cont]+1-start;
+		for (U16 i = 0; i < n;) {
+			U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
+			I16 x1 = g.xy[0][curr]*scale, y1 = g.xy[1][curr]*scale;
+			I16 x2 = g.xy[0][next]*scale, y2 = g.xy[1][next]*scale;
+			I16 x3 = g.xy[0][last]*scale, y3 = g.xy[1][last]*scale;
+			I16 ylo, yhi;
+			if (g.on[next])
+				ylo = MIN(y1, y2), yhi = MAX(y1, y2);
+			else
+				ylo = MIN3(y1, y2, y3), yhi = MAX3(y1, y2, y3);
+			for (I16 y = CLIPY(f, y0 - yhi); y < CLIPY(f, y0 - ylo + 1); y++) {
+				Isects i;
+				if (g.on[next])
+					i = isectline2(y0 - y, x1, y1, x2, y2);
+				else
+					i = isectcurve2(y0 - y, x1, y1, x2, y2, x3, y3);
+				I wn = 0;
+				for (I16 j = 0; j < i.n; j++)
+					wn += i.wn[j];
+				for (I16 j = 0, xlo = xmin; j < i.n; j++) {
+					for (I16 x = CLIPX(f, x0 + xlo); x < CLIPX(f, x0 + i.x[j] + 1); x++)
+						PIXEL(f, x, y) += wn;
+					wn -= i.wn[j], xlo = i.x[j] + 1;
+				}
+			}
+			if (g.on[next])
+				i += 1;
+			else
+				i += 2;
 		}
 		start += n;
 	}
