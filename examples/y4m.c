@@ -6,7 +6,7 @@
 #include "panic.h"
 #include "math.h"
 
-#define IMAGE(wv, hv) (Image){.w = (wv), .s = (wv), .h = (hv), .p = (Color[(wv)*(hv)]){}}
+#define IMAGE(wv, hv) (Image){.w = (wv), .s = (wv), .h = (hv), .p = (Color[(wv)*(hv)]){0}}
 
 #define WIDTH  1920
 #define HEIGHT 1080

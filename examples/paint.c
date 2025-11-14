@@ -104,8 +104,8 @@ void endcurve(Picture *p)
 
 int main(void)
 {
-	Picture p = {};
-	winopen(640, 480, "paint", 60);
+	Picture p = {0};
+	winopen(640, 480, "paint", 0);
 	for (;;) {
 		Image *f = frame();
 		if (keywaspressed('q'))

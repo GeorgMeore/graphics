@@ -7,7 +7,7 @@
 
 Image subimage(Image i, U16 x, U16 y, U16 w, U16 h)
 {
-	Image s = {};
+	Image s = {0};
 	if (x > i.w || y > i.h)
 		return s;
 	s.p = &PIXEL(&i, x, y);
@@ -19,8 +19,8 @@ Image subimage(Image i, U16 x, U16 y, U16 w, U16 h)
 
 Image loadppm(const char *path)
 {
-	Image i = {};
-	IOBuffer b = {};
+	Image i = {0};
+	IOBuffer b = {0};
 	if (!bopen(&b, path, 'r'))
 		return i;
 	U16 w, h, m;
@@ -51,7 +51,7 @@ out:
 
 int savec(Image *i, const char *var, const char *path)
 {
-	IOBuffer b = {};
+	IOBuffer b = {0};
 	if (!bopen(&b, path, 'w'))
 		return 0;
 	bprintln(&b, "Color ", var, "[", OD(i->h), "][", OD(i->w), "] = {");
@@ -67,7 +67,7 @@ int savec(Image *i, const char *var, const char *path)
 
 int saveppm(Image *i, const char *path)
 {
-	IOBuffer b = {};
+	IOBuffer b = {0};
 	if (!bopen(&b, path, 'w'))
 		return 0;
 	bprintln(&b, "P6\n", OD(i->w), " ", OD(i->h), "\n", OD(255));

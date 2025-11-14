@@ -106,7 +106,7 @@ OK bwrite(IOBuffer *b, U8 v)
 
 static void bprintu(U64 x, IOBuffer *b, U8 base, U8 bytes)
 {
-	char digits[64] = {};
+	char digits[64] = {0};
 	if (!x) {
 		bwrite(b, '0');
 		return;

@@ -117,7 +117,7 @@ void winopen(U16 w, U16 h, const char *title, U16 fps)
 	else
 		defxwin.targetns = 0;
 	/* NOTE: hacky hacks to get an invisible cursor */
-	XColor c = {};
+	XColor c = {0};
 	Pixmap p = XCreatePixmap(defxwin.d, defxwin.win, 1, 1, 1);
 	defxwin.invis = XCreatePixmapCursor(defxwin.d, p, p, &c, &c, 0, 0);
 	/* NOTE: hacky hack to avoid having a 0x0 window on the first frame */

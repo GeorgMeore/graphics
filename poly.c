@@ -5,7 +5,7 @@
 
 Poly padd(Poly a, Poly b)
 {
-	Poly c = {};
+	Poly c = {0};
 	c.d = MAX(a.d, b.d);
 	for (U8 i = 0; i <= c.d; i++)
 		c.c[i] = a.c[i] + b.c[i];
@@ -16,7 +16,7 @@ Poly padd(Poly a, Poly b)
 
 Poly pmul(Poly a, Poly b)
 {
-	Poly c = {};
+	Poly c = {0};
 	if (a.d + b.d >= MAXDEG)
 		return c;
 	c.d = a.d + b.d;
@@ -28,7 +28,7 @@ Poly pmul(Poly a, Poly b)
 
 Poly pdiv(Poly a, Poly b)
 {
-	Poly c = {};
+	Poly c = {0};
 	if (a.d < b.d || !b.c[b.d])
 		return c;
 	c.d = a.d - b.d;
@@ -42,7 +42,7 @@ Poly pdiv(Poly a, Poly b)
 
 Poly ddx(Poly p)
 {
-	Poly q = {};
+	Poly q = {0};
 	if (p.d == 0)
 		return q;
 	q.d = p.d - 1;
@@ -82,7 +82,7 @@ static F64 bisectroot(Poly p, F64 l, F64 r)
 /* TODO: definitely not the fastest or most precise implementation */
 static Roots calcroots(Poly p)
 {
-	Roots r = {};
+	Roots r = {0};
 	if (p.d == 1) {
 		r.n = 1;
 		r.v[0] = -p.c[0]/p.c[1];

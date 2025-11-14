@@ -272,7 +272,7 @@ static OK parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 lo
 	}
 	f->glyphs = aralloc(&f->mem, f->nglyph * sizeof(Glyph));
 	for (U16 i = 0; i < f->nglyph; i++) {
-		f->glyphs[i] = (Glyph){};
+		f->glyphs[i] = (Glyph){0};
 		parseglyph(b, f, i, glyf, locations, maxconts, maxpts);
 	}
 	return 1;
@@ -368,7 +368,7 @@ static OK parsectable(IOBuffer *b, Font *f, U32 cmap)
  * Together with some basic validation it gives "good enough" error resilience IMO. */
 Font parsettf(IOBuffer *b)
 {
-	Font f = {};
+	Font f = {0};
 	skip(b, 4); /* scaler type */
 	U16 ntab = readbe(b, 2);
 	skip(b, 2+2+2); /* searchRange, entrySelector, rangeShift */
@@ -405,7 +405,7 @@ Font parsettf(IOBuffer *b)
 
 Font openttf(const char *path)
 {
-	IOBuffer b = {};
+	IOBuffer b = {0};
 	if (!bopen(&b, path, 'r'))
 		panic("failed to open the b");
 	Font f = parsettf(&b);
@@ -827,7 +827,7 @@ int main(int argc, char **argv)
 		if (n >= MAXRUNES)
 			panic("string too long");
 	}
-	Glyph g[MAXRUNES] = {};
+	Glyph g[MAXRUNES] = {0};
 	F64 scale = 100.0/fn.upm;
 	I16 len = 0;
 	for (U64 i = 0; i < n; i++) {
