@@ -715,10 +715,6 @@ static Isects isectcurve2(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 			i.n += 1;
 		}
 	}
-	if (i.n == 2 && i.x[0] > i.x[1]) {
-		SWAP(i.x[0], i.x[1]);
-		SWAP(i.wn[0], i.wn[1]);
-	}
 	return i;
 }
 
@@ -728,8 +724,8 @@ void drawraster3(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 		return;
 	I16 xmin = g.lim[0][0]*scale - 1, xmax = g.lim[0][1]*scale + 1;
 	I16 ymin = g.lim[1][0]*scale - 1, ymax = g.lim[1][1]*scale + 1;
-	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
 	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++)
+	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
 		PIXEL(f, x, y) = 0;
 	for (I16 cont = 0, start = 0; cont < g.ncont; cont++) {
 		U16 n = g.ends[cont]+1-start;
@@ -738,37 +734,41 @@ void drawraster3(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 			I16 x1 = g.xy[0][curr]*scale, y1 = g.xy[1][curr]*scale;
 			I16 x2 = g.xy[0][next]*scale, y2 = g.xy[1][next]*scale;
 			I16 x3 = g.xy[0][last]*scale, y3 = g.xy[1][last]*scale;
-			I16 ylo, yhi;
-			if (g.on[next])
-				ylo = MIN(y1, y2), yhi = MAX(y1, y2);
-			else
-				ylo = MIN3(y1, y2, y3), yhi = MAX3(y1, y2, y3);
-			for (I16 y = CLIPY(f, y0 - yhi); y < CLIPY(f, y0 - ylo + 1); y++) {
-				Isects i;
-				if (g.on[next])
-					i = isectline2(y0 - y, x1, y1, x2, y2);
-				else
-					i = isectcurve2(y0 - y, x1, y1, x2, y2, x3, y3);
-				I wn = 0;
-				for (I16 j = 0; j < i.n; j++)
-					wn += i.wn[j];
-				for (I16 j = 0, xlo = xmin; j < i.n; j++) {
-					for (I16 x = CLIPX(f, x0 + xlo); x < CLIPX(f, x0 + i.x[j] + 1); x++)
-						PIXEL(f, x, y) += wn;
-					wn -= i.wn[j], xlo = i.x[j] + 1;
+			if (g.on[next]) {
+				I16 ylo = MIN(y1, y2), yhi = MAX(y1, y2);
+				for (I16 y = CLIPY(f, y0 - yhi); y < CLIPY(f, y0 - ylo + 1); y++) {
+					Isects is = isectline2(y0 - y, x1, y1, x2, y2);
+					I16 x = CLIPX(f, x0 + is.x[0] + 1) - 1;
+					if (x >= 0)
+						PIXEL(f, x, y) += is.wn[0];
 				}
-			}
-			if (g.on[next])
 				i += 1;
-			else
+			} else {
+				I16 ylo = MIN3(y1, y2, y3), yhi = MAX3(y1, y2, y3);
+				for (I16 y = CLIPY(f, y0 - yhi); y < CLIPY(f, y0 - ylo + 1); y++) {
+					Isects is = isectcurve2(y0 - y, x1, y1, x2, y2, x3, y3);
+					for (I16 j = 0; j < is.n; j++) {
+						I16 x = CLIPX(f, x0 + is.x[j] + 1) - 1;
+						if (x >= 0)
+							PIXEL(f, x, y) += is.wn[j];
+					}
+				}
 				i += 2;
+			}
 		}
 		start += n;
 	}
-	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
-	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++)
-		if (PIXEL(f, x, y))
-			PIXEL(f, x, y) = c;
+	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
+		I32 wn = 0;
+		for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
+			wn += PIXEL(f, x, y);
+		for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++) {
+			I32 tmp = wn - PIXEL(f, x, y);
+			if (wn)
+				PIXEL(f, x, y) = c;
+			wn = tmp;
+		}
+	}
 }
 
 void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
