@@ -444,10 +444,11 @@ U16 findglyph(Font f, U64 code)
  * |          ^         ^         v         v
  * '----------------------------------------------->x
  *
- * This guarantees correct handling of segment joins, e.g.
+ * This guarantees correct handling of segment joins (no false intersections
+ * on peaks and no double-counting), e.g.
  *
- *               _   _/  /
- *              / \ /    |
+ *                             _   _/  /
+ *                            / \ /    |
  *
  * For parabolas it's a bit more tricky, but the idea is the same.
  */
