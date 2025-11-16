@@ -489,9 +489,8 @@ static I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I1
 		return 0;
 	if (d == 0) {
 		F64 t = -b/(2*a);
-		if (t >= 0 && t <= 1 && rx <= eval(x, t))
-			if (t == 0 || t == 1)
-				return SIGN(y3 - y1);
+		if ((t == 0 || t == 1) && rx <= eval(x, t))
+			return SIGN(y3 - y1);
 		return 0;
 	}
 	I32 wn = 0;
@@ -646,7 +645,7 @@ void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 }
 
 typedef struct {
-	I16 x[2];
+	F64 x[2];
 	I8  wn[2];
 	I8  n;
 } Isects;
@@ -662,7 +661,7 @@ static Isects isectline2(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
 	} else if (ry == y2) {
 		i.x[0] = x2, i.wn[0] = SIGN(y2 - y1);
 	} else {
-		i.x[0] = (x1*(y2 - y1) + (ry - y1)*(x2 - x1))/(y2 - y1);
+		i.x[0] = (x1*(y2 - y1) + (ry - y1)*(x2 - x1))/(F64)(y2 - y1);
 		i.wn[0] = 2*SIGN(y2 - y1);
 	}
 	return i;
@@ -692,11 +691,10 @@ static Isects isectcurve2(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 		return i;
 	if (d == 0) {
 		F64 t = -b/(2*a);
-		if (t >= 0 && t <= 1) {
+		if (t == 0 || t == 1) {
 			i.n = 1;
 			i.x[0] = eval(x, t);
-			if (t == 0 || t == 1)
-				i.wn[0] = SIGN(y3 - y1);
+			i.wn[0] = SIGN(y3 - y1);
 		}
 		return i;
 	}
@@ -763,10 +761,9 @@ void drawraster3(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 		for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
 			wn += PIXEL(f, x, y);
 		for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++) {
-			I32 tmp = wn - PIXEL(f, x, y);
-			if (wn)
-				PIXEL(f, x, y) = c;
-			wn = tmp;
+			I32 dwn = PIXEL(f, x, y);
+			PIXEL(f, x, y) = BOOL(wn) * c;
+			wn -= dwn;
 		}
 	}
 }
