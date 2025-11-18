@@ -362,6 +362,7 @@ static OK parsectable(IOBuffer *b, Font *f, U32 cmap)
 	return 0;
 }
 
+/* TODO: maybe read the whole font file into memory (or mmap)? */
 /* NOTE: Checking every read/seek operation for errors would be tedious,
  * so there is just one check for io errors when all of the parsing is done.
  *
@@ -716,6 +717,7 @@ static Isects isectcurve2(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 	return i;
 }
 
+/* TODO: implement a version wiht aa */
 void drawraster3(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 {
 	if (!g.ncont)
@@ -788,9 +790,6 @@ void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 		start += n;
 	}
 }
-
-/* TODO: maybe read the whole font file into memory (or mmap)? */
-
 
 OK utf8(char **s, U64 *c)
 {
