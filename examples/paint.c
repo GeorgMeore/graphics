@@ -7,6 +7,7 @@
 
 #define LINECOLOR RGBA(240, 240, 240, 255)
 #define BGCOLOR RGBA(18, 18, 18, 255)
+#define FILLCOLOR RGBA(30, 30, 30, 255)
 
 typedef struct Point Point;
 
@@ -95,6 +96,24 @@ void drawcurves(Image *f, Picture p)
 	}
 }
 
+void drawfill(Image *f, I16 x, I16 y, Color c)
+{
+	if (x < 0 || x >= f->w || y < 0 || y >= f->h)
+		return;
+	Color fc = PIXEL(f, x, y);
+	I16 xl = x, xr = x + 1;
+	for (; xl >= 0 && PIXEL(f, xl, y) == fc; xl--)
+		PIXEL(f, xl, y) = c;
+	for (; xr < f->w && PIXEL(f, xr, y) == fc; xr++)
+		PIXEL(f, xr, y) = c;
+	for (I16 xc = xl + 1; xc < xr; xc++) {
+		if (y > 0 && PIXEL(f, xc, y-1) == fc)
+			drawfill(f, xc, y-1, c);
+		if (y < f->h && PIXEL(f, xc, y+1) == fc)
+			drawfill(f, xc, y+1, c);
+	}
+}
+
 void endcurve(Picture *p)
 {
 	if (!*p || !(*p)->last)
@@ -120,6 +139,8 @@ int main(void)
 			endcurve(&p);
 		drawclear(f, BGCOLOR);
 		drawcurves(f, p);
+		if (btnisdown(3))
+			drawfill(f, mousex(), mousey(), FILLCOLOR);
 		if (keywaspressed('s'))
 			saveppm(f, "out.ppm");
 	}
