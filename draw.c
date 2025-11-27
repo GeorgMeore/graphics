@@ -15,26 +15,8 @@ void drawclear(Image *i, Color c)
 		PIXEL(i, x, y) = c; /* NOTE: no blending here */
 }
 
-/* TODO: can I draw smooth triangles with that (maybe do the dot-product stuff for border points)? */
+/* TODO: an aa version that uses covered pixel area as opacity */
 /* TODO: make a textured version of this function and benchmark against the barycentric one */
-static void drawhalftriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
-{
-	I64 skip = y1 >= y3; /* NOTE: skip the middle line for the bottom half */
-	if (y1 == y2) {
-		if (!skip && CHECKY(i, y1)) {
-			for (I64 x = CLIPX(i, MIN(x1, x2)); x < CLIPX(i, MAX(x1, x2)+1); x++)
-				PIXEL(i, x, y1) = blend(PIXEL(i, x, y1), c);
-		}
-	} else {
-		for (I64 y = CLIPY(i, MIN(y1, y2)) + skip; y < CLIPY(i, MAX(y1, y2)+1); y++) {
-			I64 x12 = x1 + DIVROUND((y-y1)*(x2-x1), (y2-y1));
-			I64 x13 = x1 + DIVROUND((y-y1)*(x3-x1), (y3-y1));
-			for (I64 x = CLIPX(i, MIN(x12, x13)); x < CLIPX(i, MAX(x12, x13)+1); x++)
-				PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
-		}
-	}
-}
-
 void drawtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	if (y3 < y1) {
@@ -48,8 +30,18 @@ void drawtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Colo
 		SWAP(x1, x2);
 		SWAP(y1, y2);
 	}
-	drawhalftriangle(i, x1, y1, x2, y2, x3, y3, c);
-	drawhalftriangle(i, x3, y3, x2, y2, x1, y1, c);
+	for (I64 y = CLIPY(i, y1); y < CLIPY(i, y2); y++) {
+		I64 x12 = x1 + DIVROUND((2*(y - y1) + 1)*(x2 - x1), 2*(y2 - y1));
+		I64 x13 = x1 + DIVROUND((2*(y - y1) + 1)*(x3 - x1), 2*(y3 - y1));
+		for (I64 x = CLIPX(i, MIN(x12, x13)); x < CLIPX(i, MAX(x12, x13)+1); x++)
+			PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
+	}
+	for (I64 y = CLIPY(i, y2); y < CLIPY(i, y3); y++) {
+		I64 x23 = x2 + DIVROUND((2*(y - y2) + 1)*(x3 - x2), 2*(y3 - y2));
+		I64 x13 = x1 + DIVROUND((2*(y - y1) + 1)*(x3 - x1), 2*(y3 - y1));
+		for (I64 x = CLIPX(i, MIN(x13, x23)); x < CLIPX(i, MAX(x13, x23)+1); x++)
+			PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
+	}
 }
 
 /* NOTE: SIGN((yp - y1)*(x2 - x1) - (xp - x1)*(y2 - y1)) gets us the the orientation
