@@ -216,6 +216,7 @@ static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2,
 {
 	const I64 n = 3;
 	U64 l2 = SQUARE(x2-x1) + SQUARE(y2-y1);
+	U64 wn2 = SQUARE(w) * SQUARE(n);
 	if (x1 > x2) {
 		SWAP(x1, x2);
 		SWAP(y1, y2);
@@ -234,7 +235,7 @@ static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2,
 			I64 hits = 0;
 			for (I64 dx = 0; dx < n; dx++) {
 				for (I64 dy = 0; dy < n; dy++) {
-					hits += o1 >= 0 && o2 <= 0 && SQUARE(d) < SQUARE(w)*SQUARE(n)*l2;
+					hits += o1 >= 0 && o2 <= 0 && SQUARE(d) < wn2*l2;
 					o1 += y2 - y1, o2 += y2 - y1, d += x2 - x1;
 				}
 				o1 -= n*(y2 - y1) - (x2 - x1);
@@ -243,10 +244,11 @@ static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2,
 			}
 			o1 += n*(y2-y1 - x2+x1), o2 += n*(y2-y1 - x2+x1), d += n*(x2-x1 + y2-y1);
 			if (hits) {
+				Color p = RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n));
 				if (flip)
-					PIXEL(i, y, x) = blend(PIXEL(i, y, x), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+					PIXEL(i, y, x) = blend(PIXEL(i, y, x), p);
 				else
-					PIXEL(i, x, y) = blend(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+					PIXEL(i, x, y) = blend(PIXEL(i, x, y), p);
 			}
 		}
 	}
