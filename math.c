@@ -37,6 +37,13 @@ F64 fsetsign(F64 x, OK v)
 	return _x.v;
 }
 
+F64 fabs(F64 x)
+{
+	_F64 _x = {x};
+	_x.sign = 0;
+	return _x.v;
+}
+
 OK fisnan(F64 x)
 {
 	_F64 _x = {x};
@@ -49,7 +56,7 @@ OK fisinf(F64 x)
 	return _x.exp == 0b11111111111 && !_x.frac;
 }
 
-F64 ffloor(F64 x)
+F64 ftrunc(F64 x)
 {
 	if (x == 0)
 		return x;
@@ -58,13 +65,34 @@ F64 ffloor(F64 x)
 	if (e >= 52) /* NOTE: NaN and +-inf go here */
 		return x;
 	if (e <= -1)
-		return -_x.sign;
+		return fsetsign(0, _x.sign);
 	U64 mask = ((U64)1 << (52 - e)) - 1;
-	if (_x.frac & mask) {
-		_x.frac &= ~mask;
-		_x.v -= _x.sign;
-	}
+	_x.frac &= ~mask;
 	return _x.v;
+}
+
+F64 ffloor(F64 x)
+{
+	F64 xt = ftrunc(x);
+	if (x != xt)
+		xt -= fsign(x);
+	return xt;
+}
+
+F64 fceil(F64 x)
+{
+	F64 xt = ftrunc(x);
+	if (x != xt)
+		xt += 1 - fsign(x);
+	return xt;
+}
+
+F64 fround(F64 x)
+{
+	F64 xt = ftrunc(x);
+	if (fabs(x - xt) >= 0.5)
+		xt += fsetsign(1, fsign(xt));
+	return xt;
 }
 
 F64 fsqrt(F64 x)
