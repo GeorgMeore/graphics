@@ -87,37 +87,6 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 	}
 }
 
-void drawtriangletexture(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Image *t, U16 tx1, U16 ty1, U16 tx2, U16 ty2, U16 tx3, U16 ty3)
-{
-	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, MAX3(x1, x2, x3)+1);
-	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, MAX3(y1, y2, y3)+1);
-	if ((y3 - y1)*(x2 - x1) - (x3 - x1)*(y2 - y1) < 0) {
-		SWAP(x2, x3);
-		SWAP(y2, y3);
-		SWAP(tx2, tx3);
-		SWAP(ty2, ty3);
-	}
-	I64 os = (x1 - x3)*(y2 - y3) - (x2 - x3)*(y1 - y3);
-	if (!os)
-		return;
-	I64 o1 = (ymin - y1)*(x2 - x1) - (xmin - x1)*(y2 - y1);
-	I64 o2 = (ymin - y2)*(x3 - x2) - (xmin - x2)*(y3 - y2);
-	I64 o3 = (ymin - y3)*(x1 - x3) - (xmin - x3)*(y1 - y3);
-	for (I64 y = ymin; y < ymax; y++) {
-		for (I64 x = xmin; x < xmax; x++) {
-			if (o1 >= 0 && o2 >= 0 && o3 >= 0) {
-				I64 tx = (tx1*o2 + tx2*o3 + tx3*o1)/os;
-				I64 ty = (ty1*o2 + ty2*o3 + ty3*o1)/os;
-				PIXEL(i, x, y) = PIXEL(t, tx, ty);
-			}
-			o1 -= y2 - y1; o2 -= y3 - y2; o3 -= y1 - y3;
-		}
-		o1 += (y2 - y1)*(xmax - xmin) + (x2 - x1);
-		o2 += (y3 - y2)*(xmax - xmin) + (x3 - x2);
-		o3 += (y1 - y3)*(xmax - xmin) + (x1 - x3);
-	}
-}
-
 void drawcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 {
 	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, xc+r+1); x++)
