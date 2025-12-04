@@ -44,14 +44,20 @@ void drawtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Colo
 	}
 }
 
-/* NOTE: SIGN((yp - y1)*(x2 - x1) - (xp - x1)*(y2 - y1)) gets us the the orientation
- * of the point (xp, yp) relative to the line (x1, y1) -> (x2, y2):
- * -1 (to the left), 0 (on the line) or 1 (to the right) */
+/* NOTE: For any vector (x, y) (y, -x) will be it`s 90-degree clockwise rotation.
+ * Using this insight we can easily check if a point p=(xp, yp) is to the left or
+ * to the right of a line p1=(x1, y1) -> p2=(x2, y2) by calculating the dot product
+ * between (p - p1) and the right normal to the (p2 - p1): it`s sign will give us
+ * orientation (-1 (to the left), 0 (on the line) or 1 (to the right)) and it`s
+ * magnitude will be equal to the area of the parallelogram formed by
+ * (p2 - p1) and (p - p1). This gives you a way of checking if a point is inside
+ * a triangle and doing barycentric interpolation. */
 void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	const I64 n = 3;
 	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, MAX3(x1, x2, x3)+1);
 	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, MAX3(y1, y2, y3)+1);
+	/* NOTE: fix the winding order if the third vertex is to the left of the other two*/
 	if ((y3 - y1)*(x2 - x1) - (x3 - x1)*(y2 - y1) < 0) {
 		SWAP(x2, x3);
 		SWAP(y2, y3);
