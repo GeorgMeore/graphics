@@ -389,9 +389,9 @@ void drawtriangle3d1(Image *i, Image *zb, Vec p1, Vec p2, Vec p3, Color c)
 			}
 			o1 -= p2.y - p1.y; o2 -= p3.y - p2.y; o3 -= p1.y - p3.y;
 		}
-		o1 += (p2.y - p1.y)*(xmax - xmin /*+ 1 if xmax is inclusive*/) + (p2.x - p1.x);
-		o2 += (p3.y - p2.y)*(xmax - xmin /*+ 1 if xmax is inclusive*/) + (p3.x - p2.x);
-		o3 += (p1.y - p3.y)*(xmax - xmin /*+ 1 if xmax is inclusive*/) + (p1.x - p3.x);
+		o1 += (p2.y - p1.y)*(xmax - xmin) + (p2.x - p1.x);
+		o2 += (p3.y - p2.y)*(xmax - xmin) + (p3.x - p2.x);
+		o3 += (p1.y - p3.y)*(xmax - xmin) + (p1.x - p3.x);
 	}
 }
 
@@ -532,6 +532,11 @@ int main(int, char **argv)
 			origin = add(origin, transform(mat, (Vec){.05, 0, 0}));
 		if (keywaspressed('r'))
 			trace = !trace;
+		/* TODO: There sometimes are triangle rendering differences
+		 * between the rasterizer and the raytracer.
+		 * It looks like that happens because camera rotation/movement
+		 * is handled differently in the rasterizer and in the raytracer.
+		 * I should research that sometime. */
 		if (trace)
 			raytrace(&fbuf, origin, mat, c);
 		else

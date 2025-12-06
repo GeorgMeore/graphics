@@ -17,6 +17,9 @@ Image subimage(Image i, U16 x, U16 y, U16 w, U16 h)
 	return s;
 }
 
+/* TODO: a custom compressed image format based on k-means clustering
+ * with 256-color palette (1 byte per pixel) */
+
 Image loadppm(const char *path)
 {
 	Image i = {0};

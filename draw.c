@@ -130,6 +130,7 @@ void drawrect(Image *i, I16 xtl, I16 ytl, I16 w, I16 h, Color c)
 		PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 }
 
+/* TODO: a comment on how this works */
 void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 {
 	I64 dx = ABS(x2-x1), dy = ABS(y2-y1);
