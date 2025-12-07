@@ -16,7 +16,6 @@ void drawclear(Image *i, Color c)
 }
 
 /* TODO: an aa version that uses covered pixel area as opacity */
-/* TODO: make a textured version of this function and benchmark against the barycentric one */
 void drawtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
 	if (y3 < y1) {
