@@ -130,7 +130,25 @@ void drawrect(Image *i, I16 xtl, I16 ytl, I16 w, I16 h, Color c)
 		PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 }
 
-/* TODO: a comment on how this works */
+/* To explain the core idea, let's consider a line with a shallow slope:
+ *
+ *         y ^       ^          . B (x2, y2)
+ *           |    dy |      . `
+ *           |       v  . `
+ *           |          A (x1, y1)
+ *           |          <-- dx -->
+ *           '--------------------------------> x
+ *
+ * For any x we can find the corresponding y value by calculating
+ *                   y1 + (x - x1)*dy/dx.
+ * Instead of doing a (pesumably expensive) division on each iteration,
+ * we can keep track of the numerator [e = (x - x1)*dy] (or rather it's fractional part).
+ * Each time we move right, we increment it by [dy] until it gets bigger that [dx],
+ * at which point we move up and decrement it by [dx].
+ *
+ * But that's not all. Integer division is truncating, while ideally
+ * we'd like the result to be rounded. Hence we actually move up
+ * not when [e >= dx] but when [e*2 >= dx]. */
 void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 {
 	I64 dx = ABS(x2-x1), dy = ABS(y2-y1);
