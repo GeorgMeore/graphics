@@ -6,11 +6,6 @@
 #include "math.h"
 
 typedef struct {
-	F64 d;
-	F64 vw, vh;
-} Camera;
-
-typedef struct {
 	F64 x, y, z;
 } Vec;
 
@@ -43,6 +38,114 @@ OK eq(Vec a, Vec b)
 {
 	return a.x == b.x && a.y == b.y && a.z == b.z;
 }
+
+F64 det(F64 m[3][3])
+{
+	F64 d1 = m[0][0]*(m[1][1]*m[2][2] - m[2][1]*m[1][2]);
+	F64 d2 = m[1][0]*(m[0][1]*m[2][2] - m[2][1]*m[0][2]);
+	F64 d3 = m[2][0]*(m[0][1]*m[1][2] - m[1][1]*m[0][2]);
+	return d1 - d2 + d3;
+}
+
+OK invert(F64 mat[3][3], F64 inv[3][3])
+{
+	F64 tmp[3][6];
+	for (I i = 0; i < 3; i++)
+	for (I j = 0; j < 3; j++) {
+		tmp[i][j] = mat[i][j];
+		tmp[i][3+j] = i == j;
+	}
+	for (I i = 0; i < 3; i++) {
+		I p = i;
+		for (I j = i; j < 3; j++)
+			if (ABS(tmp[j][i]) > ABS(tmp[p][i]))
+				p = j;
+		F64 v = tmp[p][i];
+		if (!v)
+			return 0;
+		for (I j = i; j < 6; j++) {
+			SWAP(tmp[p][j], tmp[i][j]);
+			tmp[i][j] /= v;
+		}
+		for (I k = 0; k < 3; k++) {
+			for (I j = i+1; k != i && j < 6; j++)
+				tmp[k][j] -= tmp[i][j]*tmp[k][i];
+		}
+	}
+	for (I i = 0; i < 3; i++)
+	for (I j = 0; j < 3; j++)
+		inv[i][j] = tmp[i][3+j];
+	return 1;
+}
+
+OK invert2(F64 mat[3][3], F64 inv[3][3])
+{
+	F64 d1 = mat[0][0]*(mat[1][1]*mat[2][2] - mat[2][1]*mat[1][2]);
+	F64 d2 = mat[1][0]*(mat[0][1]*mat[2][2] - mat[2][1]*mat[0][2]);
+	F64 d3 = mat[2][0]*(mat[0][1]*mat[1][2] - mat[1][1]*mat[0][2]);
+	F64 d = d1 - d2 + d3;
+	if (!d)
+		return 0;
+	F64 tmp[3][3] = {
+		{
+			mat[1][1]*mat[2][2]-mat[2][1]*mat[1][2],
+			mat[2][1]*mat[0][2]-mat[0][1]*mat[2][2],
+			mat[0][1]*mat[1][2]-mat[1][1]*mat[0][2]
+		},
+		{
+			mat[2][0]*mat[1][2]-mat[1][0]*mat[2][2],
+			mat[0][0]*mat[2][2]-mat[2][0]*mat[0][2],
+			mat[1][0]*mat[0][2]-mat[0][0]*mat[1][2]
+		},
+		{
+			mat[1][0]*mat[2][1]-mat[2][0]*mat[1][1],
+			mat[2][0]*mat[0][1]-mat[0][0]*mat[2][1],
+			mat[0][0]*mat[1][1]-mat[1][0]*mat[0][1]
+		},
+	};
+	for (I i = 0; i < 3; i++)
+	for (I j = 0; j < 3; j++)
+		inv[i][j] = tmp[i][j]/d;
+	return 1;
+}
+
+void rmmul(F64 dst[3][3], F64 right[3][3])
+{
+	for (I r = 0; r < 3; r++) {
+		F64 tmp[3] = {0};
+		for (I c = 0; c < 3; c++)
+			for (I j = 0; j < 3; j++)
+				tmp[c] += dst[r][j]*right[j][c];
+		for (I c = 0; c < 3; c++)
+			dst[r][c] = tmp[c];
+	}
+}
+
+void lmmul(F64 dst[3][3], F64 left[3][3])
+{
+	for (I c = 0; c < 3; c++) {
+		F64 tmp[3] = {0};
+		for (I r = 0; r < 3; r++)
+			for (I j = 0; j < 3; j++)
+				tmp[r] += left[r][j]*dst[j][c];
+		for (I r = 0; r < 3; r++)
+			dst[r][c] = tmp[r];
+	}
+}
+
+Vec transform(F64 m[3][3], Vec v)
+{
+	return (Vec){
+		v.x*m[0][0] + v.y*m[0][1] + v.z*m[0][2],
+		v.x*m[1][0] + v.y*m[1][1] + v.z*m[1][2],
+		v.x*m[2][0] + v.y*m[2][1] + v.z*m[2][2],
+	};
+}
+
+typedef struct {
+	F64 d;
+	F64 vw, vh;
+} Camera;
 
 typedef struct {
 	Vec p;
@@ -110,14 +213,6 @@ OK gauss(F64 s[3][4], Vec *o)
 	o->y = r[1];
 	o->x = r[0];
 	return 1;
-}
-
-F64 det(F64 m[3][3])
-{
-	F64 d1 = m[0][0]*(m[1][1]*m[2][2] - m[2][1]*m[1][2]);
-	F64 d2 = m[1][0]*(m[0][1]*m[2][2] - m[2][1]*m[0][2]);
-	F64 d3 = m[2][0]*(m[0][1]*m[1][2] - m[1][1]*m[0][2]);
-	return d1 - d2 + d3;
 }
 
 OK cramer(F64 s[3][4], Vec *o)
@@ -203,30 +298,6 @@ Color ray(Vec o, Vec d)
 	return RGBA(R(c)*f, G(c)*f, B(c)*f, 0);
 }
 
-void rmmul(F64 dst[3][3], F64 right[3][3])
-{
-	for (I r = 0; r < 3; r++) {
-		F64 tmp[3] = {0};
-		for (I c = 0; c < 3; c++)
-			for (I j = 0; j < 3; j++)
-				tmp[c] += dst[r][j]*right[j][c];
-		for (I c = 0; c < 3; c++)
-			dst[r][c] = tmp[c];
-	}
-}
-
-void lmmul(F64 dst[3][3], F64 left[3][3])
-{
-	for (I c = 0; c < 3; c++) {
-		F64 tmp[3] = {0};
-		for (I r = 0; r < 3; r++)
-			for (I j = 0; j < 3; j++)
-				tmp[r] += left[r][j]*dst[j][c];
-		for (I r = 0; r < 3; r++)
-			dst[r][c] = tmp[r];
-	}
-}
-
 typedef enum {
 	CameraSpace,
 	GlobalSpace,
@@ -279,82 +350,11 @@ Vec fromscreen(Vec p, Image *f)
 	return p;
 }
 
-Vec transform(F64 m[3][3], Vec v)
-{
-	return (Vec){
-		v.x*m[0][0] + v.y*m[0][1] + v.z*m[0][2],
-		v.x*m[1][0] + v.y*m[1][1] + v.z*m[1][2],
-		v.x*m[2][0] + v.y*m[2][1] + v.z*m[2][2],
-	};
-}
-
 void raytrace(Image *f, Vec origin, F64 mat[3][3], Camera c)
 {
 	for (U16 y = 0; y < f->h; y++)
 	for (U16 x = 0; x < f->w; x++)
 		PIXEL(f, x, y) = ray(origin, transform(mat, fromscreen((Vec){x, y, c.d}, f)));
-}
-
-OK invert(F64 mat[3][3], F64 inv[3][3])
-{
-	F64 tmp[3][6];
-	for (I i = 0; i < 3; i++)
-	for (I j = 0; j < 3; j++) {
-		tmp[i][j] = mat[i][j];
-		tmp[i][3+j] = i == j;
-	}
-	for (I i = 0; i < 3; i++) {
-		I p = i;
-		for (I j = i; j < 3; j++)
-			if (ABS(tmp[j][i]) > ABS(tmp[p][i]))
-				p = j;
-		F64 v = tmp[p][i];
-		if (!v)
-			return 0;
-		for (I j = i; j < 6; j++) {
-			SWAP(tmp[p][j], tmp[i][j]);
-			tmp[i][j] /= v;
-		}
-		for (I k = 0; k < 3; k++) {
-			for (I j = i+1; k != i && j < 6; j++)
-				tmp[k][j] -= tmp[i][j]*tmp[k][i];
-		}
-	}
-	for (I i = 0; i < 3; i++)
-	for (I j = 0; j < 3; j++)
-		inv[i][j] = tmp[i][3+j];
-	return 1;
-}
-
-OK invert2(F64 mat[3][3], F64 inv[3][3])
-{
-	F64 d1 = mat[0][0]*(mat[1][1]*mat[2][2] - mat[2][1]*mat[1][2]);
-	F64 d2 = mat[1][0]*(mat[0][1]*mat[2][2] - mat[2][1]*mat[0][2]);
-	F64 d3 = mat[2][0]*(mat[0][1]*mat[1][2] - mat[1][1]*mat[0][2]);
-	F64 d = d1 - d2 + d3;
-	if (!d)
-		return 0;
-	F64 tmp[3][3] = {
-		{
-			mat[1][1]*mat[2][2]-mat[2][1]*mat[1][2],
-			mat[2][1]*mat[0][2]-mat[0][1]*mat[2][2],
-			mat[0][1]*mat[1][2]-mat[1][1]*mat[0][2]
-		},
-		{
-			mat[2][0]*mat[1][2]-mat[1][0]*mat[2][2],
-			mat[0][0]*mat[2][2]-mat[2][0]*mat[0][2],
-			mat[1][0]*mat[0][2]-mat[0][0]*mat[1][2]
-		},
-		{
-			mat[1][0]*mat[2][1]-mat[2][0]*mat[1][1],
-			mat[2][0]*mat[0][1]-mat[0][0]*mat[2][1],
-			mat[0][0]*mat[1][1]-mat[1][0]*mat[0][1]
-		},
-	};
-	for (I i = 0; i < 3; i++)
-	for (I j = 0; j < 3; j++)
-		inv[i][j] = tmp[i][j]/d;
-	return 1;
 }
 
 /* NOTE: The task of projecting a point (px, py, pz) onto a plane at z=d
@@ -506,7 +506,7 @@ Image zbuf = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
 
 int main(int, char **argv)
 {
-	winopen(1920, 1080, argv[0], 60);
+	winopen(WIDTH, HEIGHT, argv[0], 60);
 	Camera c = {1, 1, 1};
 	/* TODO: the position and the rotation matrix should be
 	 * a part of the Camera struct */
