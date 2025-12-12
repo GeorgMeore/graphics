@@ -256,7 +256,24 @@ F64 testtriangle(Triangle t, Vec o, Vec d)
 Vec reflect(Vec v, Vec n)
 {
 	Vec p = mul(n, -dot(v, n) / dot(n, n));
-	return add(p, add(v, p));
+	return add(v, mul(p, 2));
+}
+
+Vec refract(Vec v, Vec n, F64 eta)
+{
+	F64 lnsq = dot(n, n);
+	if (dot(v, n) > 0) {
+		eta = 1/eta;
+		n = mul(n, -1);
+	}
+	Vec p1 = mul(n, -dot(v, n) / lnsq);
+	Vec t1 = add(v, p1);
+	Vec t2 = mul(t1, eta);
+	F64 lp2sq = dot(v, v) - dot(t2, t2);
+	if (lp2sq < 0)
+		return (Vec){0}; /* total internal reflection */
+	Vec p2 = mul(n, -fsqrt(lp2sq / lnsq));
+	return add(p2, t2);
 }
 
 #define UPCOLOR RGBA(36, 36, 36, 255)
