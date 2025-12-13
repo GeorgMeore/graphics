@@ -4,143 +4,7 @@
 #include "win.h"
 #include "mlib.h"
 #include "math.h"
-
-typedef struct {
-	F64 x, y, z;
-} Vec;
-
-Vec sub(Vec a, Vec b)
-{
-	return (Vec){a.x - b.x, a.y - b.y, a.z - b.z};
-}
-
-Vec add(Vec a, Vec b)
-{
-	return (Vec){a.x + b.x, a.y + b.y, a.z + b.z};
-}
-
-Vec mul(Vec a, F64 c)
-{
-	return (Vec){a.x*c, a.y*c, a.z*c};
-}
-
-Vec cross(Vec a, Vec b)
-{
-	return (Vec){a.y*b.z - b.y*a.z, a.z*b.x - b.z*a.x, a.x*b.y - b.x*a.y};
-}
-
-F64 dot(Vec a, Vec b)
-{
-	return a.x*b.x + a.y*b.y + a.z*b.z;
-}
-
-OK eq(Vec a, Vec b)
-{
-	return a.x == b.x && a.y == b.y && a.z == b.z;
-}
-
-F64 det(F64 m[3][3])
-{
-	F64 d1 = m[0][0]*(m[1][1]*m[2][2] - m[2][1]*m[1][2]);
-	F64 d2 = m[1][0]*(m[0][1]*m[2][2] - m[2][1]*m[0][2]);
-	F64 d3 = m[2][0]*(m[0][1]*m[1][2] - m[1][1]*m[0][2]);
-	return d1 - d2 + d3;
-}
-
-OK invert(F64 mat[3][3], F64 inv[3][3])
-{
-	F64 tmp[3][6];
-	for (I i = 0; i < 3; i++)
-	for (I j = 0; j < 3; j++) {
-		tmp[i][j] = mat[i][j];
-		tmp[i][3+j] = i == j;
-	}
-	for (I i = 0; i < 3; i++) {
-		I p = i;
-		for (I j = i; j < 3; j++)
-			if (ABS(tmp[j][i]) > ABS(tmp[p][i]))
-				p = j;
-		F64 v = tmp[p][i];
-		if (!v)
-			return 0;
-		for (I j = i; j < 6; j++) {
-			SWAP(tmp[p][j], tmp[i][j]);
-			tmp[i][j] /= v;
-		}
-		for (I k = 0; k < 3; k++) {
-			for (I j = i+1; k != i && j < 6; j++)
-				tmp[k][j] -= tmp[i][j]*tmp[k][i];
-		}
-	}
-	for (I i = 0; i < 3; i++)
-	for (I j = 0; j < 3; j++)
-		inv[i][j] = tmp[i][3+j];
-	return 1;
-}
-
-OK invert2(F64 mat[3][3], F64 inv[3][3])
-{
-	F64 d1 = mat[0][0]*(mat[1][1]*mat[2][2] - mat[2][1]*mat[1][2]);
-	F64 d2 = mat[1][0]*(mat[0][1]*mat[2][2] - mat[2][1]*mat[0][2]);
-	F64 d3 = mat[2][0]*(mat[0][1]*mat[1][2] - mat[1][1]*mat[0][2]);
-	F64 d = d1 - d2 + d3;
-	if (!d)
-		return 0;
-	F64 tmp[3][3] = {
-		{
-			mat[1][1]*mat[2][2]-mat[2][1]*mat[1][2],
-			mat[2][1]*mat[0][2]-mat[0][1]*mat[2][2],
-			mat[0][1]*mat[1][2]-mat[1][1]*mat[0][2]
-		},
-		{
-			mat[2][0]*mat[1][2]-mat[1][0]*mat[2][2],
-			mat[0][0]*mat[2][2]-mat[2][0]*mat[0][2],
-			mat[1][0]*mat[0][2]-mat[0][0]*mat[1][2]
-		},
-		{
-			mat[1][0]*mat[2][1]-mat[2][0]*mat[1][1],
-			mat[2][0]*mat[0][1]-mat[0][0]*mat[2][1],
-			mat[0][0]*mat[1][1]-mat[1][0]*mat[0][1]
-		},
-	};
-	for (I i = 0; i < 3; i++)
-	for (I j = 0; j < 3; j++)
-		inv[i][j] = tmp[i][j]/d;
-	return 1;
-}
-
-void rmmul(F64 dst[3][3], F64 right[3][3])
-{
-	for (I r = 0; r < 3; r++) {
-		F64 tmp[3] = {0};
-		for (I c = 0; c < 3; c++)
-			for (I j = 0; j < 3; j++)
-				tmp[c] += dst[r][j]*right[j][c];
-		for (I c = 0; c < 3; c++)
-			dst[r][c] = tmp[c];
-	}
-}
-
-void lmmul(F64 dst[3][3], F64 left[3][3])
-{
-	for (I c = 0; c < 3; c++) {
-		F64 tmp[3] = {0};
-		for (I r = 0; r < 3; r++)
-			for (I j = 0; j < 3; j++)
-				tmp[r] += left[r][j]*dst[j][c];
-		for (I r = 0; r < 3; r++)
-			dst[r][c] = tmp[r];
-	}
-}
-
-Vec transform(F64 m[3][3], Vec v)
-{
-	return (Vec){
-		v.x*m[0][0] + v.y*m[0][1] + v.z*m[0][2],
-		v.x*m[1][0] + v.y*m[1][1] + v.z*m[1][2],
-		v.x*m[2][0] + v.y*m[2][1] + v.z*m[2][2],
-	};
-}
+#include "la.h"
 
 typedef struct {
 	F64 d;
@@ -173,7 +37,7 @@ Triangle triangles[] = {
 
 F64 testsphere(Sphere s, Vec o, Vec d)
 {
-	Vec po = sub(o, s.p);
+	Vec po = vsub(o, s.p);
 	F64 a = dot(d, d);
 	F64 b = 2*dot(po, d);
 	F64 c = dot(po, po) - s.r*s.r;
@@ -189,91 +53,40 @@ F64 testsphere(Sphere s, Vec o, Vec d)
 	return t;
 }
 
-OK gauss(F64 s[3][4], Vec *o)
+OK cramer(Mat m, Vec x, Vec *o)
 {
-	I m[3] = {0, 1, 2};
-	for (I i = 0; i < 3; i++) {
-		for (I j = i; j < 3; j++)
-			if (ABS(s[m[j]][i]) > ABS(s[m[i]][i]))
-				SWAP(m[j], m[i]);
-		if (!s[m[i]][i])
-			return 0;
-		for (I j = i+1; j < 3; j++)
-			for (I k = i+1; k < 4; k++)
-				s[m[j]][k] -= s[m[i]][k]*s[m[j]][i]/s[m[i]][i];
-	}
-	F64 r[3];
-	for (I i = 2; i >= 0; i--) {
-		r[i] = s[m[i]][3];
-		for (I j = i + 1; j < 3; j++)
-			r[i] -= s[m[i]][j]*r[j];
-		r[i] /= s[m[i]][i];
-	}
-	o->z = r[2];
-	o->y = r[1];
-	o->x = r[0];
-	return 1;
-}
-
-OK cramer(F64 s[3][4], Vec *o)
-{
-	F64 d[4];
-	for (I i = 3; i >= 0; i--) {
-		I m[4] = {0, 1, 2, 3};
-		m[i] = 3;
-		F64 d1 = s[0][m[0]]*(s[1][m[1]]*s[2][m[2]] - s[2][m[1]]*s[1][m[2]]);
-		F64 d2 = s[1][m[0]]*(s[0][m[1]]*s[2][m[2]] - s[2][m[1]]*s[0][m[2]]);
-		F64 d3 = s[2][m[0]]*(s[0][m[1]]*s[1][m[2]] - s[1][m[1]]*s[0][m[2]]);
-		d[i] = d1 - d2 + d3;
-	}
-	if (!d[3])
+	F64 d = det(m);
+	if (!d)
 		return 0;
-	o->x = d[0] / d[3];
-	o->y = d[1] / d[3];
-	o->z = d[2] / d[3];
+	F64 dm[3];
+	for (I i = 0; i < 3; i++) {
+		Mat t = m;
+		t.m[0][i] = x.x;
+		t.m[1][i] = x.y;
+		t.m[2][i] = x.z;
+		dm[i] = det(t);
+	}
+	o->x = dm[0] / d;
+	o->y = dm[1] / d;
+	o->z = dm[2] / d;
 	return 1;
 }
 
 F64 testtriangle(Triangle t, Vec o, Vec d)
 {
 	/* o + t*d = p1 + u*(p2 - p1) + v*(p3 - p1) */
-	F64 s[3][4] = {
-		{d.x, t.p1.x - t.p2.x, t.p1.x - t.p3.x, t.p1.x - o.x},
-		{d.y, t.p1.y - t.p2.y, t.p1.y - t.p3.y, t.p1.y - o.y},
-		{d.z, t.p1.z - t.p2.z, t.p1.z - t.p3.z, t.p1.z - o.z}
-	};
+	Mat m = {{
+		{d.x, t.p1.x - t.p2.x, t.p1.x - t.p3.x},
+		{d.y, t.p1.y - t.p2.y, t.p1.y - t.p3.y},
+		{d.z, t.p1.z - t.p2.z, t.p1.z - t.p3.z}
+	}};
+	Vec x = {t.p1.x - o.x, t.p1.y - o.y, t.p1.z - o.z};
 	Vec v;
-	/* TODO: I need to research numerical methods more,
-	 * Cramer`s method here seems to be doing better while Gauss`s
-	 * looses pixels sometimes */
-	if (!cramer(s, &v))
+	if (!cramer(m, x, &v))
 		return INF;
 	if (v.x <= 0 || v.y < 0 || v.z < 0 || v.y + v.z > 1)
 		return INF;
 	return v.x;
-}
-
-Vec reflect(Vec v, Vec n)
-{
-	Vec p = mul(n, -dot(v, n) / dot(n, n));
-	return add(v, mul(p, 2));
-}
-
-Vec refract(Vec v, Vec n, F64 eta)
-{
-	F64 lnsq = dot(n, n);
-	if (dot(v, n) > 0) {
-		eta = 1/eta;
-		n = mul(n, -1);
-	}
-	Vec p1 = mul(n, -dot(v, n) / lnsq);
-	Vec t1 = add(v, p1);
-	Vec t2 = mul(t1, eta);
-	F64 lp2sq = dot(v, v) - dot(t2, t2);
-	if (lp2sq < 0)
-		return (Vec){0}; /* total internal reflection */
-	Vec p2 = mul(n, -fsqrt(lp2sq / lnsq));
-	return add(p2, t2);
 }
 
 #define UPCOLOR RGBA(36, 36, 36, 255)
@@ -296,13 +109,13 @@ Color ray(Vec o, Vec d)
 		if (t < tmin) {
 			c = s.c;
 			tmin = t;
-			Vec n = mul(sub(add(o, mul(d, t)), s.p), 1/s.r);
+			Vec n = vmul(vsub(vadd(o, vmul(d, t)), s.p), 1/s.r);
 			f = dot(n, d)/dot(d, d);
 		}
 	}
 	for (U i = 0;; i++) {
 		Triangle tr = triangles[i];
-		if (eq(tr.p1, tr.p2))
+		if (dot(tr.p1, tr.p1) + dot(tr.p2, tr.p2) == 0)
 			break;
 		F64 t = testtriangle(tr, o, d);
 		if (t < tmin) {
@@ -313,44 +126,6 @@ Color ray(Vec o, Vec d)
 	}
 	f = CLAMP(ABS(f), 0, 1);
 	return RGBA(R(c)*f, G(c)*f, B(c)*f, 0);
-}
-
-typedef enum {
-	CameraSpace,
-	GlobalSpace,
-} XYZ;
-
-void xrot(F64 m[3][3], F64 a, XYZ s)
-{
-	if (!a)
-		return;
-	F64 rm[3][3] = {{1, 0, 0}, {0, fcos(a), -fsin(a)}, {0, fsin(a), fcos(a)}};
-	switch (s) {
-		case GlobalSpace: return lmmul(m, rm);
-		case CameraSpace: return rmmul(m, rm);
-	}
-}
-
-void yrot(F64 m[3][3], F64 a, XYZ s)
-{
-	if (!a)
-		return;
-	F64 rm[3][3] = {{fcos(a), 0, fsin(a)}, {0, 1, 0}, {-fsin(a), 0, fcos(a)}};
-	switch (s) {
-		case GlobalSpace: return lmmul(m, rm);
-		case CameraSpace: return rmmul(m, rm);
-	}
-}
-
-void zrot(F64 m[3][3], F64 a, XYZ s)
-{
-	if (!a)
-		return;
-	F64 rm[3][3] = {{fcos(a), -fsin(a), 0}, {fsin(a), fcos(a), 0}, {0, 0, 1}};
-	switch (s) {
-		case GlobalSpace: return lmmul(m, rm);
-		case CameraSpace: return rmmul(m, rm);
-	}
 }
 
 Vec toscreen(Vec p, Image *f)
@@ -367,11 +142,11 @@ Vec fromscreen(Vec p, Image *f)
 	return p;
 }
 
-void raytrace(Image *f, Vec origin, F64 mat[3][3], Camera c)
+void raytrace(Image *f, Vec origin, Mat m, Camera c)
 {
 	for (U16 y = 0; y < f->h; y++)
 	for (U16 x = 0; x < f->w; x++)
-		PIXEL(f, x, y) = ray(origin, transform(mat, fromscreen((Vec){x, y, c.d}, f)));
+		PIXEL(f, x, y) = ray(origin, mapply(m, fromscreen((Vec){x, y, c.d}, f)));
 }
 
 /* NOTE: The task of projecting a point (px, py, pz) onto a plane at z=d
@@ -451,16 +226,12 @@ void drawtriangle3d2(Image *f, Image *zb, Vec p1, Vec p2, Vec p3, Color c)
 }
 
 /* TODO: figure out how to rasterize spheres with depth buffering and clipping */
-void rasterize(Image *f, Image *z, Vec origin, F64 mat[3][3], Camera c)
+void rasterize(Image *f, Image *z, Vec origin, Mat m, Camera c)
 {
-	/* for orthogonal matrices transposition is inversion */
-	F64 inv[3][3] = {
-		{mat[0][0], mat[1][0], mat[2][0]},
-		{mat[0][1], mat[1][1], mat[2][1]},
-		{mat[0][2], mat[1][2], mat[2][2]},
-	};
+	/* NOTE: for orthogonal matrices transposition is inversion */
+	Mat inv = transp(m);
 	/* NOTE: dot(up, p) tells you if the point is above or below horizon */
-	Vec up = transform(inv, (Vec){0, 1, 0});
+	Vec up = mapply(inv, (Vec){0, 1, 0});
 	for (U16 y = 0; y < f->h; y++)
 	for (U16 x = 0; x < f->w; x++) {
 		/* TODO: this is suboptimal, since we can find where dot(...) == 0 */
@@ -474,11 +245,11 @@ void rasterize(Image *f, Image *z, Vec origin, F64 mat[3][3], Camera c)
 	static F64 zclip = .035; /* TODO: this also should be a part of Camera */
 	for (U i = 0;; i++) {
 		Triangle tr = triangles[i];
-		if (eq(tr.p1, tr.p2))
+		if (dot(tr.p1, tr.p1) + dot(tr.p2, tr.p2) == 0)
 			break;
-		Vec p1 = transform(inv, sub(tr.p1, origin));
-		Vec p2 = transform(inv, sub(tr.p2, origin));
-		Vec p3 = transform(inv, sub(tr.p3, origin));
+		Vec p1 = mapply(inv, vsub(tr.p1, origin));
+		Vec p2 = mapply(inv, vsub(tr.p2, origin));
+		Vec p3 = mapply(inv, vsub(tr.p3, origin));
 		if (p3.z < p1.z)
 			SWAP(p1, p3);
 		if (p3.z < p2.z)
@@ -492,10 +263,10 @@ void rasterize(Image *f, Image *z, Vec origin, F64 mat[3][3], Camera c)
 			p3 = project(c, f, p3);
 			drawtriangle3d2(f, z, p1, p2, p3, tr.c);
 		} else if (p2.z > zclip) {
-			Vec v12 = sub(p2, p1);
-			Vec p12 = add(p1, mul(v12, (zclip - p1.z) / v12.z));
-			Vec v13 = sub(p3, p1);
-			Vec p13 = add(p1, mul(v13, (zclip - p1.z) / v13.z));
+			Vec v12 = vsub(p2, p1);
+			Vec p12 = vadd(p1, vmul(v12, (zclip - p1.z) / v12.z));
+			Vec v13 = vsub(p3, p1);
+			Vec p13 = vadd(p1, vmul(v13, (zclip - p1.z) / v13.z));
 			p1 = project(c, f, p12);
 			p2 = project(c, f, p2);
 			p3 = project(c, f, p3);
@@ -503,10 +274,10 @@ void rasterize(Image *f, Image *z, Vec origin, F64 mat[3][3], Camera c)
 			p2 = project(c, f, p13);
 			drawtriangle3d2(f, z, p1, p2, p3, tr.c);
 		} else if (p3.z > zclip) {
-			Vec v13 = sub(p3, p1);
-			Vec p13 = add(p1, mul(v13, (zclip - p1.z) / v13.z));
-			Vec v23 = sub(p3, p2);
-			Vec p23 = add(p2, mul(v23, (zclip - p2.z) / v23.z));
+			Vec v13 = vsub(p3, p1);
+			Vec p13 = vadd(p1, vmul(v13, (zclip - p1.z) / v13.z));
+			Vec v23 = vsub(p3, p2);
+			Vec p23 = vadd(p2, vmul(v23, (zclip - p2.z) / v23.z));
 			p1 = project(c, f, p13);
 			p2 = project(c, f, p23);
 			p3 = project(c, f, p3);
@@ -515,8 +286,8 @@ void rasterize(Image *f, Image *z, Vec origin, F64 mat[3][3], Camera c)
 	}
 }
 
-#define WIDTH 1920
-#define HEIGHT 1080
+#define WIDTH 600
+#define HEIGHT 600
 
 Image fbuf = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
 Image zbuf = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
@@ -528,25 +299,27 @@ int main(int, char **argv)
 	/* TODO: the position and the rotation matrix should be
 	 * a part of the Camera struct */
 	Vec origin = {0, 0, 0};
-	F64 mat[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+	Mat m = {{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}};
 	mouselock(1);
 	OK trace = 1;
 	while (!keyisdown('q')) {
 		Image *f = frame();
-		yrot(mat, (mousex() / (F64)f->w), GlobalSpace);
-		xrot(mat, (mousey() / (F64)f->h), CameraSpace);
+		if (mousex())
+			m = mmul(roty(mousex() / (F64)f->w), m);
+		if (mousey())
+			m = mmul(m, rotx(mousey() / (F64)f->h));
 		if (keyisdown('h'))
-			zrot(mat, .05, CameraSpace);
+			m = mmul(m, rotz(.05));
 		if (keyisdown('l'))
-			zrot(mat, -.05, CameraSpace);
+			m = mmul(m, rotz(-.05));
 		if (keyisdown('w'))
-			origin = add(origin, transform(mat, (Vec){0, 0, .05}));
+			origin = vadd(origin, mapply(m, (Vec){0, 0, .05}));
 		if (keyisdown('s'))
-			origin = add(origin, transform(mat, (Vec){0, 0, -.05}));
+			origin = vadd(origin, mapply(m, (Vec){0, 0, -.05}));
 		if (keyisdown('a'))
-			origin = add(origin, transform(mat, (Vec){-.05, 0, 0}));
+			origin = vadd(origin, mapply(m, (Vec){-.05, 0, 0}));
 		if (keyisdown('d'))
-			origin = add(origin, transform(mat, (Vec){.05, 0, 0}));
+			origin = vadd(origin, mapply(m, (Vec){.05, 0, 0}));
 		if (keywaspressed('r'))
 			trace = !trace;
 		/* TODO: There sometimes are triangle rendering differences
@@ -555,9 +328,9 @@ int main(int, char **argv)
 		 * is handled differently in the rasterizer and in the raytracer.
 		 * I should research that sometime. */
 		if (trace)
-			raytrace(&fbuf, origin, mat, c);
+			raytrace(&fbuf, origin, m, c);
 		else
-			rasterize(&fbuf, &zbuf, origin, mat, c);
+			rasterize(&fbuf, &zbuf, origin, m, c);
 		for (U16 y = 0; y < f->h; y++)
 		for (U16 x = 0; x < f->w; x++)
 			PIXEL(f, x, y) = PIXEL(&fbuf, x*WIDTH/f->w, y*HEIGHT/f->h);
