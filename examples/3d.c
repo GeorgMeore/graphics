@@ -11,6 +11,20 @@ typedef struct {
 	F64 vw, vh;
 } Camera;
 
+Vec toscreen(Vec p, Image *f)
+{
+	p.x = f->w*(1 + p.x)/2.0;
+	p.y = f->h*(1 - p.y)/2.0;
+	return p;
+}
+
+Vec fromscreen(Vec p, Image *f)
+{
+	p.x = 2.0*(p.x - f->w/2.0)/f->w;
+	p.y = 2.0*(f->h/2.0 - p.y)/f->h;
+	return p;
+}
+
 typedef struct {
 	Vec p;
 	F64 r;
@@ -28,6 +42,8 @@ Sphere spheres[] = {
 	{{-2, 0, 4}, 0.5, GREEN},
 	{}
 };
+
+Sphere lense = {{5, 5, 5}, 1, 0};
 
 Triangle triangles[] = {
 	{{0, -1, 3}, {2, 0, 4}, {-2, 0, 4}, YELLOW},
@@ -94,6 +110,10 @@ F64 testtriangle(Triangle t, Vec o, Vec d)
 
 Color ray(Vec o, Vec d)
 {
+	/* I use "last" rendered object pointer to
+	 * avoid some precision-related artifacts, where
+	 * a ray hits same object in the same spot */
+	static void *last = 0;
 	Color c;
 	if (d.y < 0)
 		c = DOWNCOLOR;
@@ -124,22 +144,28 @@ Color ray(Vec o, Vec d)
 			f = 1;
 		}
 	}
+	if (last != &lense) {
+		F64 t = testsphere(lense, o, d);
+		if (t < tmin) {
+			last = &lense;
+			Vec p = vmul(d, t);
+			Vec o2 = vadd(o, p);
+			Vec n = vsub(o2, lense.p);
+			Vec d2 = refract(d, n, 1/1.6);
+			if (dot(d, n) < 0) {
+				/* calculate p inside sphere */
+				p = vmul(d2, -2 * dot(n, d2) / dot(d2, d2));
+				n = vadd(n, p);
+				d2 = refract(d2, n, 1/1.6);
+				o2 = vadd(o2, p);
+			}
+			/* TODO: use p length to calculate opacity */
+			return blend(ray(o2, d2), RGBA(255, 255, 255, 2));
+		}
+	}
+	last = 0;
 	f = CLAMP(ABS(f), 0, 1);
 	return RGBA(R(c)*f, G(c)*f, B(c)*f, 0);
-}
-
-Vec toscreen(Vec p, Image *f)
-{
-	p.x = f->w*(1 + p.x)/2.0;
-	p.y = f->h*(1 - p.y)/2.0;
-	return p;
-}
-
-Vec fromscreen(Vec p, Image *f)
-{
-	p.x = 2.0*(p.x - f->w/2.0)/f->w;
-	p.y = 2.0*(f->h/2.0 - p.y)/f->h;
-	return p;
 }
 
 void raytrace(Image *f, Vec origin, Mat m, Camera c)
@@ -286,7 +312,7 @@ void rasterize(Image *f, Image *z, Vec origin, Mat m, Camera c)
 	}
 }
 
-#define WIDTH 600
+#define WIDTH  600
 #define HEIGHT 600
 
 Image fbuf = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
