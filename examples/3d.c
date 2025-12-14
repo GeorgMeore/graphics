@@ -178,7 +178,19 @@ void raytrace(Image *f, Vec origin, Mat m, Camera c)
 /* NOTE: The task of projecting a point (px, py, pz) onto a plane at z=d
  * can be rephrased as finding the coordinates of the collinear vector (px', py', d).
  * It then is immediately obvious that the answer is to scale the point vector by d/pz.
- * z is inverted to simplify interpolation. */
+ *
+ * But what happens to linear triangle vertex attributes after the projection?
+ * For any triangle point (x, y, z) the value of the attribute can be calculated as
+ *     V = V(x, y, z) = Vx*x + Vy*y + Vz*z.
+ * Let's rewrite x, y and V in terms of the projected coordinates [x' = x/z], [y' = y/z]:
+ *     x = x'*z
+ *     y = y'*z
+ *     V = Vx*x'*z + Vy*y'*z + Vz*z.
+ * It is now obvious that [V/z = Vx*x' + Vy*y' + Vz] is a linear function
+ * of the projected coordinates (x', y').
+ *
+ * So we need to remember the original z value to do perspective-correct interpolation
+ * later (actually here we remember 1/z, which simplifies calculations a bit). */
 Vec project(Camera c, Image *f, Vec p)
 {
 	return toscreen((Vec){p.x*c.d/p.z, p.y*c.d/p.z, 1/p.z}, f);
