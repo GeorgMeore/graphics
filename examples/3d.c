@@ -7,21 +7,22 @@
 #include "la.h"
 
 typedef struct {
-	F64 d;
-	F64 vw, vh;
+	F64 d, w, h;
+	Vec pos;
+	Mat rot;
 } Camera;
 
-Vec toscreen(Vec p, Image *f)
+Vec toscreen(Vec p, Camera c, Image *s)
 {
-	p.x = f->w*(1 + p.x)/2.0;
-	p.y = f->h*(1 - p.y)/2.0;
+	p.x = s->w*(.5 + p.x/c.w);
+	p.y = s->h*(.5 - p.y/c.h);
 	return p;
 }
 
-Vec fromscreen(Vec p, Image *f)
+Vec fromscreen(Vec p, Camera c, Image *s)
 {
-	p.x = 2.0*(p.x - f->w/2.0)/f->w;
-	p.y = 2.0*(f->h/2.0 - p.y)/f->h;
+	p.x = c.w*(p.x - s->w/2.0)/s->w;
+	p.y = c.h*(s->h/2.0 - p.y)/s->h;
 	return p;
 }
 
@@ -168,11 +169,11 @@ Color ray(Vec o, Vec d)
 	return RGBA(R(c)*f, G(c)*f, B(c)*f, 0);
 }
 
-void raytrace(Image *f, Vec origin, Mat m, Camera c)
+void raytrace(Image *f, Camera c)
 {
 	for (U16 y = 0; y < f->h; y++)
 	for (U16 x = 0; x < f->w; x++)
-		PIXEL(f, x, y) = ray(origin, mapply(m, fromscreen((Vec){x, y, c.d}, f)));
+		PIXEL(f, x, y) = ray(c.pos, mapply(c.rot, fromscreen((Vec){x, y, c.d}, c, f)));
 }
 
 /* NOTE: The task of projecting a point (px, py, pz) onto a plane at z=d
@@ -193,7 +194,7 @@ void raytrace(Image *f, Vec origin, Mat m, Camera c)
  * later (actually here we remember 1/z, which simplifies calculations a bit). */
 Vec project(Camera c, Image *f, Vec p)
 {
-	return toscreen((Vec){p.x*c.d/p.z, p.y*c.d/p.z, 1/p.z}, f);
+	return toscreen((Vec){p.x*c.d/p.z, p.y*c.d/p.z, 1/p.z}, c, f);
 }
 
 void drawtriangle3d1(Image *i, Image *zb, Vec p1, Vec p2, Vec p3, Color c)
@@ -264,16 +265,16 @@ void drawtriangle3d2(Image *f, Image *zb, Vec p1, Vec p2, Vec p3, Color c)
 }
 
 /* TODO: figure out how to rasterize spheres with depth buffering and clipping */
-void rasterize(Image *f, Image *z, Vec origin, Mat m, Camera c)
+void rasterize(Image *f, Image *z, Camera c)
 {
 	/* NOTE: for orthogonal matrices transposition is inversion */
-	Mat inv = transp(m);
+	Mat inv = transp(c.rot);
 	/* NOTE: dot(up, p) tells you if the point is above or below horizon */
 	Vec up = mapply(inv, (Vec){0, 1, 0});
 	for (U16 y = 0; y < f->h; y++)
 	for (U16 x = 0; x < f->w; x++) {
 		/* TODO: this is suboptimal, since we can find where dot(...) == 0 */
-		Vec p = fromscreen((Vec){x, y, 1}, f);
+		Vec p = fromscreen((Vec){x, y, 1}, c, f);
 		if (dot(p, up) >= 0)
 			PIXEL(f, x, y) = UPCOLOR;
 		else
@@ -285,9 +286,9 @@ void rasterize(Image *f, Image *z, Vec origin, Mat m, Camera c)
 		Triangle tr = triangles[i];
 		if (dot(tr.p1, tr.p1) + dot(tr.p2, tr.p2) == 0)
 			break;
-		Vec p1 = mapply(inv, vsub(tr.p1, origin));
-		Vec p2 = mapply(inv, vsub(tr.p2, origin));
-		Vec p3 = mapply(inv, vsub(tr.p3, origin));
+		Vec p1 = mapply(inv, vsub(tr.p1, c.pos));
+		Vec p2 = mapply(inv, vsub(tr.p2, c.pos));
+		Vec p3 = mapply(inv, vsub(tr.p3, c.pos));
 		if (p3.z < p1.z)
 			SWAP(p1, p3);
 		if (p3.z < p2.z)
@@ -333,31 +334,32 @@ Image zbuf = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
 int main(int, char **argv)
 {
 	winopen(WIDTH, HEIGHT, argv[0], 60);
-	Camera c = {1, 1, 1};
-	/* TODO: the position and the rotation matrix should be
-	 * a part of the Camera struct */
-	Vec origin = {0, 0, 0};
-	Mat m = {{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}};
+	Camera c = {
+		.d = 2, .w = 1, .h = 1,
+		.rot = {{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}},
+	};
 	mouselock(1);
 	OK trace = 1;
 	while (!keyisdown('q')) {
 		Image *f = frame();
+		c.w = f->w/(F64)WIDTH;
+		c.h = f->h/(F64)HEIGHT;
 		if (mousex())
-			m = mmul(roty(mousex() / (F64)f->w), m);
+			c.rot = mmul(roty(mousex() / (F64)f->w), c.rot);
 		if (mousey())
-			m = mmul(m, rotx(mousey() / (F64)f->h));
+			c.rot = mmul(c.rot, rotx(mousey() / (F64)f->h));
 		if (keyisdown('h'))
-			m = mmul(m, rotz(.05));
+			c.rot = mmul(c.rot, rotz(.05));
 		if (keyisdown('l'))
-			m = mmul(m, rotz(-.05));
+			c.rot = mmul(c.rot, rotz(-.05));
 		if (keyisdown('w'))
-			origin = vadd(origin, mapply(m, (Vec){0, 0, .05}));
+			c.pos = vadd(c.pos, mapply(c.rot, (Vec){0, 0, .05}));
 		if (keyisdown('s'))
-			origin = vadd(origin, mapply(m, (Vec){0, 0, -.05}));
+			c.pos = vadd(c.pos, mapply(c.rot, (Vec){0, 0, -.05}));
 		if (keyisdown('a'))
-			origin = vadd(origin, mapply(m, (Vec){-.05, 0, 0}));
+			c.pos = vadd(c.pos, mapply(c.rot, (Vec){-.05, 0, 0}));
 		if (keyisdown('d'))
-			origin = vadd(origin, mapply(m, (Vec){.05, 0, 0}));
+			c.pos = vadd(c.pos, mapply(c.rot, (Vec){.05, 0, 0}));
 		if (keywaspressed('r'))
 			trace = !trace;
 		/* TODO: There sometimes are triangle rendering differences
@@ -366,9 +368,9 @@ int main(int, char **argv)
 		 * is handled differently in the rasterizer and in the raytracer.
 		 * I should research that sometime. */
 		if (trace)
-			raytrace(&fbuf, origin, m, c);
+			raytrace(&fbuf, c);
 		else
-			rasterize(&fbuf, &zbuf, origin, m, c);
+			rasterize(&fbuf, &zbuf, c);
 		for (U16 y = 0; y < f->h; y++)
 		for (U16 x = 0; x < f->w; x++)
 			PIXEL(f, x, y) = PIXEL(&fbuf, x*WIDTH/f->w, y*HEIGHT/f->h);
