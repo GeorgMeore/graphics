@@ -64,8 +64,8 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 	I64 o1 = n*((ymin - y1)*(x2 - x1) - (xmin - x1)*(y2 - y1));
 	I64 o2 = n*((ymin - y2)*(x3 - x2) - (xmin - x2)*(y3 - y2));
 	I64 o3 = n*((ymin - y3)*(x1 - x3) - (xmin - x3)*(y1 - y3));
-	for (I64 x = xmin; x < xmax; x++) {
-		for (I64 y = ymin; y < ymax; y++) {
+	for (I64 y = ymin; y < ymax; y++) {
+		for (I64 x = xmin; x < xmax; x++) {
 			I64 hits = 0;
 			for (I64 dx = 0; dx < n; dx++) {
 				for (I64 dy = 0; dy < n; dy++) {
@@ -76,20 +76,19 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 				o2 -= (x3 - x2)*n + (y3 - y2);
 				o3 -= (x1 - x3)*n + (y1 - y3);
 			}
-			o1 += n*(x2-x1 + y2-y1), o2 += n*(x3-x2 + y3-y2), o3 += n*(x1-x3 + y1-y3);
 			if (hits)
 				PIXEL(i, x, y) = blend(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
 		}
-		o1 -= n*((x2 - x1)*(ymax - ymin) + (y2 - y1));
-		o2 -= n*((x3 - x2)*(ymax - ymin) + (y3 - y2));
-		o3 -= n*((x1 - x3)*(ymax - ymin) + (y1 - y3));
+		o1 += n*((y2 - y1)*(xmax - xmin) + (x2 - x1));
+		o2 += n*((y3 - y2)*(xmax - xmin) + (x3 - x2));
+		o3 += n*((y1 - y3)*(xmax - xmin) + (x1 - x3));
 	}
 }
 
 void drawcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 {
-	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, xc+r+1); x++)
 	for (I64 y = CLIPY(i, yc-r); y < CLIPY(i, yc+r+1); y++)
+	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, xc+r+1); x++)
 		if (SQUARE(x-xc) + SQUARE(y-yc) < SQUARE(r))
 			PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 }
@@ -97,8 +96,8 @@ void drawcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 void drawsmoothcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 {
 	const I64 n = 3; /* NOTE: looks ok */
-	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, xc+r+1); x++)
-	for (I64 y = CLIPY(i, yc-r); y < CLIPY(i, yc+r+1); y++) {
+	for (I64 y = CLIPY(i, yc-r); y < CLIPY(i, yc+r+1); y++)
+	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, xc+r+1); x++) {
 		/* NOTE: check if the point and it's neighbours are
 		 * definitely inside the circle */
 		I64 xo = ABS(x-xc), yo = ABS(y-yc);
@@ -125,8 +124,8 @@ void drawrect(Image *i, I16 xtl, I16 ytl, I16 w, I16 h, Color c)
 		ytl += h;
 		h = -h;
 	}
-	for (I64 x = CLIPX(i, xtl); x < CLIPX(i, xtl+w); x++)
 	for (I64 y = CLIPY(i, ytl); y < CLIPY(i, ytl+h); y++)
+	for (I64 x = CLIPX(i, xtl); x < CLIPX(i, xtl+w); x++)
 		PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 }
 
