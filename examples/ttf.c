@@ -669,6 +669,8 @@ static Isects isectcurve2(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 	return i;
 }
 
+/* IDEA: use 4 bytes of the color for 4 bitmap points,
+ * I think byte overflows will never happen on sane fonts */
 /* TODO: implement a version wiht aa */
 void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 {
@@ -719,6 +721,93 @@ void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 			PIXEL(f, x, y) = BOOL(wn) * c;
 			wn -= dwn;
 		}
+	}
+}
+
+F64 distline(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2)
+{
+	F64 dx = x2 - x1, dy = y2 - y1;
+	F64 wx = x - x1,  wy = y - y1;
+	F64 ux = x - x2,  uy = y - y2;
+	F64 l2 = dx*dx + dy*dy, t = wx*dx + wy*dy;
+	if (t < 0)
+		return wx*wx + wy*wy;
+	if (t >= l2)
+		return ux*ux + uy*uy;
+	F64 n = wx*dy - wy*dx;
+	return n*n / l2;
+}
+
+F64 disttriangle(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3)
+{
+	F64 o1 = (x - x1)*(y2 - y1) - (y - y1)*(x2 - x1);
+	F64 o2 = (x - x2)*(y3 - y2) - (y - y2)*(x3 - x2);
+	F64 o3 = (x - x3)*(y1 - y3) - (y - y3)*(x1 - x3);
+	if (SIGN(o1) == SIGN(o2) && SIGN(o2) == SIGN(o3))
+		return 0;
+	return MIN3(
+		distline(x, y, x1, y1, x2, y2),
+		distline(x, y, x2, y2, x3, y3),
+		distline(x, y, x3, y3, x1, y1)
+	);
+}
+
+F64 distcurve(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3, F64 dmin)
+{
+	/* NOTE: if the current minimal distance is less than the distance
+	 * to the bouding triangle, we can safely skip this curve*/
+	if (dmin < disttriangle(x, y, x1, y1, x2, y2, x3, y3))
+		return dmin;
+	/* NOTE: search for extremums of the square distance function */
+	Poly dx = {{(x1 - x), 2*(x2 - x1), x3 + x1 - 2*x2}, 2};
+	Poly dy = {{(y1 - y), 2*(y2 - y1), y3 + y1 - 2*y2}, 2};
+	Poly d2 = padd(pmul(dx, dx), pmul(dy, dy));
+	Roots r = roots(ddx(d2));
+	F64 d = MIN(eval(d2, 0), eval(d2, 1));
+	for (U8 i = 0; i < r.n; i++)
+		if (r.v[i] > 0 && r.v[i] < 1)
+			d = MIN(d, eval(d2, r.v[i]));
+	return d;
+}
+
+void drawsdf2(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
+{
+	if (!g.ncont)
+		return;
+	drawraster2(f, x0, y0, g, 1, scale); /* calculate signs */
+	I16 xmin = g.lim[0][0]*scale - 1, xmax = g.lim[0][1]*scale + 1;
+	I16 ymin = g.lim[1][0]*scale - 1, ymax = g.lim[1][1]*scale + 1;
+	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
+	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
+		F64 d = INF;
+		for (I16 cont = 0, start = 0; cont < g.ncont; cont++) {
+			U16 n = g.ends[cont]+1-start;
+			for (U16 i = 0; i < n;) {
+				U16 curr = start + i, next = start + MOD(i+1, n), last = start + MOD(i+2, n);
+				I16 x1 = g.xy[0][curr]*scale, y1 = g.xy[1][curr]*scale;
+				I16 x2 = g.xy[0][next]*scale, y2 = g.xy[1][next]*scale;
+				I16 x3 = g.xy[0][last]*scale, y3 = g.xy[1][last]*scale;
+				if (g.on[next]) {
+					d = MIN(d, distline(x - x0, y0 - y, x1, y1, x2, y2));
+					i += 1;
+				} else {
+					d = MIN(d, distcurve(x - x0, y0 - y, x1, y1, x2, y2, x3, y3, d));
+					i += 2;
+				}
+			}
+			start += n;
+		}
+		*(F32 *)&PIXEL(f, x, y) = fsetsign(d, PIXEL(f, x, y));
+	}
+	/* NOTE: this code is for debugging */
+	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
+	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
+		F32 d = *(F32 *)&PIXEL(f, x, y);
+		F32 a = smoothstep(5, 0, ABS(d)) * 255;
+		if (d > 0)
+			PIXEL(f, x, y) = RGBA(a, a, 0, 255);
+		else
+			PIXEL(f, x, y) = RGBA(a, 0, a, 255);
 	}
 }
 
