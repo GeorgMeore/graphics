@@ -39,29 +39,31 @@ typedef enum {
 } Segtype;
 
 typedef struct {
-	I16 c[3][2];
+	I16 x[3], y[3];
 	U8  type;
 } Segment;
 
 typedef struct {
 	I16     nseg;
 	Segment *segs;
-	I16     lim[2][2];
+	I16     xmin, xmax;
+	I16     ymin, ymax;
 	U16     advance;
 	I16     lsb;
 } Glyph;
 
 typedef struct {
-	Arena mem;
-	I16   ascend;
-	I16   descend;
-	I16   linegap;
-	U16   upm;
-	I16   lim[2][2];
-	U16   nglyph;
-	Glyph *glyphs;
-	U16   npoints;
-	U16   *ctable[2];
+	Arena  mem;
+	I16    ascend;
+	I16    descend;
+	I16    linegap;
+	U16    upm;
+	I16    xmin, xmax;
+	I16    ymin, ymax;
+	U16    nglyph;
+	Glyph  *glyphs;
+	U16    npoints;
+	U16    *ctable[2];
 } Font;
 
 typedef struct {
@@ -89,10 +91,10 @@ static void pointstoglyph(Glyph *g, Points *p)
 					x1 = (x1 + x2)/2, y1 = (y1 + y2)/2;
 				if (!p->on[next])
 					x3 = (x3 + x2)/2, y3 = (y3 + y2)/2;
-				g->segs[nseg] = (Segment){{{x1, y1}, {x2, y2}, {x3, y3}}, SegQuad};
+				g->segs[nseg] = (Segment){{x1, x2, x3}, {y1, y2, y3}, SegQuad};
 				nseg += 1;
 			} else if (p->on[next]) {
-				g->segs[nseg] = (Segment){{{x2, y2}, {x3, y3}}, SegLine};
+				g->segs[nseg] = (Segment){{x2, x3}, {y2, y3}, SegLine};
 				nseg += 1;
 			}
 		}
@@ -222,13 +224,13 @@ static OK parseglyph(IOBuffer *b, Font *f, Points *p, U16 index, U32 glyf, U32 *
 	if (ncont == 0)
 		return 1;
 	Glyph *g = &f->glyphs[index];
-	g->lim[0][0] = readbe(b, 2);
-	g->lim[1][0] = readbe(b, 2);
-	g->lim[0][1] = readbe(b, 2);
-	g->lim[1][1] = readbe(b, 2);
-	OK ok = g->lim[0][0] < g->lim[0][1] && g->lim[1][0] < g->lim[1][1] &&
-		g->lim[0][0] >= f->lim[0][0] && g->lim[0][1] <= f->lim[0][1] &&
-		g->lim[1][0] >= f->lim[1][0] && g->lim[1][1] <= f->lim[1][1];
+	g->xmin = readbe(b, 2);
+	g->ymin = readbe(b, 2);
+	g->xmax = readbe(b, 2);
+	g->ymax = readbe(b, 2);
+	OK ok = g->xmin < g->xmax && g->ymin < g->ymax &&
+		g->xmin >= f->xmin && g->xmax <= f->xmax &&
+		g->ymin >= f->ymin && g->ymax <= f->ymax;
 	if (!ok)
 		return 0;
 	p->nvert = p->ncont = 0;
@@ -238,10 +240,12 @@ static OK parseglyph(IOBuffer *b, Font *f, Points *p, U16 index, U32 glyf, U32 *
 		ok = parsecompoundglyph(b, p, glyf, locations, maxconts, maxpts);
 	if (!ok)
 		return 0;
-	for (I16 comp = 0; comp < 2; comp++)
-	for (U16 i = 0; i < p->nvert; i++)
-		if (p->xy[comp][i] < g->lim[comp][0] || p->xy[comp][i] > g->lim[comp][1])
+	for (U16 i = 0; i < p->nvert; i++) {
+		if (p->xy[0][i] < g->xmin || p->xy[0][i] > g->xmax)
 			return 0;
+		if (p->xy[1][i] < g->ymin || p->xy[1][i] > g->ymax)
+			return 0;
+	}
 	pointstoglyph(g, p);
 	return 1;
 }
@@ -261,10 +265,10 @@ static OK parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 lo
 	skip(b, 4+4+4+4+2); /* version, fontRevision, checkSumAdjustment, magicNumber, flags */
 	f->upm = readbe(b, 2);
 	skip(b, 8+8); /* created, modified */
-	f->lim[0][0] = readbe(b, 2);
-	f->lim[1][0] = readbe(b, 2);
-	f->lim[0][1] = readbe(b, 2);
-	f->lim[1][1] = readbe(b, 2);
+	f->xmin = readbe(b, 2);
+	f->ymin = readbe(b, 2);
+	f->xmax = readbe(b, 2);
+	f->ymax = readbe(b, 2);
 	skip(b, 2+2+2); /* macStyle, lowestRecPPEM, fontDirectionHint */
 	I16 indextolocformat = readbe(b, 2);
 	if (indextolocformat != 0 && indextolocformat != 1)
@@ -278,18 +282,18 @@ static OK parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 lo
 		locations[i] = offset*locascale;
 	}
 	f->glyphs = aralloc(&f->mem, f->nglyph * sizeof(Glyph));
-	Points tmp = {
+	/* NOTE: a contour of n points consists of no more than n+1 segments */
+	U16 maxsegs = maxpts + maxconts;
+	for (U16 i = 0; i < f->nglyph; i++)
+		f->glyphs[i].segs = aralloc(&f->mem, maxsegs * sizeof(Segment));
+	Points p = {
 		.on    = aralloc(&f->mem, maxpts),
 		.ends  = aralloc(&f->mem, maxconts * sizeof(U16)),
 		.xy[0] = aralloc(&f->mem, maxpts * sizeof(I16)),
 		.xy[1] = aralloc(&f->mem, maxpts * sizeof(I16)),
 	};
-	/* a contour of n points consists of no more than n+1 segments */
-	U16 maxsegs = maxpts + maxconts;
-	for (U16 i = 0; i < f->nglyph; i++) {
-		f->glyphs[i].segs = aralloc(&f->mem, maxsegs * sizeof(Segment));
-		parseglyph(b, f, &tmp, i, glyf, locations, maxconts, maxpts);
-	}
+	for (U16 i = 0; i < f->nglyph; i++)
+		parseglyph(b, f, &p, i, glyf, locations, maxconts, maxpts);
 	return 1;
 }
 
@@ -414,8 +418,10 @@ Font parsettf(IOBuffer *b)
 	OK ok = parseglyphs(b, &f, head, maxp, glyf, loca) &&
 		parsemetrics(b, &f, hmtx, hhea) &&
 		parsectable(b, &f, cmap);
-	if (!ok || b->error)
-		panic("parsing failed");
+	if (!ok || b->error) {
+		arfree(&f.mem);
+		f = (Font){0};
+	}
 	return f;
 }
 
@@ -530,8 +536,8 @@ void drawraster(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale, U8 ss)
 {
 	if (!g.nseg)
 		return;
-	I16 xmin = g.lim[0][0]*scale - 1, xmax = g.lim[0][1]*scale + 1;
-	I16 ymin = g.lim[1][0]*scale - 1, ymax = g.lim[1][1]*scale + 1;
+	I16 xmin = g.xmin*scale - 1, xmax = g.xmax*scale + 1;
+	I16 ymin = g.ymin*scale - 1, ymax = g.ymax*scale + 1;
 	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
 	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
 		I32 hits = 0;
@@ -540,9 +546,9 @@ void drawraster(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale, U8 ss)
 			I32 wn = 0;
 			for (I i = 0; i < g.nseg; i++) {
 				Segment s = g.segs[i];
-				I16 x1 = s.c[0][0]*ss*scale, y1 = s.c[0][1]*ss*scale;
-				I16 x2 = s.c[1][0]*ss*scale, y2 = s.c[1][1]*ss*scale;
-				I16 x3 = s.c[2][0]*ss*scale, y3 = s.c[2][1]*ss*scale;
+				I16 x1 = s.x[0]*ss*scale, y1 = s.y[0]*ss*scale;
+				I16 x2 = s.x[1]*ss*scale, y2 = s.y[1]*ss*scale;
+				I16 x3 = s.x[2]*ss*scale, y3 = s.y[2]*ss*scale;
 				if (s.type == SegQuad)
 					wn += isectcurve((x-x0)*ss + dx, (y0-y)*ss + dy, x1, y1, x2, y2, x3, y3);
 				else
@@ -560,17 +566,17 @@ void drawsdf(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 {
 	if (!g.nseg)
 		return;
-	I16 xmin = g.lim[0][0]*scale - 1, xmax = g.lim[0][1]*scale + 1;
-	I16 ymin = g.lim[1][0]*scale - 1, ymax = g.lim[1][1]*scale + 1;
+	I16 xmin = g.xmin*scale - 1, xmax = g.xmax*scale + 1;
+	I16 ymin = g.ymin*scale - 1, ymax = g.ymax*scale + 1;
 	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
 	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
 		I32 wn = 0;
 		F64 d = INF;
 		for (I i = 0; i < g.nseg; i++) {
 			Segment s = g.segs[i];
-			I16 x1 = s.c[0][0]*scale, y1 = s.c[0][1]*scale;
-			I16 x2 = s.c[1][0]*scale, y2 = s.c[1][1]*scale;
-			I16 x3 = s.c[2][0]*scale, y3 = s.c[2][1]*scale;
+			I16 x1 = s.x[0]*scale, y1 = s.y[0]*scale;
+			I16 x2 = s.x[1]*scale, y2 = s.y[1]*scale;
+			I16 x3 = s.x[2]*scale, y3 = s.y[2]*scale;
 			if (s.type == SegQuad) {
 				wn += isectcurve(x - x0, y0 - y, x1, y1, x2, y2, x3, y3);
 			} else {
@@ -678,16 +684,16 @@ void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 {
 	if (!g.nseg)
 		return;
-	I16 xmin = g.lim[0][0]*scale - 1, xmax = g.lim[0][1]*scale + 1;
-	I16 ymin = g.lim[1][0]*scale - 1, ymax = g.lim[1][1]*scale + 1;
+	I16 xmin = g.xmin*scale - 1, xmax = g.xmax*scale + 1;
+	I16 ymin = g.ymin*scale - 1, ymax = g.ymax*scale + 1;
 	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++)
 	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
 		PIXEL(f, x, y) = 0;
-	for (I i = 0; i < g.nseg; i++) {
+	for (U16 i = 0; i < g.nseg; i++) {
 		Segment s = g.segs[i];
-		I16 x1 = s.c[0][0]*scale, y1 = s.c[0][1]*scale;
-		I16 x2 = s.c[1][0]*scale, y2 = s.c[1][1]*scale;
-		I16 x3 = s.c[2][0]*scale, y3 = s.c[2][1]*scale;
+		I16 x1 = s.x[0]*scale, y1 = s.y[0]*scale;
+		I16 x2 = s.x[1]*scale, y2 = s.y[1]*scale;
+		I16 x3 = s.x[2]*scale, y3 = s.y[2]*scale;
 		if (s.type == SegQuad) {
 			I16 ylo = MIN3(y1, y2, y3), yhi = MAX3(y1, y2, y3);
 			for (I16 y = CLIPY(f, y0 - yhi); y < CLIPY(f, y0 - ylo + 1); y++) {
@@ -771,16 +777,16 @@ void drawsdf2(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 	if (!g.nseg)
 		return;
 	drawraster2(f, x0, y0, g, 1, scale); /* calculate signs */
-	I16 xmin = g.lim[0][0]*scale - 1, xmax = g.lim[0][1]*scale + 1;
-	I16 ymin = g.lim[1][0]*scale - 1, ymax = g.lim[1][1]*scale + 1;
+	I16 xmin = g.xmin*scale - 1, xmax = g.xmax*scale + 1;
+	I16 ymin = g.ymin*scale - 1, ymax = g.ymax*scale + 1;
 	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
 	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
 		F64 d = INF;
 		for (I i = 0; i < g.nseg; i++) {
 			Segment s = g.segs[i];
-			I16 x1 = s.c[0][0]*scale, y1 = s.c[0][1]*scale;
-			I16 x2 = s.c[1][0]*scale, y2 = s.c[1][1]*scale;
-			I16 x3 = s.c[2][0]*scale, y3 = s.c[2][1]*scale;
+			I16 x1 = s.x[0]*scale, y1 = s.y[0]*scale;
+			I16 x2 = s.x[1]*scale, y2 = s.y[1]*scale;
+			I16 x3 = s.x[2]*scale, y3 = s.y[2]*scale;
 			if (s.type == SegQuad)
 				d = MIN(d, distcurve(x - x0, y0 - y, x1, y1, x2, y2, x3, y3, d));
 			else
@@ -801,9 +807,9 @@ void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 {
 	for (I i = 0; i < g.nseg; i++) {
 		Segment s = g.segs[i];
-		I16 x1 = s.c[0][0]*scale, y1 = s.c[0][1]*scale;
-		I16 x2 = s.c[1][0]*scale, y2 = s.c[1][1]*scale;
-		I16 x3 = s.c[2][0]*scale, y3 = s.c[2][1]*scale;
+		I16 x1 = s.x[0]*scale, y1 = s.y[0]*scale;
+		I16 x2 = s.x[1]*scale, y2 = s.y[1]*scale;
+		I16 x3 = s.x[2]*scale, y3 = s.y[2]*scale;
 		if (s.type == SegQuad)
 			drawbezier(f, x0+x1, y0-y1, x0+x2, y0-y2, x0+x3, y0-y3, c);
 		else
