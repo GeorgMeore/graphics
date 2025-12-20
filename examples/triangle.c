@@ -20,6 +20,9 @@ void updatepoint(Image *i, int p[2])
 	}
 }
 
+#define BGCOLOR RGBA(18, 18, 18, 255)
+#define TRCOLOR RGBA(255, 255, 255, 100)
+
 int main(void)
 {
 	winopen(600, 600, "Triangle", 60);
@@ -32,13 +35,13 @@ int main(void)
 			updatepoint(fb, pt[i]);
 		if (keywaspressed('s'))
 			smooth = !smooth;
-		drawclear(fb, BLACK);
+		drawclear(fb, BGCOLOR);
 		for (int i = 0; i < 3; i++)
 			drawsmoothcircle(fb, pt[i][0], pt[i][1], 5, c[i]);
 		if (smooth)
-			drawsmoothtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], WHITE);
+			drawsmoothtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], TRCOLOR);
 		else
-			drawtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], WHITE);
+			drawtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], TRCOLOR);
 	}
 	winclose();
 	return 0;
