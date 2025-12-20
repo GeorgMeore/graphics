@@ -29,17 +29,25 @@ void drawtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Colo
 		SWAP(x1, x2);
 		SWAP(y1, y2);
 	}
-	for (I64 y = CLIPY(i, y1); y < CLIPY(i, y2); y++) {
-		I64 x12 = x1 + DIVROUND((2*(y - y1) + 1)*(x2 - x1), 2*(y2 - y1));
-		I64 x13 = x1 + DIVROUND((2*(y - y1) + 1)*(x3 - x1), 2*(y3 - y1));
-		for (I64 x = CLIPX(i, MIN(x12, x13)); x < CLIPX(i, MAX(x12, x13)+1); x++)
-			PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
-	}
-	for (I64 y = CLIPY(i, y2); y < CLIPY(i, y3); y++) {
-		I64 x23 = x2 + DIVROUND((2*(y - y2) + 1)*(x3 - x2), 2*(y3 - y2));
-		I64 x13 = x1 + DIVROUND((2*(y - y1) + 1)*(x3 - x1), 2*(y3 - y1));
-		for (I64 x = CLIPX(i, MIN(x13, x23)); x < CLIPX(i, MAX(x13, x23)+1); x++)
-			PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
+	if (y1 == y3) {
+		for (I64 x = CLIPX(i, MIN3(x1, x2, x3)); x < CLIPX(i, MAX3(x1, x2, x3)+1); x++)
+			PIXEL(i, x, y1) = blend(PIXEL(i, x, y1), c);
+	} else {
+		I64 ymid = y2;
+		if (y2 == y3)
+			ymid += 1;
+		for (I64 y = CLIPY(i, y1); y < CLIPY(i, ymid); y++) {
+			I64 x12 = x1 + DIVROUND((y - y1)*(x2 - x1), (y2 - y1));
+			I64 x13 = x1 + DIVROUND((y - y1)*(x3 - x1), (y3 - y1));
+			for (I64 x = CLIPX(i, MIN(x12, x13)); x < CLIPX(i, MAX(x12, x13)+1); x++)
+				PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
+		}
+		for (I64 y = CLIPY(i, ymid); y < CLIPY(i, y3 + 1); y++) {
+			I64 x23 = x2 + DIVROUND((y - y2)*(x3 - x2), (y3 - y2));
+			I64 x13 = x1 + DIVROUND((y - y1)*(x3 - x1), (y3 - y1));
+			for (I64 x = CLIPX(i, MIN(x13, x23)); x < CLIPX(i, MAX(x13, x23)+1); x++)
+				PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
+		}
 	}
 }
 
