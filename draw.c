@@ -240,6 +240,7 @@ void drawpixel(Image *i, I16 x, I16 y, Color c)
 		PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 }
 
+/* NOTE: a fully incremental version I tried didn't perform better */
 static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
 {
 	const I64 n = 3;
@@ -249,13 +250,15 @@ static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2,
 		SWAP(x1, x2);
 		SWAP(y1, y2);
 	}
-	I64 xlim = flip*i->h + (1 - flip)*i->w - 1;
-	I64 ylim = flip*i->w + (1 - flip)*i->h - 1;
+	I64 xlim, ylim;
+	if (flip)
+		xlim = i->h, ylim = i->w;
+	else
+		xlim = i->w, ylim = i->h;
 	I64 xmin = CLAMP(x1 - 2*w, 0, xlim), xmax = CLAMP(x2 + 2*w+1, 0, xlim);
 	for (I64 x = xmin; x < xmax; x++) {
 		I64 yc = y1 + DIVROUND((x - x1)*(y2 - y1), (x2 - x1));
 		I64 ymin = CLAMP(yc-2*w, 0, ylim), ymax = CLAMP(yc+2*w+1, 0, ylim);
-		/* NOTE: a fully incremental version I tried didn't perform better */
 		I64 o1 = n*((x - x1)*(x2 - x1) + (ymin - y1)*(y2 - y1));
 		I64 o2 = n*((x - x2)*(x2 - x1) + (ymin - y2)*(y2 - y1));
 		I64 d  = n*((x - x1)*(y1 - y2) + (ymin - y1)*(x2 - x1));
