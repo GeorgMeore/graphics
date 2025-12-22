@@ -8,6 +8,33 @@
 /* IDEA: introduce a separate "shadering" rendering step, that would handle
  * pixel-by-pixel-rendered objects in pararallel using multiple threads */
 
+/* NOTE: In raster graphics, there is an ambiguity in how integer coordinates relate
+ * to pixel geometry. Does a point [(x, y)] specify the center of the pixel
+ * at row [y] and column [x]? Or some of its corners?
+ *
+ * This distinction becomes visible when you do supersampling, because vertex coordinates
+ * are transformed differently and rendering outputs will vary slightly.
+ *
+ * E.g. if you choose the pixel-center interpretation, we can see that a
+ * vertex [o = (x, y)] after scaling becomes [(x*n + (n-1)/2, y*n + (n-1)/2)]:
+ *
+ *       no supersampling                    x2                           x3
+ *  ,-----------------------,    ,-----------------------,    ,-----------------------,
+ *  |                       |    |           '           |    |       '       '       |
+ *  |                       |    |           '           |    |   *   '   *   '   *   |
+ *  |                       |    |     *     '     *     |    |(3x,3y)'       '       |
+ *  |                       |    |  (2x,2y)  '           |    |- - - -'- - - -'- - - -|
+ *  |                       |    |           '           |    |       '       '       |
+ *  |           o           |    |- - - - - -o- - - - - -|    |   *   '   o   '   *   |
+ *  |                       |    |           '           |    |       '       '       |
+ *  |         (x,y)         |    |           '           |    |- - - -'- - - -'- - - -|
+ *  |                       |    |     *     '     *     |    |       '       '       |
+ *  |                       |    |           '           |    |   *   '   *   '   *   |
+ *  |                       |    |           '           |    |       '       '       |
+ *  '-----------------------'    '-----------------------'    '-----------------------'
+ *
+ * Currently code here uses top-left corner interpretation (because math is a bit easier this way). */
+
 void drawclear(Image *i, Color c)
 {
 	for (I64 x = 0; x < i->w; x++)
@@ -64,7 +91,7 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 	const I64 n = 3;
 	I64 xmin = CLIPX(i, MIN3(x1, x2, x3)), xmax = CLIPX(i, MAX3(x1, x2, x3)+1);
 	I64 ymin = CLIPY(i, MIN3(y1, y2, y3)), ymax = CLIPY(i, MAX3(y1, y2, y3)+1);
-	/* NOTE: fix the winding order if the third vertex is to the left of the other two*/
+	/* NOTE: ensure clockwise winding */
 	if ((y3 - y1)*(x2 - x1) - (x3 - x1)*(y2 - y1) < 0) {
 		SWAP(x2, x3);
 		SWAP(y2, y3);
