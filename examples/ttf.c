@@ -475,212 +475,79 @@ U16 findglyph(Font f, U64 code)
  * For parabolas it's a bit more tricky, but the idea is the same.
  */
 
-static I32 isectline(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
-{
-	if (y1 == y2 || ry < MIN(y1, y2) || ry > MAX(y1, y2) || rx > MAX(x1, x2))
-		return 0;
-	if ((ry == y1 && rx <= x1) || (ry == y2 && rx <= x2))
-		return SIGN(y2 - y1);
-	I64 o = SIGN((ry - y1)*(x2 - x1) - (rx - x1)*(y2 - y1)) * SIGN(y2 - y1);
-	if (o < 0)
-		return 0;
-	return 2*SIGN(y2 - y1);
-}
-
-/* TODO: we could use a "tesselating" approach (just split the curve into a bunch of lines),
- * this way we could try to apply AVX to paralellize the winding number computations. */
-static I32 isectcurve(I16 rx, I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
-{
-	if (ry < MIN3(y1, y2, y3) || ry > MAX3(y1, y2, y3) || rx > MAX3(x1, x2, x3))
-		return 0;
-	F64 a = y1 - 2*y2 + y3;
-	F64 b = 2*(y2 - y1);
-	F64 c = y1 - ry;
-	Poly x = {{x1, 2*(x2 - x1), x1 - 2*x2 + x3}, 2};
-	if (a == 0) {
-		F64 t = -c/b;
-		if (t >= 0 && t <= 1 && rx <= eval(x, t)) {
-			if (t == 0 || t == 1)
-				return SIGN(y2 - y1);
-			return 2*(SIGN(y2 - y1));
-		}
-		return 0;
-	}
-	I64 d = b*b - 4*a*c;
-	if (d < 0)
-		return 0;
-	if (d == 0) {
-		F64 t = -b/(2*a);
-		if ((t == 0 || t == 1) && rx <= eval(x, t))
-			return SIGN(y3 - y1);
-		return 0;
-	}
-	I32 wn = 0;
-	F64 t[2] = {(-b - fsqrt(d))/(2*a), (-b + fsqrt(d))/(2*a)};
-	for (I i = 0; i < 2; i++) {
-		if (t[i] >= 0 && t[i] <= 1 && rx <= eval(x, t[i])) {
-			if (t[i] == 0)
-				wn += SIGN(y2 - y1);
-			else if (t[i] == 1)
-				wn += SIGN(y3 - y2);
-			else if (t[i] < -b/(2*a))
-				wn += 2*SIGN(y2 - y1);
-			else
-				wn += 2*SIGN(y3 - y2);
-		}
-	}
-	return wn;
-}
-
-void drawraster(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale, U8 ss)
-{
-	if (!g.nseg)
-		return;
-	I16 xmin = g.xmin*scale - 1, xmax = g.xmax*scale + 1;
-	I16 ymin = g.ymin*scale - 1, ymax = g.ymax*scale + 1;
-	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
-	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
-		I32 hits = 0;
-		for (I16 dx = 0; dx < ss; dx++)
-		for (I16 dy = 0; dy < ss; dy++) {
-			I32 wn = 0;
-			for (I i = 0; i < g.nseg; i++) {
-				Segment s = g.segs[i];
-				I16 x1 = s.x[0]*ss*scale, y1 = s.y[0]*ss*scale;
-				I16 x2 = s.x[1]*ss*scale, y2 = s.y[1]*ss*scale;
-				I16 x3 = s.x[2]*ss*scale, y3 = s.y[2]*ss*scale;
-				if (s.type == SegQuad)
-					wn += isectcurve((x-x0)*ss + dx, (y0-y)*ss + dy, x1, y1, x2, y2, x3, y3);
-				else
-					wn += isectline((x-x0)*ss + dx, (y0-y)*ss + dy, x1, y1, x2, y2);
-			}
-			hits += wn != 0;
-		}
-		if (hits)
-			PIXEL(f, x, y) = RGBA(R(c)*hits/(ss*ss), G(c)*hits/(ss*ss), B(c)*hits/(ss*ss), A(c)*hits/(ss*ss));
-	}
-}
-
-/* TODO: more stuff for SDF */
-void drawsdf(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
-{
-	if (!g.nseg)
-		return;
-	I16 xmin = g.xmin*scale - 1, xmax = g.xmax*scale + 1;
-	I16 ymin = g.ymin*scale - 1, ymax = g.ymax*scale + 1;
-	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
-	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
-		I32 wn = 0;
-		F64 d = INF;
-		for (I i = 0; i < g.nseg; i++) {
-			Segment s = g.segs[i];
-			I16 x1 = s.x[0]*scale, y1 = s.y[0]*scale;
-			I16 x2 = s.x[1]*scale, y2 = s.y[1]*scale;
-			I16 x3 = s.x[2]*scale, y3 = s.y[2]*scale;
-			if (s.type == SegQuad) {
-				wn += isectcurve(x - x0, y0 - y, x1, y1, x2, y2, x3, y3);
-			} else {
-				wn += isectline(x - x0, y0 - y, x1, y1, x2, y2);
-				x3 = x2, y3 = y2;
-			}
-			Poly dx = {{(x1 - x + x0), 2*(x2 - x1), x3 + x1 - 2*x2}, 2};
-			Poly dy = {{(y1 - y0 + y), 2*(y2 - y1), y3 + y1 - 2*y2}, 2};
-			Poly d2 = padd(pmul(dx, dx), pmul(dy, dy));
-			Roots r = roots(ddx(d2));
-			d = MIN3(d, eval(d2, 0), eval(d2, 1));
-			for (U8 i = 0; i < r.n; i++)
-				if (r.v[i] > 0 && r.v[i] < 1)
-					d = MIN(d, eval(d2, r.v[i]));
-		}
-		*(F32 *)&PIXEL(f, x, y) = fsetsign(d, wn);
-	}
-	/* NOTE: this code is for debugging */
-	/*
-	 * for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
-	 * for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
-	 * 	F32 d = *(F32 *)&PIXEL(f, x, y);
-	 * 	F32 a = smoothstep(5, 0, ABS(d)) * 255;
-	 * 	PIXEL(f, x, y) = RGBA(a, a, a, 255);
-	 * }
-	 */
-}
-
 typedef struct {
 	F64 x[2];
 	I8  wn[2];
-	I8  n;
-} Isects;
+	U8  n;
+} Hit;
 
-static Isects isectline2(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
+static Hit isectline(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2)
 {
-	Isects i = {0};
+	Hit h = {0};
 	if (y1 == y2)
-		return i;
-	i.n = 1;
+		return h;
+	h.n = 1;
 	if (ry == y1) {
-		i.x[0] = x1, i.wn[0] = SIGN(y2 - y1);
+		h.x[0] = x1, h.wn[0] = SIGN(y2 - y1);
 	} else if (ry == y2) {
-		i.x[0] = x2, i.wn[0] = SIGN(y2 - y1);
+		h.x[0] = x2, h.wn[0] = SIGN(y2 - y1);
 	} else {
-		i.x[0] = (x1*(y2 - y1) + (ry - y1)*(x2 - x1))/(F64)(y2 - y1);
-		i.wn[0] = 2*SIGN(y2 - y1);
+		h.x[0] = (x1*(y2 - y1) + (ry - y1)*(x2 - x1))/(F64)(y2 - y1);
+		h.wn[0] = 2*SIGN(y2 - y1);
 	}
-	return i;
+	return h;
 }
 
-static Isects isectcurve2(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
+static Hit isectcurve(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 {
 	F64 a = y1 - 2*y2 + y3;
 	F64 b = 2*(y2 - y1);
 	F64 c = y1 - ry;
 	Poly x = {{x1, 2*(x2 - x1), x1 - 2*x2 + x3}, 2};
-	Isects i = {0};
+	Hit h = {0};
 	if (a == 0) {
 		F64 t = -c/b;
 		if (t >= 0 && t <= 1) {
-			i.n = 1;
-			i.x[0] = eval(x, t);
+			h.n = 1;
+			h.x[0] = eval(x, t);
 			if (t == 0 || t == 1)
-				i.wn[0] = SIGN(y2 - y1);
+				h.wn[0] = SIGN(y2 - y1);
 			else
-				i.wn[0] = 2*SIGN(y2 - y1);
+				h.wn[0] = 2*SIGN(y2 - y1);
 		}
-		return i;
+		return h;
 	}
 	I64 d = b*b - 4*a*c;
 	if (d < 0)
-		return i;
+		return h;
 	if (d == 0) {
 		F64 t = -b/(2*a);
 		if (t == 0 || t == 1) {
-			i.n = 1;
-			i.x[0] = eval(x, t);
-			i.wn[0] = SIGN(y3 - y1);
+			h.n = 1;
+			h.x[0] = eval(x, t);
+			h.wn[0] = SIGN(y3 - y1);
 		}
-		return i;
+		return h;
 	}
 	F64 t[2] = {(-b - fsqrt(d))/(2*a), (-b + fsqrt(d))/(2*a)};
 	for (I j = 0; j < 2; j++) {
 		if (t[j] >= 0 && t[j] <= 1) {
-			i.x[i.n] = eval(x, t[j]);
+			h.x[h.n] = eval(x, t[j]);
 			if (t[j] == 0)
-				i.wn[i.n] = SIGN(y2 - y1);
+				h.wn[h.n] = SIGN(y2 - y1);
 			else if (t[j] == 1)
-				i.wn[i.n] = SIGN(y3 - y2);
+				h.wn[h.n] = SIGN(y3 - y2);
 			else if (t[j] < -b/(2*a))
-				i.wn[i.n] = 2*SIGN(y2 - y1);
+				h.wn[h.n] = 2*SIGN(y2 - y1);
 			else
-				i.wn[i.n] = 2*SIGN(y3 - y2);
-			i.n += 1;
+				h.wn[h.n] = 2*SIGN(y3 - y2);
+			h.n += 1;
 		}
 	}
-	return i;
+	return h;
 }
 
-/* IDEA: use 4 bytes of the color for 4 bitmap points,
- * I think byte overflows will never happen on sane fonts */
-/* TODO: implement a version wiht aa */
-void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
+void drawbmp(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 {
 	if (!g.nseg)
 		return;
@@ -694,23 +561,21 @@ void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 		I16 x1 = s.x[0]*scale, y1 = s.y[0]*scale;
 		I16 x2 = s.x[1]*scale, y2 = s.y[1]*scale;
 		I16 x3 = s.x[2]*scale, y3 = s.y[2]*scale;
-		if (s.type == SegQuad) {
-			I16 ylo = MIN3(y1, y2, y3), yhi = MAX3(y1, y2, y3);
-			for (I16 y = CLIPY(f, y0 - yhi); y < CLIPY(f, y0 - ylo + 1); y++) {
-				Isects is = isectcurve2(y0 - y, x1, y1, x2, y2, x3, y3);
-				for (I16 j = 0; j < is.n; j++) {
-					I16 x = CLIPX(f, x0 + is.x[j] + 1) - 1;
-					if (x >= 0)
-						PIXEL(f, x, y) += is.wn[j];
-				}
-			}
-		} else {
-			I16 ylo = MIN(y1, y2), yhi = MAX(y1, y2);
-			for (I16 y = CLIPY(f, y0 - yhi); y < CLIPY(f, y0 - ylo + 1); y++) {
-				Isects is = isectline2(y0 - y, x1, y1, x2, y2);
-				I16 x = CLIPX(f, x0 + is.x[0] + 1) - 1;
+		I16 ylo, yhi;
+		if (s.type == SegQuad)
+			ylo = MIN3(y1, y2, y3), yhi = MAX3(y1, y2, y3);
+		else
+			ylo = MIN(y1, y2), yhi = MAX(y1, y2);
+		for (I16 y = CLIPY(f, y0 - yhi); y < CLIPY(f, y0 - ylo + 1); y++) {
+			Hit h;
+			if (s.type == SegQuad)
+				h = isectcurve(y0 - y, x1, y1, x2, y2, x3, y3);
+			else
+				h = isectline(y0 - y, x1, y1, x2, y2);
+			for (I16 j = 0; j < h.n; j++) {
+				I16 x = CLIPX(f, x0 + h.x[j] + 1) - 1;
 				if (x >= 0)
-					PIXEL(f, x, y) += is.wn[0];
+					PIXEL(f, x, y) += h.wn[j];
 			}
 		}
 	}
@@ -720,13 +585,13 @@ void drawraster2(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
 			wn += PIXEL(f, x, y);
 		for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++) {
 			I32 dwn = PIXEL(f, x, y);
-			PIXEL(f, x, y) = BOOL(wn) * c;
+			PIXEL(f, x, y) = BOOL(wn);
 			wn -= dwn;
 		}
 	}
 }
 
-F64 distline(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2)
+static F64 distline(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2)
 {
 	F64 dx = x2 - x1, dy = y2 - y1;
 	F64 wx = x - x1,  wy = y - y1;
@@ -740,7 +605,7 @@ F64 distline(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2)
 	return n*n / l2;
 }
 
-F64 disttriangle(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3)
+static F64 disttriangle(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3)
 {
 	F64 o1 = (x - x1)*(y2 - y1) - (y - y1)*(x2 - x1);
 	F64 o2 = (x - x2)*(y3 - y2) - (y - y2)*(x3 - x2);
@@ -754,10 +619,10 @@ F64 disttriangle(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3)
 	);
 }
 
-F64 distcurve(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3, F64 dmin)
+static F64 distcurve(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3, F64 dmin)
 {
 	/* NOTE: if the current minimal distance is less than the distance
-	 * to the bouding triangle, we can safely skip this curve*/
+	 * to the bouding triangle, we can safely skip this curve */
 	if (dmin < disttriangle(x, y, x1, y1, x2, y2, x3, y3))
 		return dmin;
 	/* NOTE: search for extremums of the square distance function */
@@ -772,11 +637,11 @@ F64 distcurve(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3, F64 
 	return d;
 }
 
-void drawsdf2(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
+void drawsdf(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 {
 	if (!g.nseg)
 		return;
-	drawraster2(f, x0, y0, g, 1, scale); /* calculate signs */
+	drawbmp(f, x0, y0, g, scale); /* calculate signs */
 	I16 xmin = g.xmin*scale - 1, xmax = g.xmax*scale + 1;
 	I16 ymin = g.ymin*scale - 1, ymax = g.ymax*scale + 1;
 	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
@@ -795,12 +660,14 @@ void drawsdf2(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 		*(F32 *)&PIXEL(f, x, y) = fsetsign(d, PIXEL(f, x, y));
 	}
 	/* NOTE: this code is for debugging */
-	for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
-	for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
-		F32 d = *(F32 *)&PIXEL(f, x, y);
-		F32 a = smoothstep(5, 0, ABS(d)) * 255;
-		PIXEL(f, x, y) = RGBA(a, a, a, 255);
-	}
+	/*
+	 * for (I16 x = CLIPX(f, x0 + xmin); x < CLIPX(f, x0 + xmax + 1); x++)
+	 * for (I16 y = CLIPY(f, y0 - ymax); y < CLIPY(f, y0 - ymin + 1); y++) {
+	 * 	F32 d = *(F32 *)&PIXEL(f, x, y);
+	 * 	F32 a = smoothstep(5, 0, ABS(d)) * 255;
+	 * 	PIXEL(f, x, y) = RGBA(a, a, a, 255);
+	 * }
+	 */
 }
 
 void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale)
@@ -834,6 +701,114 @@ OK utf8(char **s, U64 *c)
 	return 1;
 }
 
+#define CACHESIZE 128
+
+typedef struct {
+	Image bmp;
+	I16 xoff, yoff, advance;
+} GBitmap;
+
+/* NOTE: this is a basic LRU cache */
+typedef struct {
+	Arena   mem;
+	F64     px;
+	GBitmap bmps[CACHESIZE];
+	Image   tmp;
+	U64     idxs[CACHESIZE];
+	U16     next[CACHESIZE];
+	U16     n, last;
+} GCache;
+
+void addglyph(GCache *c, Font fn, GBitmap *b, U16 idx, OK create)
+{
+	c->idxs[c->last] = idx;
+	F64 scale = c->px/fn.upm;
+	F64 w = (fn.xmax - fn.xmin)*scale + 2;
+	F64 h = (fn.ymax - fn.ymin)*scale + 2;
+	if (create) {
+		b->bmp.w = w;
+		b->bmp.s = w;
+		b->bmp.h = h;
+		b->bmp.p = aralloc(&c->mem, w*h * sizeof(Color));
+	}
+	I8 ss = 4;
+	if (c->n == 1) {
+		c->tmp.w = w*ss;
+		c->tmp.s = w*ss;
+		c->tmp.h = h*ss;
+		c->tmp.p = aralloc(&c->mem, (ss*ss)*w*h * sizeof(Color));
+	}
+	if (c->px > 100)
+		ss = 2;
+	Glyph g = fn.glyphs[idx];
+	b->xoff = g.xmin * scale;
+	b->yoff = 1 - (h + g.ymin * scale);
+	b->advance = g.advance * scale;
+	drawclear(&c->tmp, 0);
+	drawbmp(&c->tmp, -b->xoff*ss, -b->yoff*ss, g, scale*ss);
+	for (I y = 0; y < h; y++)
+	for (I x = 0; x < w; x++) {
+		I n = 0;
+		for (I dy = 0; dy < ss; dy++)
+		for (I dx = 0; dx < ss; dx++)
+			n += PIXEL(&c->tmp, x*ss + dx, y*ss + dy);
+		*(F32 *)&PIXEL(&b->bmp, x, y) = n / (F64)(ss*ss);
+	}
+}
+
+GBitmap *lookup(Font fn, GCache *c, U64 idx)
+{
+	U16 *pp = &c->last;
+	OK found = 0, create = 0;
+	for (U16 i = 0; i < c->n; i++) {
+		if (c->idxs[*pp] == idx) {
+			found = 1;
+			break;
+		}
+		pp = &c->next[*pp];
+	}
+	if (!found && c->n < CACHESIZE) {
+		c->next[c->n] = c->last;
+		c->last = c->n;
+		c->n += 1;
+		create = 1;
+	} else if (*pp != c->last) {
+		U16 p = *pp;
+		*pp = c->next[p];
+		c->next[p] = c->last;
+		c->last = p;
+	}
+	GBitmap *b = &c->bmps[c->last];
+	if (!found)
+		addglyph(c, fn, b, idx, create);
+	return b;
+}
+
+void clear(GCache *c)
+{
+	arclear(&c->mem);
+	c->n = 0;
+}
+
+void drawgbitmap(Image *f, I16 x0, I16 y0, Image bmp, Color c)
+{
+	for (I16 y = CLIPY(f, y0); y < CLIPY(f, y0 + bmp.h); y++)
+	for (I16 x = CLIPX(f, x0); x < CLIPX(f, x0 + bmp.w); x++) {
+		if (PIXEL(&bmp, x - x0, y - y0)) {
+			U8 a = *(F32 *)&PIXEL(&bmp, x - x0, y - y0) * 255.0;
+			PIXEL(f, x, y) = blend(PIXEL(f, x, y), RGBA(R(c), G(c), B(c), a));
+		}
+	}
+}
+
+I16 drawchar(Image *f, I16 x, I16 y, Font fn, GCache *gc, U64 code, Color c)
+{
+	U16 idx = findglyph(fn, code);
+	GBitmap *b = lookup(fn, gc, idx);
+	drawgbitmap(f, x+b->xoff, y+b->yoff, b->bmp, c);
+	return b->advance;
+}
+
 #define MAXRUNES 4096
 
 int main(int argc, char **argv)
@@ -843,33 +818,29 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	Font fn = openttf(argv[1]);
-	U64 n, r[MAXRUNES]/* = {'$', 'T', 'e', 's', 't', ' ', '5', '.', '4', '9', '2', '6', '7', '8', '4', '&'}*/;
+	U64 n, r[MAXRUNES];
 	for (n = 0; *argv[2]; n++) {
 		if (!utf8(&argv[2], &r[n]))
 			panic("invalid UTF8 string");
 		if (n >= MAXRUNES)
 			panic("string too long");
 	}
-	Glyph g[MAXRUNES] = {0};
-	F64 scale = 100.0/fn.upm;
-	I16 len = 0;
-	for (U64 i = 0; i < n; i++) {
-		g[i] = fn.glyphs[findglyph(fn, r[i])];
-		len += g[i].advance;
-	}
+	GCache c = {.px = 17};
 	winopen(1920, 1080, argv[0], 0);
 	while (!keyisdown('q')) {
 		Image *f = frame();
-		if (btnwaspressed(4))
-			scale *= 1.1;
-		if (btnwaspressed(5))
-			scale /= 1.1;
-		drawclear(f, RGBA(18, 18, 18, 255));
-		I16 x = mousex() - len*scale/2, y = mousey();
-		for (U32 i = 0; i < n; i++) {
-			drawraster(f, x, y, g[i], RGBA(255, 255, 255, 200), scale, 3);
-			x += g[i].advance*scale;
+		if (btnwaspressed(4)) {
+			c.px *= 1.1;
+			clear(&c);
 		}
+		if (btnwaspressed(5)) {
+			c.px /= 1.1;
+			clear(&c);
+		}
+		drawclear(f, RGBA(18, 18, 18, 255));
+		I16 x = mousex(), y = mousey();
+		for (U32 i = 0; i < n; i++)
+			x += drawchar(f, x, y, fn, &c, r[i], RGBA(255, 255, 255, 200));
 	}
 	winclose();
 	arfree(&fn.mem);
