@@ -197,7 +197,7 @@ Vec project(Camera c, Image *f, Vec p)
 	return toscreen((Vec){p.x*c.d/p.z, p.y*c.d/p.z, 1/p.z}, c, f);
 }
 
-void drawtriangle3d1(Image *i, Image *zb, Vec p1, Vec p2, Vec p3, Color c)
+void drawtriangle3d(Image *i, Image *zb, Vec p1, Vec p2, Vec p3, Color c)
 {
 	I64 xmin = CLIPX(i, fceil(MIN3(p1.x, p2.x, p3.x)));
 	I64 xmax = CLIPX(i, ffloor(MAX3(p1.x, p2.x, p3.x))+1);
@@ -223,44 +223,6 @@ void drawtriangle3d1(Image *i, Image *zb, Vec p1, Vec p2, Vec p3, Color c)
 		o1 += (p2.y - p1.y)*(xmax - xmin) + (p2.x - p1.x);
 		o2 += (p3.y - p2.y)*(xmax - xmin) + (p3.x - p2.x);
 		o3 += (p1.y - p3.y)*(xmax - xmin) + (p1.x - p3.x);
-	}
-}
-
-/* NOTE: this version performs slightly better */
-void drawtriangle3d2(Image *f, Image *zb, Vec p1, Vec p2, Vec p3, Color c)
-{
-	if (p3.y < p1.y)
-		SWAP(p1, p3);
-	if (p3.y < p2.y)
-		SWAP(p2, p3);
-	else if (p2.y < p1.y)
-		SWAP(p1, p2);
-	F64 kx12 = (p2.x - p1.x)/(p2.y - p1.y), kz12 = (p2.z - p1.z)/(p2.y - p1.y);
-	F64 kx13 = (p3.x - p1.x)/(p3.y - p1.y), kz13 = (p3.z - p1.z)/(p3.y - p1.y);
-	F64 kx23 = (p3.x - p2.x)/(p3.y - p2.y), kz23 = (p3.z - p2.z)/(p3.y - p2.y);
-	I64 ymin = CLIPY(f, fceil(p1.y));
-	I64 ymax = CLIPY(f, ffloor(p3.y)+1);
-	for (I16 y = ymin; y < ymax; y++) {
-		F64 x1 = p1.x + (y - p1.y)*kx13;
-		F64 z1 = p1.z + (y - p1.y)*kz13;
-		F64 x2, z2;
-		if (y < p2.y) {
-			x2 = p1.x + (y - p1.y)*kx12;
-			z2 = p1.z + (y - p1.y)*kz12;
-		} else {
-			x2 = p2.x + (y - p2.y)*kx23;
-			z2 = p2.z + (y - p2.y)*kz23;
-		}
-		I64 xmin = CLIPX(f, fceil(MIN(x1, x2)));
-		I64 xmax = CLIPX(f, ffloor(MAX(x1, x2))+1);
-		F64 kz = (z2 - z1)/(x2 - x1);
-		for (I64 x = xmin; x < xmax; x++) {
-			F64 z = z1 + (x - x1)*kz;
-			if (z > *(F32 *)&PIXEL(zb, x, y)) {
-				*(F32 *)&PIXEL(zb, x, y) = z;
-				PIXEL(f, x, y) = blend(PIXEL(f, x, y), c);
-			}
-		}
 	}
 }
 
@@ -300,7 +262,7 @@ void rasterize(Image *f, Image *z, Camera c)
 			p1 = project(c, f, p1);
 			p2 = project(c, f, p2);
 			p3 = project(c, f, p3);
-			drawtriangle3d2(f, z, p1, p2, p3, tr.c);
+			drawtriangle3d(f, z, p1, p2, p3, tr.c);
 		} else if (p2.z > zclip) {
 			Vec v12 = vsub(p2, p1);
 			Vec p12 = vadd(p1, vmul(v12, (zclip - p1.z) / v12.z));
@@ -309,9 +271,9 @@ void rasterize(Image *f, Image *z, Camera c)
 			p1 = project(c, f, p12);
 			p2 = project(c, f, p2);
 			p3 = project(c, f, p3);
-			drawtriangle3d2(f, z, p1, p2, p3, tr.c);
+			drawtriangle3d(f, z, p1, p2, p3, tr.c);
 			p2 = project(c, f, p13);
-			drawtriangle3d2(f, z, p1, p2, p3, tr.c);
+			drawtriangle3d(f, z, p1, p2, p3, tr.c);
 		} else if (p3.z > zclip) {
 			Vec v13 = vsub(p3, p1);
 			Vec p13 = vadd(p1, vmul(v13, (zclip - p1.z) / v13.z));
@@ -320,7 +282,7 @@ void rasterize(Image *f, Image *z, Camera c)
 			p1 = project(c, f, p13);
 			p2 = project(c, f, p23);
 			p3 = project(c, f, p3);
-			drawtriangle3d2(f, z, p1, p2, p3, tr.c);
+			drawtriangle3d(f, z, p1, p2, p3, tr.c);
 		}
 	}
 }
