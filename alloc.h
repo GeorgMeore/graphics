@@ -2,10 +2,17 @@
 #define MIB (1024 * KIB)
 #define GIB (1024 * MIB)
 
-typedef struct Zone Zone;
 
 /* NOTE: alloc functions without 'a' suffix return word-aligned pointers */
 /* TODO: maybe use natural alignment instead? */
+
+/* TODO: use crc or something for metadata corruption detection */
+typedef struct Zone Zone;
+struct Zone {
+	U free;  /* in bytes */
+	void *mem;
+	Zone *next;
+};
 
 /* TODO: maybe an arena should have several predefined zone sizes?
  * (like a list of 16K zones, a list of 16M and maybe a list of 1G) */

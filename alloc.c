@@ -16,13 +16,6 @@ static void *pagemap(U size)
 	return p;
 }
 
-/* TODO: use crc or something for metadata corruption detection */
-struct Zone {
-	U free;  /* in bytes */
-	void *mem;
-	Zone *next;
-};
-
 /*
  * The layout of a zone in memory:
  *                        Unallocated memory (Zone.free bytes)
