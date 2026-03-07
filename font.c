@@ -83,9 +83,10 @@ static OK parsesimpleglyph(IOBuffer *b, Points *p, I16 ncont, U16 maxconts, U16 
 	if (p->ncont + ncont > maxconts)
 		return 0;
 	U16 nvert = 0;
+	U16 *ends = &p->ends[p->ncont];
 	for (I16 i = 0; i < ncont; i++) {
 		U16 idx = readbe(b, 2);
-		p->ends[p->ncont+i] = p->nvert + idx;
+		ends[i] = p->nvert + idx;
 		if (nvert > idx)
 			return 0;
 		nvert = idx + 1;
@@ -94,35 +95,36 @@ static OK parsesimpleglyph(IOBuffer *b, Points *p, I16 ncont, U16 maxconts, U16 
 		return 0;
 	U16 ilen = readbe(b, 2);
 	skip(b, ilen); /* instructions */
+	U8 *on = &p->on[p->nvert];
 	for (I16 i = 0; i < nvert; i++) {
-		p->on[p->nvert+i] = readbe(b, 1);
-		if (p->on[p->nvert+i] & Repeat) {
+		on[i] = readbe(b, 1);
+		if (on[i] & Repeat) {
 			U8 count = readbe(b, 1);
 			if (count >= nvert - i)
 				return 0;
 			for (; count; count--, i++)
-				p->on[p->nvert+i+1] = p->on[p->nvert+i];
+				on[i+1] = on[i];
 		}
 	}
-	U8 cflags[2][2] = {{XShort, XFlag}, {YShort, YFlag}};
+	I16 *xy[2] = {&p->xy[0][p->nvert], &p->xy[1][p->nvert]};
 	for (I16 comp = 0; comp < 2; comp++) {
 		for (I16 i = 0, prev = 0; i < nvert; i++) {
-			if (p->on[p->nvert+i] & cflags[comp][0]) {
-				if (p->on[p->nvert+i] & cflags[comp][1])
-					p->xy[comp][p->nvert+i] = prev + readbe(b, 1);
+			if (on[i] & (XShort << comp)) {
+				if (on[i] & (XFlag << comp))
+					xy[comp][i] = prev + readbe(b, 1);
 				else
-					p->xy[comp][p->nvert+i] = prev - readbe(b, 1);
+					xy[comp][i] = prev - readbe(b, 1);
 			} else {
-				if (p->on[p->nvert+i] & cflags[comp][1])
-					p->xy[comp][p->nvert+i] = prev;
+				if (on[i] & (XFlag << comp))
+					xy[comp][i] = prev;
 				else
-					p->xy[comp][p->nvert+i] = prev + readbe(b, 2);
+					xy[comp][i] = prev + readbe(b, 2);
 			}
-			prev = p->xy[comp][p->nvert+i];
+			prev = xy[comp][i];
 		}
 	}
 	for (I16 i = 0; i < nvert; i++)
-		p->on[p->nvert+i] &= OnCurve;
+		on[i] &= OnCurve;
 	p->nvert += nvert;
 	p->ncont += ncont;
 	return 1;
