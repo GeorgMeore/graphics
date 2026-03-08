@@ -151,7 +151,7 @@ void drawcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 {
 	for (I64 y = CLIPY(i, yc-r); y < CLIPY(i, yc+r+1); y++)
 	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, xc+r+1); x++)
-		if (SQUARE(x-xc) + SQUARE(y-yc) < SQUARE(r))
+		if (SQUARE(x-xc) + SQUARE(y-yc) <= SQUARE(r))
 			PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 }
 
@@ -169,7 +169,7 @@ void drawsmoothcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 			I64 hits = 0;
 			for (I64 dx = 0; dx < n; dx++)
 			for (I64 dy = 0; dy < n; dy++)
-				hits += SQUARE(xo*n + dx) + SQUARE(yo*n + dy) < SQUARE(r*n);
+				hits += SQUARE(xo*n + dx) + SQUARE(yo*n + dy) <= SQUARE(r*n);
 			if (hits)
 				PIXEL(i, x, y) = blend(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
 		}
