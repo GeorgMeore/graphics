@@ -1,6 +1,7 @@
 void drawclear(Image *i, Color c);
 void drawtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c);
 void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c);
+void drawring(Image *i, I16 xc, I16 yc, I16 r, Color c);
 void drawcircle(Image *i, I16 xc, I16 yc, I16 r, Color c);
 void drawsmoothcircle(Image *i, I16 xc, I16 yc, I16 r, Color c);
 void drawbezier(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c);
