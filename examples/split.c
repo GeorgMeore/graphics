@@ -57,7 +57,7 @@ void drawgradients(Image *i, int dx, int dy)
 		PIXEL(i, x, y) = RGBA(0, (U8)(x-dx), (U8)(y-dy), 0);
 }
 
-int main()
+int main(void)
 {
 	int dx = 0, dy = 0;
 	winopen(600, 600, "Example", 60);

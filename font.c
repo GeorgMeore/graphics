@@ -36,7 +36,7 @@ typedef struct {
 	I16 ncont;
 	U16 *ends;
 	U16 nvert;
-	I16 *xy[2];
+	I16 (*xy)[2];
 	U8  *on;
 } Points;
 
@@ -49,9 +49,9 @@ static void pointstoglyph(Glyph *g, Points *p)
 			U16 curr = start + i;
 			U16 prev = start + MOD(i - 1, n);
 			U16 next = start + MOD(i + 1, n);
-			I16 x1 = p->xy[0][prev], y1 = p->xy[1][prev];
-			I16 x2 = p->xy[0][curr], y2 = p->xy[1][curr];
-			I16 x3 = p->xy[0][next], y3 = p->xy[1][next];
+			I16 x1 = p->xy[prev][0], y1 = p->xy[prev][1];
+			I16 x2 = p->xy[curr][0], y2 = p->xy[curr][1];
+			I16 x3 = p->xy[next][0], y3 = p->xy[next][1];
 			if (!p->on[curr]) {
 				if (!p->on[prev])
 					x1 = (x1 + x2)/2, y1 = (y1 + y2)/2;
@@ -106,21 +106,21 @@ static OK parsesimpleglyph(IOBuffer *b, Points *p, I16 ncont, U16 maxconts, U16 
 				on[i+1] = on[i];
 		}
 	}
-	I16 *xy[2] = {&p->xy[0][p->nvert], &p->xy[1][p->nvert]};
+	I16 (*xy)[2] = &p->xy[p->nvert];
 	for (I16 comp = 0; comp < 2; comp++) {
 		for (I16 i = 0, prev = 0; i < nvert; i++) {
 			if (on[i] & (XShort << comp)) {
 				if (on[i] & (XFlag << comp))
-					xy[comp][i] = prev + readbe(b, 1);
+					xy[i][comp] = prev + readbe(b, 1);
 				else
-					xy[comp][i] = prev - readbe(b, 1);
+					xy[i][comp] = prev - readbe(b, 1);
 			} else {
 				if (on[i] & (XFlag << comp))
-					xy[comp][i] = prev;
+					xy[i][comp] = prev;
 				else
-					xy[comp][i] = prev + readbe(b, 2);
+					xy[i][comp] = prev + readbe(b, 2);
 			}
-			prev = xy[comp][i];
+			prev = xy[i][comp];
 		}
 	}
 	for (I16 i = 0; i < nvert; i++)
@@ -171,8 +171,8 @@ static OK parsecompoundglyph(IOBuffer *b, Points *p, U32 glyf, U32 *locations, U
 		if (!ok)
 			return 0;
 		for (U16 i = start; i < p->nvert; i++) {
-			p->xy[0][i] += x;
-			p->xy[1][i] += y;
+			p->xy[i][0] += x;
+			p->xy[i][1] += y;
 		}
 		bseek(b, curr);
 		if (~flags & MoreComp)
@@ -209,9 +209,9 @@ static OK parseglyph(IOBuffer *b, Font *f, Points *p, U16 index, U32 glyf, U32 *
 	if (!ok)
 		return 0;
 	for (U16 i = 0; i < p->nvert; i++) {
-		if (p->xy[0][i] < g->xmin || p->xy[0][i] > g->xmax)
+		if (p->xy[i][0] < g->xmin || p->xy[i][0] > g->xmax)
 			return 0;
-		if (p->xy[1][i] < g->ymin || p->xy[1][i] > g->ymax)
+		if (p->xy[i][1] < g->ymin || p->xy[i][1] > g->ymax)
 			return 0;
 	}
 	pointstoglyph(g, p);
@@ -257,8 +257,7 @@ static OK parseglyphs(IOBuffer *b, Font *f, U32 head, U32 maxp, U32 glyf, U32 lo
 	Points p = {
 		.on    = aralloc(&f->mem, maxpts),
 		.ends  = aralloc(&f->mem, maxconts * sizeof(U16)),
-		.xy[0] = aralloc(&f->mem, maxpts * sizeof(I16)),
-		.xy[1] = aralloc(&f->mem, maxpts * sizeof(I16)),
+		.xy    = aralloc(&f->mem, maxpts * sizeof(I16) * 2),
 	};
 	for (U16 i = 0; i < f->nglyph; i++)
 		parseglyph(b, f, &p, i, glyf, locations, maxconts, maxpts);
