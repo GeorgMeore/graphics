@@ -120,33 +120,6 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 	}
 }
 
-/* TODO: implement arc drawing */
-/* NOTE: the idea is to incrementally draw the top right octant,
- * and then use symmetry to reconstruct the others */
-void drawring(Image *i, I16 xc, I16 yc, I16 r, Color c)
-{
-	I64 y = r, y2 = y*y, x = 0, x2 = 0;
-	while (y >= x) {
-		drawpixel(i, xc + x, yc - y, c);
-		drawpixel(i, xc + y, yc + x, c);
-		if (x) {
-			drawpixel(i, xc - x, yc - y, c);
-			drawpixel(i, xc - x, yc + y, c);
-		}
-		if (x != y) {
-			drawpixel(i, xc - y, yc - x, c);
-			drawpixel(i, xc + x, yc + y, c);
-			if (x) {
-				drawpixel(i, xc + y, yc - x, c);
-				drawpixel(i, xc - y, yc + x, c);
-			}
-		}
-		x2 += x*2 + 1, x += 1;
-		if (x2 + y2 > r*r)
-			y2 -= y*2 - 1, y -= 1;
-	}
-}
-
 void drawcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 {
 	for (I64 y = CLIPY(i, yc-r); y < CLIPY(i, yc+r+1); y++)
@@ -265,6 +238,33 @@ void drawpixel(Image *i, I16 x, I16 y, Color c)
 {
 	if (CHECKX(i, x) && CHECKY(i, y))
 		PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
+}
+
+/* TODO: implement arc drawing */
+/* NOTE: the idea is to incrementally draw the top right octant,
+ * and then use symmetry to reconstruct the others */
+void drawring(Image *i, I16 xc, I16 yc, I16 r, Color c)
+{
+	I64 y = r, y2 = y*y, x = 0, x2 = 0;
+	while (y >= x) {
+		drawpixel(i, xc + x, yc - y, c);
+		drawpixel(i, xc + y, yc + x, c);
+		if (x) {
+			drawpixel(i, xc - x, yc - y, c);
+			drawpixel(i, xc - x, yc + y, c);
+		}
+		if (x != y) {
+			drawpixel(i, xc - y, yc - x, c);
+			drawpixel(i, xc + x, yc + y, c);
+			if (x) {
+				drawpixel(i, xc + y, yc - x, c);
+				drawpixel(i, xc - y, yc + x, c);
+			}
+		}
+		x2 += x*2 + 1, x += 1;
+		if (x2 + y2 > r*r)
+			y2 -= y*2 - 1, y -= 1;
+	}
 }
 
 /* NOTE: a fully incremental version I tried didn't perform better */
