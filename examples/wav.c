@@ -133,14 +133,12 @@ void playwav(Audio *a)
 		return;
 	}
 	int err;
-	pa_simple_write(s, a->data, a->nframes*sizeof(F32)*a->nchan, &err);
-	if (err) {
-		println("error: failed to submit samples: ", pa_strerror(err));
+	if (pa_simple_write(s, a->data, a->nframes*sizeof(F32)*a->nchan, &err)) {
+		println("error: failed to submit samples: ", OD(err), OS(pa_strerror(err)));
 		goto exit;
 	}
-	pa_simple_drain(s, &err);
-	if (err) {
-		println("error: failed to drain the buffer: ", pa_strerror(err));
+	if (pa_simple_drain(s, &err)) {
+		println("error: failed to drain the buffer: ", OS(pa_strerror(err)));
 		goto exit;
 	}
 exit:
