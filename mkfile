@@ -1,3 +1,4 @@
+NPROC=16
 CC=gcc
 O=3 # no optimisations by default
 D=0 # builds are not in debug mode by default
