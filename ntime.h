@@ -1,4 +1,4 @@
-#define USEC 1000
+#define USEC ((U64)1000)
 #define MSEC (1000*USEC)
 #define SEC  (1000*MSEC)
 
