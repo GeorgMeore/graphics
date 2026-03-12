@@ -58,9 +58,13 @@ OK parsefmt(IOBuffer *b, Audio *a, U64 fmt)
 		return 0;
 	a->nchan = readle(b, 2);
 	a->srate = readle(b, 4);
-	/* TODO: use these fields for additional validation? */
-	skip(b, 4+2); /* byte_rate, block_align */
+	U32 byterate = readle(b, 4);
+	U16 blockalign = readle(b, 2);
 	a->bps = readle(b, 2);
+	if (blockalign * 8 != a->bps * a->nchan)
+		return 0;
+	if (byterate != a->srate * blockalign)
+		return 0;
 	return 1;
 }
 
@@ -76,7 +80,7 @@ OK parsedata(IOBuffer *b, Audio *a, U64 data)
 		return 0;
 	a->nframes = size / framesize;
 	a->data = aralloc(&a->mem, a->nframes * a->nchan * sizeof(F32));
-	F32 max = 1 << (a->bps - 1);
+	F32 max = (U64)1 << (a->bps - 1);
 	for (U32 i = 0; i < a->nframes; i++) {
 		for (U16 ch = 0; ch < a->nchan; ch++) {
 			F32 v = readles(b, a->bps/8);
