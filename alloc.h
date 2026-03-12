@@ -1,6 +1,6 @@
-#define KIB 1024
-#define MIB (1024 * KIB)
-#define GIB (1024 * MIB)
+#define KIB ((U64)1024)
+#define MIB (1024*KIB)
+#define GIB (1024*MIB)
 
 
 /* NOTE: alloc functions without 'a' suffix return word-aligned pointers */
