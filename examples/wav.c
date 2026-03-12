@@ -31,7 +31,7 @@ static I64 readles(IOBuffer *b, U8 bytes)
 	U64 n = readle(b, bytes);
 	U64 sm = (U64)1 << (bytes*8 - 1);
 	if (n & sm)
-		n |= ~((sm >> 1) - 1); /* sign extension */
+		n |= ~(sm - 1); /* sign extension */
 	return n;
 }
 
@@ -90,37 +90,44 @@ OK parsedata(IOBuffer *b, Audio *a, U64 data)
 	return 1;
 }
 
+Audio parsewav(IOBuffer *b)
+{
+	Audio a = {0};
+	U32 riff = readle(b, 4);
+	if (riff != strid("RIFF"))
+		return (Audio){0};
+	U32 fsize = readle(b, 4);
+	U32 format = readle(b, 4);
+	if (format != strid("WAVE"))
+		return (Audio){0};
+	U64 fmt = 0, data = 0;
+	while (!fmt || !data) {
+		U64 start = b->pos;
+		U32 id = readle(b, 4);
+		U32 size = readle(b, 4);
+		if (id == strid("fmt "))
+			fmt = start;
+		if (id == strid("data"))
+			data = start;
+		bseek(b, b->pos + size + (size & 1));
+		if (b->error || b->pos > fsize + 8)
+			return (Audio){0};
+	}
+	OK ok = parsefmt(b, &a, fmt) && parsedata(b, &a, data);
+	if (!ok || b->error) {
+		arfree(&a.mem);
+		return (Audio){0};
+	}
+	return a;
+}
+
 Audio loadwav(const char *path)
 {
 	IOBuffer b = {0};
 	if (!bopen(&b, path, 'r'))
 		return (Audio){0};
-	Audio a = {0};
-	U32 riff = readle(&b, 4);
-	if (riff != strid("RIFF"))
-		return (Audio){0};
-	U32 fsize = readle(&b, 4);
-	U32 format = readle(&b, 4);
-	if (format != strid("WAVE"))
-		return (Audio){0};
-	U64 fmt = 0, data = 0;
-	while (b.pos < fsize + 8) {
-		U64 start = b.pos;
-		U32 id = readle(&b, 4);
-		U32 size = readle(&b, 4);
-		if (id == strid("fmt "))
-			fmt = start;
-		if (id == strid("data"))
-			data = start;
-		bseek(&b, b.pos + size + (size & 1));
-	}
-	if (!fmt || !data)
-		return (Audio){0};
-	OK ok = parsefmt(&b, &a, fmt) && parsedata(&b, &a, data);
-	if (!ok || b.error) {
-		arfree(&a.mem);
-		return (Audio){0};
-	}
+	Audio a = parsewav(&b);
+	bclose(&b);
 	return a;
 }
 
