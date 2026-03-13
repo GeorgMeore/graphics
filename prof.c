@@ -81,10 +81,11 @@ static Section *profaddsection(Profiler *p, const char *name)
 		p->ss = memrealloc(p->ss, p->scap*sizeof(p->ss[0]));
 	}
 	Section *s = &p->ss[p->scount];
-	for (int i = 0; i < MAXNAME && name[i]; i++)
+	U16 i;
+	for (i = 0; i < MAXNAME && name[i]; i++)
 		s->name[i] = name[i];
+	s->name[i] = '\0';
 	statreset(&s->time);
-	s->name[MAXNAME] = '\0';
 	p->scount += 1;
 	return s;
 }
@@ -100,9 +101,9 @@ static Entry *profpop(Profiler *p)
 
 static Section *proffindsection(Profiler *p, const char *name)
 {
-	for (int i = 0; i < p->scount; i++) {
-		for (int j = 0; p->ss[i].name[j] == name[j]; j++)
-			if (j >= MAXNAME || !name[j])
+	for (U16 i = 0; i < p->scount; i++) {
+		for (U16 j = 0; p->ss[i].name[j] == name[j]; j++)
+			if (!name[j])
 				return &p->ss[i];
 	}
 	return 0;
@@ -126,7 +127,7 @@ void _profend(void)
 
 void _profdump(void)
 {
-	for (int i = 0; i < defpr.scount; i++) {
+	for (U16 i = 0; i < defpr.scount; i++) {
 		Section *s = &defpr.ss[i];
 		println("prof: ", s->name, ": ", FMTSTAT(&s->time));
 	}
