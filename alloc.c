@@ -122,13 +122,20 @@ struct Segment {
 	Chunk *header;
 };
 
-#define SEGRIGHT(l) ((l) + (l)->size + 1)
-#define SEGLEFT(r) ((r) - (r)->size - 1)
+static Segment *segright(Segment *l)
+{
+	return l + l->size + 1;
+}
+
+static Segment *segleft(Segment *r)
+{
+	return r - r->size - 1;
+}
 
 static void seginit(Segment *s, U size, Chunk *header)
 {
 	s->size = size;
-	Segment *r = SEGRIGHT(s);
+	Segment *r = segright(s);
 	r->size = size;
 	s->header = r->header = header;
 }
@@ -159,12 +166,19 @@ struct Chunk {
 	Chunk *next;
 };
 
-#define FIRSTSEG(c) ((Segment *)((c) + 1))
-#define LASTSEG(c) (FIRSTSEG(c) + (c)->size - 1)
+Segment *firstseg(Chunk *c)
+{
+	return (Segment *)(c + 1);
+}
+
+Segment *lastseg(Chunk *c)
+{
+	return firstseg(c) + c->size - 1;
+}
 
 static void seglink(Segment *s, U free)
 {
-	Segment *r = SEGRIGHT(s);
+	Segment *r = segright(s);
 	Segment **q = free ? &s->header->free : &s->header->busy;
 	s->free = r->free = BOOL(free);
 	s->next = r->next = *q;
@@ -189,27 +203,25 @@ static void segunlink(Segment *s)
 
 static Segment *segladjacent(Segment *s)
 {
-	if (s == FIRSTSEG(s->header))
+	if (s == firstseg(s->header))
 		return 0;
-	return SEGLEFT(s - 1);
+	return segleft(s - 1);
 }
 
 static Segment *segradjacent(Segment *s)
 {
-	if (SEGRIGHT(s) == LASTSEG(s->header))
+	if (segright(s) == lastseg(s->header))
 		return 0;
-	return SEGRIGHT(s) + 1;
+	return segright(s) + 1;
 }
 
-/* TODO: implement a set of cache allocators for small allocations (< ~128 bytes)
- * TODO: implement a page allocator for huge ones (> ~16 MIB) */
 typedef struct {
 	Chunk *chunks;
-} Sallocator;
+} Heap;
 
-static Sallocator defsallocator;
+static Heap defheap;
 
-static Chunk *addchunk(Sallocator *a, U segcount)
+static Chunk *addchunk(Heap *h, U segcount)
 {
 	U allocsize = ALIGNUP(segcount*sizeof(Segment) + sizeof(Chunk), PAGE_SIZE);
 	Chunk *c = pagemap(allocsize);
@@ -217,12 +229,12 @@ static Chunk *addchunk(Sallocator *a, U segcount)
 		return 0;
 	/* NOTE: alignment likely increased the capacity, recalculate */
 	c->size = (allocsize - sizeof(Chunk))/sizeof(Segment);
-	c->next = a->chunks;
+	c->next = h->chunks;
 	c->busy = 0;
 	c->free = 0;
 	/* NOTE: the chunk is initialized, but not linked */
-	seginit(FIRSTSEG(c), c->size - 2, c);
-	a->chunks = c;
+	seginit(firstseg(c), c->size - 2, c);
+	h->chunks = c;
 	return c;
 }
 
@@ -242,7 +254,7 @@ static Chunk *addchunk(Sallocator *a, U segcount)
  *
  * The layout of a heap in memory:
  *     .--------.
- *     | chunks | (Sallocator)
+ *     | chunks | (Heap)
  *     '--------'
  *         |                    Note that segments also form a doubly-linked list
  *   .-----|-------------.
@@ -258,20 +270,24 @@ static Chunk *addchunk(Sallocator *a, U segcount)
  * '------------------------------------------------------------------------------'
  */
 
-#define BACKPTR(a) ((void **)(ALIGNDOWN((U)a, sizeof(U)) - sizeof(U)))
+void **backptr(void *p)
+{
+	U umask = ~(sizeof(U) - 1);
+	return (void **)(((U)p & umask) - sizeof(U));
+}
 
 void *segaddr(Segment *s, U align)
 {
-	U addr = ALIGNUP((U)(s + 1) + sizeof(U), align);
-	*BACKPTR(addr) = s;
-	return (void *)addr;
+	void *p = (void *)ALIGNUP((U)(s + 1) + sizeof(U), align);
+	*backptr(p) = s;
+	return p;
 }
 
 void *memalloca(U size, U align)
 {
 	U asize = DIVCEIL(size + align*2 + sizeof(U), sizeof(Segment));
 	Segment *s = 0;
-	for (Chunk *c = defsallocator.chunks; c && !s; c = c->next) {
+	for (Chunk *c = defheap.chunks; c && !s; c = c->next) {
 		for (s = c->free; s; s = s->next) {
 			if (s->size >= asize)
 				break;
@@ -281,10 +297,10 @@ void *memalloca(U size, U align)
 		segunlink(s);
 	} else {
 		/* NOTE: preallocation logic is the same as in aralloca */
-		Chunk *c = addchunk(&defsallocator, asize * 16);
+		Chunk *c = addchunk(&defheap, asize * 16);
 		if (!c)
 			return 0;
-		s = FIRSTSEG(c);
+		s = firstseg(c);
 	}
 	if (s->size - asize > 4) {
 		Segment *o = segsplit(s, asize);
@@ -303,7 +319,7 @@ void memfree(void *p)
 {
 	if (!p)
 		return;
-	Segment *s = *BACKPTR(p);
+	Segment *s = *backptr(p);
 	segunlink(s);
 	for (;;) {
 		Segment *n = segladjacent(s);
@@ -312,7 +328,7 @@ void memfree(void *p)
 		if (!n || !n->free)
 			break;
 		segunlink(n);
-		s = segmerge(s, n); /* heap defragmentation */
+		s = segmerge(s, n); /* defragmentation */
 	}
 	seglink(s, 1);
 }
@@ -321,7 +337,7 @@ static void *memtryextend(void *p, U size, U align)
 {
 	if (!p)
 		return 0;
-	Segment *s = *BACKPTR(p);
+	Segment *s = *backptr(p);
 	U asize = DIVCEIL(size + align*2 + sizeof(U), sizeof(Segment));
 	if (s->size >= asize)
 		return segaddr(s, align);
@@ -342,10 +358,10 @@ static void *memtryextend(void *p, U size, U align)
 
 static void memtransfer(void *dst, void *src)
 {
-	Segment *s = *BACKPTR(src);
-	Segment *d = *BACKPTR(dst);
+	Segment *s = *backptr(src);
+	Segment *d = *backptr(dst);
 	U8 *sc = src, *dc = dst;
-	while (sc < (U8 *)SEGRIGHT(s) && dc < (U8 *)SEGRIGHT(d)) {
+	while (sc < (U8 *)segright(s) && dc < (U8 *)segright(d)) {
 		*dc = *sc;
 		sc += 1;
 		dc += 1;
