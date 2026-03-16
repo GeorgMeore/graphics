@@ -3,7 +3,7 @@ CC=gcc
 O=3 # no optimisations by default
 D=0 # builds are not in debug mode by default
 CDEBUGFLAGS=-g -fsanitize=undefined,address
-CFLAGS=-I. -Wall -Wextra -O$O -flto
+CFLAGS=-I. -Wall -Wextra -O$O -flto -fno-strict-aliasing -fwrapv
 LDFLAGS=-lX11 -lpulse -lpulse-simple
 MOD=win draw prof ntime panic io image alloc math color poly la font
 SRC=${MOD:%=%.c}
