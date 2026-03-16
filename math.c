@@ -2,6 +2,11 @@
 #include "mlib.h"
 #include "math.h"
 
+U64 lsb(U64 x)
+{
+	return x ^ (x & (x - 1));
+}
+
 U64 isqrt(U64 x)
 {
 	U64 l = 1, r = x;
@@ -13,6 +18,34 @@ U64 isqrt(U64 x)
 			l = m + 1;
 	}
 	return l - 1;
+}
+
+U64 iabs(I64 x)
+{
+	I64 s = x >> 63;
+	return (x + s) ^ s; /* == ~(x - 1) for 2's complement negatives */
+}
+
+I64 cpsign(I64 x, I64 y)
+{
+	I64 xs = x >> 63;
+	I64 ys = y >> 63;
+	I64 s = xs ^ ys;
+	return (x + s) ^ s;
+}
+
+U64 divceilu(U64 x, U64 y)
+{
+	return (x + y - 1) / y;
+}
+
+I64 divceil(I64 x, I64 y)
+{
+	U64 ax = iabs(x), ay = iabs(y);
+	U64 c = (ax + ay - 1) / ay;
+	I64 sx = x >> 63, sy = y >> 63;
+	U64 s = sx ^ sy;
+	return (c ^ s) - s;
 }
 
 typedef union {

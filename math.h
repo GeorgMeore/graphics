@@ -1,7 +1,12 @@
 #define PI 3.14159265358979323846
 #define INF (1e250 * 1e250)
 
+U64 lsb(U64 x);
 U64 isqrt(U64 x);
+I64 cpsign(I64 x, I64 y);
+U64 iabs(I64 v);
+U64 divceilu(U64 x, U64 y);
+I64 divceil(I64 x, I64 y);
 
 F64 fsqrt(F64 x);
 F64 fcbrt(F64 x);
