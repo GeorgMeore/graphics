@@ -112,7 +112,7 @@ void drawsmoothtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3
 				o3 -= (x1 - x3)*n + (y1 - y3);
 			}
 			if (hits)
-				PIXEL(i, x, y) = blend(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+				PIXEL(i, x, y) = blend(PIXEL(i, x, y), SETA(c, A(c)*hits/SQUARE(n)));
 		}
 		o1 += n*((y2 - y1)*(xmax - xmin) + (x2 - x1));
 		o2 += n*((y3 - y2)*(xmax - xmin) + (x3 - x2));
@@ -144,7 +144,7 @@ void drawsmoothcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 			for (I64 dy = 0; dy < n; dy++)
 				hits += SQUARE(xo*n + dx) + SQUARE(yo*n + dy) <= SQUARE(r*n);
 			if (hits)
-				PIXEL(i, x, y) = blend(PIXEL(i, x, y), RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n)));
+				PIXEL(i, x, y) = blend(PIXEL(i, x, y), SETA(c, A(c)*hits/SQUARE(n)));
 		}
 	}
 }
@@ -267,47 +267,33 @@ void drawring(Image *i, I16 xc, I16 yc, I16 r, Color c)
 	}
 }
 
-/* NOTE: a fully incremental version I tried didn't perform better */
-static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
+/* TODO: try converting to integer-only computations */
+/* NOTE: this function does distance-based AA */
+static void drawthicknonsteep(Image *i, U8 flip, I16 xlim, I16 ylim, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
 {
-	const I64 n = 3;
-	I64 l2 = SQUARE(x2-x1) + SQUARE(y2-y1);
-	I64 wn2 = SQUARE(w) * SQUARE(n);
 	if (x1 > x2) {
 		SWAP(x1, x2);
 		SWAP(y1, y2);
 	}
-	I64 xlim, ylim;
-	if (flip)
-		xlim = i->h, ylim = i->w;
-	else
-		xlim = i->w, ylim = i->h;
+	F64 dx = x2 - x1, dy = y2 - y1;
+	F64 invl  = 1 / fsqrt(dx*dx + dy*dy);
+	F64 invdx = 1 / dx;
 	I64 xmin = CLAMP(x1 - 2*w, 0, xlim), xmax = CLAMP(x2 + 2*w+1, 0, xlim);
 	for (I64 x = xmin; x < xmax; x++) {
-		I64 yc = y1 + divround((x - x1)*(y2 - y1), (x2 - x1));
+		F64 yc = y1 + (x - x1)*dy*invdx;
 		I64 ymin = CLAMP(yc-2*w, 0, ylim), ymax = CLAMP(yc+2*w+1, 0, ylim);
-		I64 o1 = n*((x - x1)*(x2 - x1) + (ymin - y1)*(y2 - y1));
-		I64 o2 = n*((x - x2)*(x2 - x1) + (ymin - y2)*(y2 - y1));
-		I64 d  = n*((x - x1)*(y1 - y2) + (ymin - y1)*(x2 - x1));
+		F64 o1 = (x - x1)*dx + (ymin - y1)*dy;
+		F64 o2 = (x - x2)*dx + (ymin - y2)*dy;
+		F64 d  = (ymin - y1)*dx - (x - x1)*dy;
 		for (I64 y = ymin; y < ymax; y++) {
-			I64 hits = 0;
-			for (I64 dx = 0; dx < n; dx++) {
-				for (I64 dy = 0; dy < n; dy++) {
-					hits += o1 >= 0 && o2 <= 0 && SQUARE(d) < wn2*l2;
-					o1 += y2 - y1, o2 += y2 - y1, d += x2 - x1;
-				}
-				o1 -= n*(y2 - y1) - (x2 - x1);
-				o2 -= n*(y2 - y1) - (x2 - x1);
-				d  -= n*(x2 - x1) - (y1 - y2);
-			}
-			o1 += n*(y2-y1 - x2+x1), o2 += n*(y2-y1 - x2+x1), d += n*(x2-x1 + y2-y1);
-			if (hits) {
-				Color p = RGBA(R(c), G(c), B(c), A(c)*hits/SQUARE(n));
+			if (o1 >= 0 && o2 <= 0) {
+				U8 a = smoothstep(w+1, w-1, fabs(d)*invl) * A(c);
 				if (flip)
-					PIXEL(i, y, x) = blend(PIXEL(i, y, x), p);
+					PIXEL(i, y, x) = blend(PIXEL(i, y, x), SETA(c, a));
 				else
-					PIXEL(i, x, y) = blend(PIXEL(i, x, y), p);
+					PIXEL(i, x, y) = blend(PIXEL(i, x, y), SETA(c, a));
 			}
+			o1 += dy, o2 += dy, d += dx;
 		}
 	}
 }
@@ -317,7 +303,7 @@ void drawthickline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
 	if (iabs(x2-x1) + iabs(y2-y1) == 0)
 		return;
 	if (iabs(x2-x1) >= iabs(y2-y1))
-		drawthicknonsteep(i, 0, x1, y1, x2, y2, w, c);
+		drawthicknonsteep(i, 0, i->w, i->h, x1, y1, x2, y2, w, c);
 	else
-		drawthicknonsteep(i, 1, y1, x1, y2, x2, w, c);
+		drawthicknonsteep(i, 1, i->h, i->w, y1, x1, y2, x2, w, c);
 }

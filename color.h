@@ -11,6 +11,11 @@ typedef U32 Color;
 #define G(c) (((c)&0x0000FF00)>>(8*1))
 #define B(c) (((c)&0x000000FF)>>(8*0))
 
+#define SETA(c, a) (((c)&0x00FFFFFF)|(a<<(8*3)))
+#define SETR(c, r) (((c)&0xFF00FFFF)|(r<<(8*2)))
+#define SETG(c, g) (((c)&0xFFFF00FF)|(g<<(8*1)))
+#define SETB(c, b) (((c)&0xFFFFFF00)|(b<<(8*0)))
+
 #define GREEN   RGBA(0, 255, 0, 255)
 #define RED     RGBA(255, 0, 0, 255)
 #define BLUE    RGBA(0, 0, 255, 255)
