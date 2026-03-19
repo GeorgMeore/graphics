@@ -1,5 +1,5 @@
 #include "types.h"
-#include "mlib.h"
+#include "math.h"
 #include "color.h"
 #include "image.h"
 #include "draw.h"

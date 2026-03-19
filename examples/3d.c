@@ -2,7 +2,6 @@
 #include "color.h"
 #include "image.h"
 #include "win.h"
-#include "mlib.h"
 #include "math.h"
 #include "la.h"
 
@@ -165,7 +164,7 @@ Color ray(Vec o, Vec d)
 		}
 	}
 	last = 0;
-	f = CLAMP(ABS(f), 0, 1);
+	f = CLAMP(fabs(f), 0, 1);
 	return RGBA(R(c)*f, G(c)*f, B(c)*f, 0);
 }
 

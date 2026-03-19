@@ -4,7 +4,6 @@
 
 #include "types.h"
 #include "io.h"
-#include "mlib.h"
 
 static IOBuffer _bin  = {.fd = 0};
 static IOBuffer _bout = {.fd = 1};
@@ -112,7 +111,7 @@ static void bprintu(U64 x, IOBuffer *b, U8 base, U8 bytes)
 		return;
 	}
 	/* mask out bits that came from sign extension */
-	x &= MASK(0, bytes*8);
+	x &= ((U64)-1 >> (64 - bytes*8));
 	U c;
 	for (c = 0; x; c++) {
 		/* a little bit of hacky hex digit calculation */

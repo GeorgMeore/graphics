@@ -1,7 +1,7 @@
 #include "types.h"
 #include "alloc.h"
 #include "color.h"
-#include "mlib.h"
+#include "math.h"
 #include "io.h"
 #include "image.h"
 

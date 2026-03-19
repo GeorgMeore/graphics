@@ -4,7 +4,6 @@
 #include "draw.h"
 #include "io.h"
 #include "alloc.h"
-#include "mlib.h"
 #include "poly.h"
 #include "math.h"
 #include "font.h"
@@ -47,8 +46,8 @@ static void pointstoglyph(Glyph *g, Points *p)
 		U16 n = p->ends[cont] + 1 - start;
 		for (U16 i = 0; i < n; i++) {
 			U16 curr = start + i;
-			U16 prev = start + MOD(i - 1, n);
-			U16 next = start + MOD(i + 1, n);
+			U16 prev = start + imod((I32)i - 1, n);
+			U16 next = start + imod((I32)i + 1, n);
 			I16 x1 = p->xy[prev][0], y1 = p->xy[prev][1];
 			I16 x2 = p->xy[curr][0], y2 = p->xy[curr][1];
 			I16 x3 = p->xy[next][0], y3 = p->xy[next][1];
@@ -581,7 +580,7 @@ static F64 disttriangle(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F6
 	F64 o1 = (x - x1)*(y2 - y1) - (y - y1)*(x2 - x1);
 	F64 o2 = (x - x2)*(y3 - y2) - (y - y2)*(x3 - x2);
 	F64 o3 = (x - x3)*(y1 - y3) - (y - y3)*(x1 - x3);
-	if (SIGN(o1) == SIGN(o2) && SIGN(o2) == SIGN(o3))
+	if (fsignbit(o1) == fsignbit(o2) && fsignbit(o2) == fsignbit(o3))
 		return 0;
 	return MIN3(
 		distline(x, y, x1, y1, x2, y2),

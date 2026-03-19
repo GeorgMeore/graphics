@@ -1,9 +1,9 @@
 #include <sys/mman.h>
 #include <sys/user.h>
 
-#include "mlib.h"
 #include "types.h"
 #include "alloc.h"
+#include "math.h"
 
 /* IDEA: make all allocators accept the memory region to be managed
  * and provide a way of adding new regions. */
@@ -14,6 +14,16 @@ static void *pagemap(U size)
 	if (p == MAP_FAILED)
 		return 0;
 	return p;
+}
+
+static U64 alignup(U64 v, U64 a)
+{
+	return divceil(v, a)*a;
+}
+
+static U64 aligndown(U64 v, U64 a)
+{
+	return v/a*a;
 }
 
 /*
@@ -45,7 +55,7 @@ static void *pagemap(U size)
 
 static Zone *addzone(Arena *a, U zsize)
 {
-	U allocsize = ALIGNUP(zsize + sizeof(Zone), PAGE_SIZE);
+	U allocsize = alignup(zsize + sizeof(Zone), PAGE_SIZE);
 	Zone *z = pagemap(allocsize);
 	if (!z)
 		return 0;
@@ -83,7 +93,7 @@ void *aralloca(Arena *a, U size, U align)
 	z->free -= asize;
 	void *p = z->mem;
 	z->mem += asize;
-	return (void *)ALIGNUP((U)p, align);
+	return (void *)alignup((U)p, align);
 }
 
 void *aralloc(Arena *a, U size)
@@ -223,7 +233,7 @@ static Heap defheap;
 
 static Chunk *addchunk(Heap *h, U segcount)
 {
-	U allocsize = ALIGNUP(segcount*sizeof(Segment) + sizeof(Chunk), PAGE_SIZE);
+	U allocsize = alignup(segcount*sizeof(Segment) + sizeof(Chunk), PAGE_SIZE);
 	Chunk *c = pagemap(allocsize);
 	if (!c)
 		return 0;
@@ -272,22 +282,21 @@ static Chunk *addchunk(Heap *h, U segcount)
 
 void **backptr(void *p)
 {
-	U umask = ~(sizeof(U) - 1);
-	return (void **)(((U)p & umask) - sizeof(U));
+	return (void **)(aligndown((U)p, sizeof(U)) - sizeof(U));
 }
 
 void *segaddr(Segment *s, U align)
 {
-	void *p = (void *)ALIGNUP((U)(s + 1) + sizeof(U), align);
+	void *p = (void *)alignup((U)(s + 1) + sizeof(U), align);
 	*backptr(p) = s;
 	return p;
 }
 
-void *memalloca(U size, U align)
+static void *halloca(Heap *h, U size, U align)
 {
-	U asize = DIVCEIL(size + align*2 + sizeof(U), sizeof(Segment));
+	U asize = divceil(size + align*2 + sizeof(U), sizeof(Segment));
 	Segment *s = 0;
-	for (Chunk *c = defheap.chunks; c && !s; c = c->next) {
+	for (Chunk *c = h->chunks; c && !s; c = c->next) {
 		for (s = c->free; s; s = s->next) {
 			if (s->size >= asize)
 				break;
@@ -297,7 +306,7 @@ void *memalloca(U size, U align)
 		segunlink(s);
 	} else {
 		/* NOTE: preallocation logic is the same as in aralloca */
-		Chunk *c = addchunk(&defheap, asize * 16);
+		Chunk *c = addchunk(h, asize * 16);
 		if (!c)
 			return 0;
 		s = firstseg(c);
@@ -308,6 +317,11 @@ void *memalloca(U size, U align)
 	}
 	seglink(s, 0);
 	return segaddr(s, align);
+}
+
+void *memalloca(U size, U align)
+{
+	return halloca(&defheap, size, align);
 }
 
 void *memalloc(U size)
@@ -338,7 +352,7 @@ static void *memtryextend(void *p, U size, U align)
 	if (!p)
 		return 0;
 	Segment *s = *backptr(p);
-	U asize = DIVCEIL(size + align*2 + sizeof(U), sizeof(Segment));
+	U asize = divceil(size + align*2 + sizeof(U), sizeof(Segment));
 	if (s->size >= asize)
 		return segaddr(s, align);
 	Segment *r = segradjacent(s);

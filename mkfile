@@ -10,7 +10,7 @@ SRC=${MOD:%=%.c}
 OBJ=${MOD:%=%.o}
 PROGNAMES=split paint io bezier triangle circle line ppm sin y4m nbody poly ttf dragon 3d wav
 PROGS=${PROGNAMES:%=examples/%}
-UTESTNAMES=test_types test_mlib
+UTESTNAMES=test_types test_math
 UTESTS=${UTESTNAMES:%=test/%}
 
 examples:V: $PROGS
@@ -20,15 +20,16 @@ tests:VQ: $UTESTS
 		$test
 	done
 
-test/%: test/%.c
+test/%: test/%.c $OBJ
+	[ "$D" != 0 ] && CFLAGS=$CDEBUGFLAGS' '$CFLAGS
 	$CC $CFLAGS -o $target $prereq $LDFLAGS
 
 examples/%: examples/%.c $OBJ
-	[ "$D" != 0 ] && CFLAGS=$CFLAGS' '$CDEBUGFLAGS
+	[ "$D" != 0 ] && CFLAGS=$CDEBUGFLAGS' '$CFLAGS
 	$CC $CFLAGS -o $target $prereq $LDFLAGS
 
 %.o: %.c mkfile
-	[ "$D" != 0 ] && CFLAGS=$CFLAGS' '$CDEBUGFLAGS
+	[ "$D" != 0 ] && CFLAGS=$CDEBUGFLAGS' '$CFLAGS
 	$CC -c $CFLAGS -o $target $stem.c
 
 clean:V:

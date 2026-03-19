@@ -1,5 +1,4 @@
 #include "types.h"
-#include "mlib.h"
 #include "math.h"
 
 U64 lsb(U64 x)
@@ -34,18 +33,23 @@ I64 cpsign(I64 x, I64 y)
 	return (x + s) ^ s;
 }
 
-U64 divceilu(U64 x, U64 y)
+U64 divceil(U64 x, U64 y)
 {
 	return (x + y - 1) / y;
 }
 
-I64 divceil(I64 x, I64 y)
+I64 divround(I64 x, I64 y)
 {
 	U64 ax = iabs(x), ay = iabs(y);
-	U64 c = (ax + ay - 1) / ay;
+	U64 c = (ax + ay/2) / ay;
 	I64 sx = x >> 63, sy = y >> 63;
 	U64 s = sx ^ sy;
 	return (c ^ s) - s;
+}
+
+I64 imod(I64 x, U32 y)
+{
+	return (x%y + y) % y;
 }
 
 typedef union {
@@ -57,7 +61,7 @@ typedef union {
 	};
 } _F64;
 
-OK fsign(F64 x)
+OK fsignbit(F64 x)
 {
 	_F64 _x = {x};
 	return _x.sign;
@@ -108,7 +112,7 @@ F64 ffloor(F64 x)
 {
 	F64 xt = ftrunc(x);
 	if (x != xt)
-		xt -= fsign(x);
+		xt -= fsignbit(x);
 	return xt;
 }
 
@@ -116,7 +120,7 @@ F64 fceil(F64 x)
 {
 	F64 xt = ftrunc(x);
 	if (x != xt)
-		xt += 1 - fsign(x);
+		xt += 1 - fsignbit(x);
 	return xt;
 }
 
@@ -124,7 +128,7 @@ F64 fround(F64 x)
 {
 	F64 xt = ftrunc(x);
 	if (fabs(x - xt) >= 0.5)
-		xt += fsetsign(1, fsign(xt));
+		xt += fsetsign(1, fsignbit(xt));
 	return xt;
 }
 

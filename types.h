@@ -1,5 +1,4 @@
 /* NOTE: Two's complement integer representation is assumed. */
-
 /* TODO: ifdefs for other platforms. */
 typedef unsigned char  U8;
 typedef signed char    I8;
@@ -19,7 +18,14 @@ typedef U8             OK; /* bool-ish */
 #define MINVAL(t) ((t)((U64)ISSIGNED(t)<<(NBITS(t) - 1)))
 #define MAXVAL(t) ((t)~MINVAL(t))
 
+/* NOTE: IEEE floating point representation is assumed */
 typedef float  F32;
 typedef double F64;
 
 #define ISFLOAT(t) ((t)1.1 != (t)1)
+
+#define SWAP(x, y) ({\
+	typeof(x) _tmp = (x);\
+	(x) = (y);\
+	(y) = _tmp;\
+})

@@ -1,7 +1,6 @@
 #include "types.h"
 #include "math.h"
 #include "poly.h"
-#include "mlib.h"
 
 Poly padd(Poly a, Poly b)
 {

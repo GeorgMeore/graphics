@@ -1,5 +1,5 @@
-#include "mlib.h"
 #include "types.h"
+#include "math.h"
 #include "time.h"
 #include "color.h"
 #include "image.h"
@@ -64,14 +64,14 @@ void drawtriangle(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Colo
 		if (y2 == y3)
 			ymid += 1;
 		for (I64 y = CLIPY(i, y1); y < CLIPY(i, ymid); y++) {
-			I64 x12 = x1 + DIVROUND((y - y1)*(x2 - x1), (y2 - y1));
-			I64 x13 = x1 + DIVROUND((y - y1)*(x3 - x1), (y3 - y1));
+			I64 x12 = x1 + divround((y - y1)*(x2 - x1), (y2 - y1));
+			I64 x13 = x1 + divround((y - y1)*(x3 - x1), (y3 - y1));
 			for (I64 x = CLIPX(i, MIN(x12, x13)); x < CLIPX(i, MAX(x12, x13)+1); x++)
 				PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 		}
 		for (I64 y = CLIPY(i, ymid); y < CLIPY(i, y3 + 1); y++) {
-			I64 x23 = x2 + DIVROUND((y - y2)*(x3 - x2), (y3 - y2));
-			I64 x13 = x1 + DIVROUND((y - y1)*(x3 - x1), (y3 - y1));
+			I64 x23 = x2 + divround((y - y2)*(x3 - x2), (y3 - y2));
+			I64 x13 = x1 + divround((y - y1)*(x3 - x1), (y3 - y1));
 			for (I64 x = CLIPX(i, MIN(x13, x23)); x < CLIPX(i, MAX(x13, x23)+1); x++)
 				PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 		}
@@ -135,7 +135,7 @@ void drawsmoothcircle(Image *i, I16 xc, I16 yc, I16 r, Color c)
 	for (I64 x = CLIPX(i, xc-r); x < CLIPX(i, xc+r+1); x++) {
 		/* NOTE: check if the point and it's neighbours are
 		 * definitely inside the circle */
-		I64 xo = ABS(x-xc), yo = ABS(y-yc);
+		I64 xo = iabs(x-xc), yo = iabs(y-yc);
 		if (xo < r*45/64 && yo < r*45/64) {
 			PIXEL(i, x, y) = blend(PIXEL(i, x, y), c);
 		} else {
@@ -185,7 +185,7 @@ void drawrect(Image *i, I16 xtl, I16 ytl, I16 w, I16 h, Color c)
  * not when [e >= dx] but when [e*2 >= dx]. */
 void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 {
-	I64 dx = ABS(x2-x1), dy = ABS(y2-y1);
+	I64 dx = iabs(x2-x1), dy = iabs(y2-y1);
 	if (dx + dy == 0)
 		return;
 	/* NOTE: we always exclude (x2, y2), because it solves the problem
@@ -225,10 +225,10 @@ void drawline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, Color c)
 
 void drawbezier(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3, Color c)
 {
-	const I64 n = 64; /* NOTE: looks ok */
+	const I64 n = 64, n2=n*n; /* NOTE: looks ok */
 	for (I64 t = 1, xp = x1, yp = y1; t <= n; t++) {
-		I64 x = DIVROUND(SQUARE(n-t)*x1 + 2*(n-t)*t*x2 + SQUARE(t)*x3, SQUARE(n));
-		I64 y = DIVROUND(SQUARE(n-t)*y1 + 2*(n-t)*t*y2 + SQUARE(t)*y3, SQUARE(n));
+		I64 x = divround((n-t)*(n-t)*x1 + 2*(n-t)*t*x2 + t*t*x3, n2);
+		I64 y = divround((n-t)*(n-t)*y1 + 2*(n-t)*t*y2 + t*t*y3, n2);
 		drawline(i, xp, yp, x, y, c);
 		xp = x, yp = y;
 	}
@@ -271,8 +271,8 @@ void drawring(Image *i, I16 xc, I16 yc, I16 r, Color c)
 static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
 {
 	const I64 n = 3;
-	U64 l2 = SQUARE(x2-x1) + SQUARE(y2-y1);
-	U64 wn2 = SQUARE(w) * SQUARE(n);
+	I64 l2 = SQUARE(x2-x1) + SQUARE(y2-y1);
+	I64 wn2 = SQUARE(w) * SQUARE(n);
 	if (x1 > x2) {
 		SWAP(x1, x2);
 		SWAP(y1, y2);
@@ -284,7 +284,7 @@ static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2,
 		xlim = i->w, ylim = i->h;
 	I64 xmin = CLAMP(x1 - 2*w, 0, xlim), xmax = CLAMP(x2 + 2*w+1, 0, xlim);
 	for (I64 x = xmin; x < xmax; x++) {
-		I64 yc = y1 + DIVROUND((x - x1)*(y2 - y1), (x2 - x1));
+		I64 yc = y1 + divround((x - x1)*(y2 - y1), (x2 - x1));
 		I64 ymin = CLAMP(yc-2*w, 0, ylim), ymax = CLAMP(yc+2*w+1, 0, ylim);
 		I64 o1 = n*((x - x1)*(x2 - x1) + (ymin - y1)*(y2 - y1));
 		I64 o2 = n*((x - x2)*(x2 - x1) + (ymin - y2)*(y2 - y1));
@@ -314,9 +314,9 @@ static void drawthicknonsteep(Image *i, U8 flip, I16 x1, I16 y1, I16 x2, I16 y2,
 
 void drawthickline(Image *i, I16 x1, I16 y1, I16 x2, I16 y2, U8 w, Color c)
 {
-	if (ABS(x2-x1) + ABS(y2-y1) == 0)
+	if (iabs(x2-x1) + iabs(y2-y1) == 0)
 		return;
-	if (ABS(x2-x1) >= ABS(y2-y1))
+	if (iabs(x2-x1) >= iabs(y2-y1))
 		drawthicknonsteep(i, 0, x1, y1, x2, y2, w, c);
 	else
 		drawthicknonsteep(i, 1, y1, x1, y2, x2, w, c);
