@@ -6,6 +6,19 @@ U64 lsb(U64 x)
 	return x ^ (x & (x - 1));
 }
 
+U64 msb(U64 x)
+{
+	/* NOTE: the trick is to set all bits to the right of msb to 1,
+	 * the proper way would be to use intrinsics, but I'm experimenting */
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+	x |= x >> 32;
+	return x - (x >> 1);
+}
+
 U64 isqrt(U64 x)
 {
 	U64 l = 1, r = x;

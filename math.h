@@ -19,6 +19,7 @@
 #define CLAMP(x, l, r) (MIN(MAX(l, x), r))
 
 U64 lsb(U64 x);
+U64 msb(U64 x);
 U64 isqrt(U64 x);
 I64 cpsign(I64 x, I64 y);
 U64 iabs(I64 v);
