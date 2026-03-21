@@ -21,6 +21,7 @@
 U64 lsb(U64 x);
 U64 msb(U64 x);
 U64 isqrt(U64 x);
+U64 iexp(U64 x, U64 p);
 I64 cpsign(I64 x, I64 y);
 U64 iabs(I64 v);
 U64 divceil(U64 x, U64 y);

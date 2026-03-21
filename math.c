@@ -32,6 +32,20 @@ U64 isqrt(U64 x)
 	return l - 1;
 }
 
+/* iexp(x, 2*k + 1) = x * iexp(x, 2*k)
+ * iexp(x, 2*k) = iexp(x*x, k) */
+U64 iexp(U64 x, U64 p)
+{
+	U64 v = 1, m = x;
+	while (p) {
+		U64 c = -(p & 1);
+		v *= 1 ^ ((m ^ 1) & c); /* conditional multiply */
+		p >>= 1;
+		m *= m;
+	}
+	return v;
+}
+
 U64 iabs(I64 x)
 {
 	I64 s = x >> 63;
