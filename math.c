@@ -23,6 +23,7 @@ U8 nlz(U64 x)
 {
 	U8 n = 64;
 	U8 c;
+	/* NOTE: this is unrolled binary search */
 	c = !!(x >> 32) << 5;
 	x >>= c, n -= c;
 	c = !!(x >> 16) << 4;
