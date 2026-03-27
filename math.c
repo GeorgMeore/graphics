@@ -82,7 +82,7 @@ I64 cpsign(I64 x, I64 y)
 
 U64 divceil(U64 x, U64 y)
 {
-	return (x + y - 1) / y;
+	return x / y + !!(x % y);
 }
 
 I64 divround(I64 x, I64 y)
