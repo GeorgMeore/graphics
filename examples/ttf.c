@@ -4,9 +4,10 @@
 #include "win.h"
 #include "draw.h"
 #include "io.h"
-#include "alloc.h"
 #include "math.h"
 #include "font.h"
+#include "alloc.h"
+#include "fontparse.h"
 
 OK utf8(char **s, U32 *c)
 {
@@ -171,7 +172,8 @@ int main(int argc, char **argv)
 		println("usage: ", argv[0], " FONT.ttf STRING");
 		return 1;
 	}
-	Font fn = openttf(argv[1]);
+	Arena fntmem = {0};
+	Font fn = openttf(argv[1], &fntmem);
 	GCache c = {.fn = fn};
 	setpx(&c, 20);
 	winopen(1920, 1080, argv[0], 0);
@@ -187,6 +189,6 @@ int main(int argc, char **argv)
 	}
 	winclose();
 	arfree(&c.mem);
-	arfree(&fn.mem);
+	arfree(&fntmem);
 	return 0;
 }

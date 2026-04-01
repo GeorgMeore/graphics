@@ -6,7 +6,6 @@
 #include <pulse/error.h>
 
 typedef struct {
-	Arena mem;
 	U16   nchan;
 	U32   srate;
 	U16   bps;
@@ -68,7 +67,7 @@ OK parsefmt(IOBuffer *b, Audio *a, U64 fmt)
 	return 1;
 }
 
-OK parsedata(IOBuffer *b, Audio *a, U64 data)
+OK parsedata(IOBuffer *b, Arena *m, Audio *a, U64 data)
 {
 	if (a->bps != 16 && a->bps != 24 && a->bps != 32)
 		return 0; /* TODO: support 8 bit pcm */
@@ -79,7 +78,7 @@ OK parsedata(IOBuffer *b, Audio *a, U64 data)
 	if (size % framesize)
 		return 0;
 	a->nframes = size / framesize;
-	a->data = aralloc(&a->mem, a->nframes * a->nchan * sizeof(F32));
+	a->data = aralloc(m, a->nframes * a->nchan * sizeof(F32));
 	F32 max = (U64)1 << (a->bps - 1);
 	for (U32 i = 0; i < a->nframes; i++) {
 		for (U16 ch = 0; ch < a->nchan; ch++) {
@@ -90,7 +89,7 @@ OK parsedata(IOBuffer *b, Audio *a, U64 data)
 	return 1;
 }
 
-Audio parsewav(IOBuffer *b)
+Audio parsewav(IOBuffer *b, Arena *m)
 {
 	Audio a = {0};
 	U32 riff = readle(b, 4);
@@ -113,20 +112,18 @@ Audio parsewav(IOBuffer *b)
 		if (b->error || b->pos > fsize + 8)
 			return (Audio){0};
 	}
-	OK ok = parsefmt(b, &a, fmt) && parsedata(b, &a, data);
-	if (!ok || b->error) {
-		arfree(&a.mem);
+	OK ok = parsefmt(b, &a, fmt) && parsedata(b, m, &a, data);
+	if (!ok || b->error)
 		return (Audio){0};
-	}
 	return a;
 }
 
-Audio loadwav(const char *path)
+Audio loadwav(const char *path, Arena *m)
 {
 	IOBuffer b = {0};
 	if (!bopen(&b, path, 'r'))
 		return (Audio){0};
-	Audio a = parsewav(&b);
+	Audio a = parsewav(&b, m);
 	bclose(&b);
 	return a;
 }
@@ -158,11 +155,12 @@ exit:
 
 int main(int argc, char **argv)
 {
+	Arena mem = {0};
 	if (argc != 2) {
 		println("usage: ", OS(argv[0]), " FILE");
 		return 1;
 	}
-	Audio a = loadwav(argv[1]);
+	Audio a = loadwav(argv[1], &mem);
 	if (!a.data) {
 		println("error: parsing failed");
 		return 1;

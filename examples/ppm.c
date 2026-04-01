@@ -1,7 +1,9 @@
 #include "types.h"
 #include "math.h"
 #include "color.h"
+#include "alloc.h"
 #include "image.h"
+#include "imageparse.h"
 #include "draw.h"
 #include "win.h"
 #include "io.h"
@@ -19,7 +21,8 @@ int main(int argc, char **argv)
 		println("usage: ", argv[0], " IMAGE.ppm");
 		return 1;
 	}
-	Image i = loadppm(argv[1]);
+	Arena mem = {0};
+	Image i = loadppm(argv[1], &mem);
 	if (!i.p) {
 		println("error: failed to open the image");
 		return 1;
@@ -30,6 +33,7 @@ int main(int argc, char **argv)
 		drawclear(f, BLACK);
 		drawimage(f, mousex() - i.w/2, mousey() - i.h/2, &i);
 	}
+	arfree(&mem);
 	winclose();
 	return 0;
 }

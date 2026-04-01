@@ -18,7 +18,6 @@ typedef struct {
 } Glyph;
 
 typedef struct {
-	Arena  mem;
 	I16    ascend;
 	I16    descend;
 	I16    linegap;
@@ -30,9 +29,6 @@ typedef struct {
 	U16    npoints;
 	U16    *ctable[2];
 } Font;
-
-Font parsettf(IOBuffer *b);
-Font openttf(const char *path);
 
 U16 findglyph(Font f, U32 code);
 

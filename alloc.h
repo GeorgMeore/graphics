@@ -2,7 +2,6 @@
 #define MIB (1024*KIB)
 #define GIB (1024*MIB)
 
-
 /* NOTE: alloc functions without 'a' suffix return word-aligned pointers */
 /* TODO: maybe use natural alignment instead? */
 
