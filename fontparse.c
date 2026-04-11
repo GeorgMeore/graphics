@@ -257,8 +257,11 @@ static OK parseglyphs(IOBuffer *b, Arena *a, Font *f, U32 head, U32 maxp, U32 gl
 		.ends  = aralloc(a, maxconts * sizeof(U16)),
 		.xy    = aralloc(a, maxpts * sizeof(I16) * 2),
 	};
-	for (U16 i = 0; i < f->nglyph; i++)
-		parseglyph(b, f, &p, i, glyf, locations, maxconts, maxpts);
+	for (U16 i = 0; i < f->nglyph; i++) {
+		OK ok = parseglyph(b, f, &p, i, glyf, locations, maxconts, maxpts);
+		if (!ok)
+			return 0;
+	}
 	return 1;
 }
 
