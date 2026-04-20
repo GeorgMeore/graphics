@@ -395,7 +395,6 @@ Font parsettf(IOBuffer *b, Arena *a)
 	return f;
 }
 
-/* TODO: move all file format parsing into separate modules */
 Font openttf(const char *path, Arena *a)
 {
 	IOBuffer b = {0};
