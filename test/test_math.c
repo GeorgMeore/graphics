@@ -40,5 +40,11 @@ TESTSUITE("math library") {
 		REQUIRE(lsb((unsigned)0b1111) == 0b1);
 		REQUIRE(lsb((unsigned)0b1100) == 0b100);
 	}
-	/* TODO: check more */
+	TESTCASE("isqrt") {
+		REQUIRE(isqrt(0) == 0);
+		REQUIRE(isqrt(1) == 1);
+		REQUIRE(isqrt(2) == 1);
+		REQUIRE(isqrt(15) == 3);
+		REQUIRE(isqrt(16) == 4);
+	}
 }

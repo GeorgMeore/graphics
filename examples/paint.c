@@ -109,7 +109,7 @@ void drawfill(Image *f, I16 x, I16 y, Color c)
 	for (I16 xc = xl + 1; xc < xr; xc++) {
 		if (y > 0 && PIXEL(f, xc, y-1) == fc)
 			drawfill(f, xc, y-1, c);
-		if (y < f->h && PIXEL(f, xc, y+1) == fc)
+		if (y < f->h - 1 && PIXEL(f, xc, y+1) == fc)
 			drawfill(f, xc, y+1, c);
 	}
 }

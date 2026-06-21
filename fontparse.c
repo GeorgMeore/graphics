@@ -161,7 +161,7 @@ static OK parsecompoundglyph(IOBuffer *b, Points *p, U32 glyf, U32 *locations, U
 		bseek(b, glyf + locations[index]);
 		I16 ncont = readbe(b, 2);
 		skip(b, 2+2+2+2); /* xMin, yMin, xMax, yMax */
-		OK ok;
+		OK ok = 1;
 		if (ncont > 0)
 			ok = parsesimpleglyph(b, p, ncont, maxconts, maxpts);
 		if (ncont < 0)

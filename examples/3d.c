@@ -336,5 +336,6 @@ int main(int, char **argv)
 		for (U16 x = 0; x < f->w; x++)
 			PIXEL(f, x, y) = PIXEL(&fbuf, x*WIDTH/f->w, y*HEIGHT/f->h);
 	}
+	winclose();
 	return 0;
 }

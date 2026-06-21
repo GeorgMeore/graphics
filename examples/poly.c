@@ -5,8 +5,6 @@
 #include "win.h"
 #include "poly.h"
 
-#define MAXDEG 128
-
 I16 tickstep(F64 scale)
 {
 	F64 ts = 1;

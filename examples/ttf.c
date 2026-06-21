@@ -174,6 +174,10 @@ int main(int argc, char **argv)
 	}
 	Arena fntmem = {0};
 	Font fn = openttf(argv[1], &fntmem);
+	if (!fn.nglyph) {
+		eprintln("error: fornt parsing failed");
+		return 1;
+	}
 	GCache c = {.fn = fn};
 	setpx(&c, 20);
 	winopen(1920, 1080, argv[0], 0);

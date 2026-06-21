@@ -41,15 +41,15 @@ U8 nlz(U64 x)
 
 U64 isqrt(U64 x)
 {
-	U64 l = 1, r = x;
+	U64 l = 0, r = MIN(x, MAXVAL(U32));
 	while (l < r) {
-		U64 m = l + (r - l)/2;
-		if (m*m > x)
-			r = m;
+		U64 m = l + (r - l + 1)/2;
+		if (m*m <= x)
+			l = m;
 		else
-			l = m + 1;
+			r = m - 1;
 	}
-	return l - 1;
+	return r;
 }
 
 /* iexp(x, 2*k + 1) = x * iexp(x, 2*k)

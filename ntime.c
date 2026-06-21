@@ -2,7 +2,7 @@
 #include <unistd.h>
 
 #include "types.h"
-#include "time.h"
+#include "ntime.h"
 
 U64 timens(void)
 {
