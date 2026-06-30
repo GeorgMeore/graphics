@@ -33,5 +33,6 @@ typedef struct {
 U16 findglyph(Font f, U32 code);
 
 void drawbmp(Image *f, I16 x0, I16 y0, Glyph g, F64 scale);
+void drawbmpaa(Image *f, I16 x0, I16 y0, Glyph g, F64 scale);
 void drawoutline(Image *f, I16 x0, I16 y0, Glyph g, Color c, F64 scale);
 void drawsdf(Image *f, I16 x0, I16 y0, Glyph g, F64 scale);
