@@ -233,6 +233,7 @@ static void putquad(Image *f, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3)
 	putquad(f, mx, my, rx, ry, x3, y3);
 }
 
+/* NOTE: because of grid-fitting, on small font sizes the results are suboptimal */
 void drawbmpaa(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 {
 	drawclear(f, 0);
