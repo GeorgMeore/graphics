@@ -5,7 +5,7 @@
 #include "font.h"
 #include "alloc.h"
 #include "math.h"
-#include "fontparse.h"
+#include "fontfmt.h"
 
 static U64 readbe(IOBuffer *b, U8 bytes)
 {
@@ -290,7 +290,7 @@ static OK parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
 	return 1;
 }
 
-static OK parsefmt14(IOBuffer *b, Arena *a, Font *f)
+static OK parsefmt4(IOBuffer *b, Arena *a, Font *f)
 {
 	skip(b, 2+2); /* length, language */
 	U16 segcnt = readbe(b, 2)/2;
@@ -307,8 +307,8 @@ static OK parsefmt14(IOBuffer *b, Arena *a, Font *f)
 		npoints += end - start + 1;
 	}
 	f->npoints = npoints;
-	f->ctable[0] = aralloc(a, npoints*sizeof(U16));
-	f->ctable[1] = aralloc(a, npoints*sizeof(U16));
+	f->ctable[0] = aralloc(a, npoints*sizeof(U32));
+	f->ctable[1] = aralloc(a, npoints*sizeof(U32));
 	for (U16 i = 0, j = 0; i < segcnt; i++) {
 		bseek(b, table + i*2);
 		U16 end = readbe(b, 2);
@@ -323,7 +323,7 @@ static OK parsefmt14(IOBuffer *b, Arena *a, Font *f)
 		for (U32 p = start; p <= end; p++, j++) {
 			f->ctable[0][j] = p;
 			if (!idroff)
-				f->ctable[1][j] = iddelta + p;
+				f->ctable[1][j] = (U16)(iddelta + p);
 			else
 				f->ctable[1][j] = readbe(b, 2);
 			if (f->ctable[1][j] >= f->nglyph)
@@ -348,7 +348,7 @@ static OK parsectable(IOBuffer *b, Arena *a, Font *f, U32 cmap)
 		bseek(b, cmap + offset);
 		U16 format = readbe(b, 2);
 		if (format == 4)
-			return parsefmt14(b, a, f);
+			return parsefmt4(b, a, f);
 	}
 	return 1;
 }
@@ -403,4 +403,69 @@ Font openttf(const char *path, Arena *a)
 	Font f = parsettf(&b, a);
 	bclose(&b);
 	return f;
+}
+
+static void glyph2c(IOBuffer *b, Glyph g)
+{
+	bprintln(b, "\t\t{");
+	bprintln(b, "\t\t\t.nseg = ", OD(g.nseg), ",");
+	bprintln(b, "\t\t\t.segs = (Segment[]){");
+	for (U16 i = 0; i < g.nseg; i++) {
+		bprint(b, "\t\t\t\t{");
+		bprint(b, "{");
+		for (I j = 0; j < 3; j++) {
+			bprint(b, j ? ", " : "");
+			bprint(b, OD(g.segs[i].x[j]));
+		}
+		bprint(b, "}, ");
+		bprint(b, "{");
+		for (I j = 0; j < 3; j++) {
+			bprint(b, j ? ", " : "");
+			bprint(b, OD(g.segs[i].y[j]));
+		}
+		bprint(b, "}, ");
+		bprint(b, OD(g.segs[i].type));
+		bprintln(b, "},");
+	}
+	bprintln(b, "\t\t\t},");
+	bprintln(b, "\t\t\t.xmin = ", OD(g.xmin), ", .xmax = ", OD(g.xmax), ",");
+	bprintln(b, "\t\t\t.ymin = ", OD(g.ymin), ", .ymax = ", OD(g.ymax), ",");
+	bprintln(b, "\t\t\t.advance = ", OD(g.advance), ",");
+	bprintln(b, "\t\t\t.lsb = ", OD(g.lsb), ",");
+	bprintln(b, "\t\t},");
+}
+
+OK font2c(Font fn, const char *var, const char *path)
+{
+	IOBuffer b = {0};
+	if (!bopen(&b, path, 'w'))
+		return 0;
+	bprintln(&b, "Font ", OS(var), " = {");
+	bprintln(&b, "\t.ascend  = ", OD(fn.ascend), ",");
+	bprintln(&b, "\t.descend = ", OD(fn.descend), ",");
+	bprintln(&b, "\t.linegap = ", OD(fn.linegap), ",");
+	bprintln(&b, "\t.upm = ", OD(fn.upm), ",");
+	bprintln(&b, "\t.xmin = ", OD(fn.xmin), ", .xmax = ", OD(fn.xmax), ",");
+	bprintln(&b, "\t.ymin = ", OD(fn.ymin), ", .ymax = ", OD(fn.ymax), ",");
+	bprintln(&b, "\t.nglyph = ", OD(fn.nglyph), ",");
+	bprintln(&b, "\t.glyphs = (Glyph[]){");
+	for (U16 i = 0; i < fn.nglyph; i++)
+		glyph2c(&b, fn.glyphs[i]);
+	bprintln(&b, "\t},");
+	bprintln(&b, "\t.npoints = ", OD(fn.npoints), ",");
+	bprintln(&b, "\t.ctable = {");
+	bprint(&b, "\t\t(U16[]){");
+	for (U16 i = 0; i < fn.npoints; i++) {
+		bprint(&b, i ? ", " : "");
+		bprint(&b, OD(fn.ctable[0][i]));
+	}
+	bprintln(&b, "},");
+	bprint(&b, "\t\t(U16[]){");
+	for (U16 i = 0; i < fn.npoints; i++) {
+		bprint(&b, i ? ", " : "");
+		bprint(&b, OD(fn.ctable[1][i]));
+	}
+	bprintln(&b, "},");
+	bprintln(&b, "\t},");
+	bprintln(&b, "};");
 }

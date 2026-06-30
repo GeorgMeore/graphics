@@ -3,7 +3,7 @@
 #include "color.h"
 #include "alloc.h"
 #include "image.h"
-#include "imageparse.h"
+#include "imagefmt.h"
 #include "draw.h"
 #include "win.h"
 #include "io.h"

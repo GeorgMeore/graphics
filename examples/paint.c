@@ -2,6 +2,7 @@
 #include "alloc.h"
 #include "color.h"
 #include "image.h"
+#include "imagefmt.h"
 #include "win.h"
 #include "draw.h"
 
@@ -142,7 +143,7 @@ int main(void)
 		if (btnisdown(3))
 			drawfill(f, mousex(), mousey(), FILLCOLOR);
 		if (keywaspressed('s'))
-			saveppm(f, "out.ppm");
+			image2ppm(f, "out.ppm");
 	}
 	winclose();
 	return 0;

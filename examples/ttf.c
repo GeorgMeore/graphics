@@ -7,7 +7,7 @@
 #include "math.h"
 #include "font.h"
 #include "alloc.h"
-#include "fontparse.h"
+#include "fontfmt.h"
 
 OK utf8(char **s, U32 *c)
 {
