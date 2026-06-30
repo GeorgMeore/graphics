@@ -129,9 +129,9 @@ static Hit isectcurve(I16 ry, I16 x1, I16 y1, I16 x2, I16 y2, I16 x3, I16 y3)
 
 void drawbmp(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 {
+	drawclear(f, 0);
 	if (!g.nseg)
 		return;
-	drawclear(f, 0);
 	for (U16 i = 0; i < g.nseg; i++) {
 		Segment s = segtransform(g.segs[i], x0, y0, scale);
 		I16 ylo, yhi;
@@ -235,9 +235,9 @@ static void putquad(Image *f, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3)
 
 void drawbmpaa(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 {
+	drawclear(f, 0);
 	if (!g.nseg)
 		return;
-	drawclear(f, 0);
 	for (U16 i = 0; i < g.nseg; i++) {
 		Segment s = segtransform(g.segs[i], x0, y0, scale);
 		if (s.type == SegLine)
