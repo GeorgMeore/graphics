@@ -350,7 +350,7 @@ static OK parsectable(IOBuffer *b, Arena *a, Font *f, U32 cmap)
 		if (format == 4)
 			return parsefmt14(b, a, f);
 	}
-	return 0;
+	return 1;
 }
 
 /* TODO: maybe read the whole font file into memory (or mmap)? */
