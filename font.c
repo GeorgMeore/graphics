@@ -303,9 +303,9 @@ static F64 distcurve(F64 x, F64 y, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y
 
 void drawsdf(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 {
+	drawbmp(f, x0, y0, g, scale); /* calculate signs */
 	if (!g.nseg)
 		return;
-	drawbmp(f, x0, y0, g, scale); /* calculate signs */
 	for (I16 y = 0; y < f->h; y++)
 	for (I16 x = 0; x < f->w; x++) {
 		F64 d = INF;
