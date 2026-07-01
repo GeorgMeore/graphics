@@ -210,7 +210,7 @@ static void putline(Image *i, F64 x1, F64 y1, F64 x2, F64 y2)
 		if (py >= 0 && py < i->h) {
 			if (px < i->w)
 				*(F32 *)&PIXEL(i, MAX(px, 0),   py) += d*(1 - f);
-			if (px+1 < i->w)
+			if (px < i->w-1)
 				*(F32 *)&PIXEL(i, MAX(px+1, 0), py) += d*f;
 		}
 		x = xn, y = yn;
