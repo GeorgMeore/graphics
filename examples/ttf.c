@@ -37,16 +37,11 @@ typedef struct {
 	Arena   mem;
 	F64     px, scale;
 	I64     xoff, yoff;
-	I8      ss;
 	Image   bmp[CACHESIZE];
-	Image   tmp;
 	Glyph   *map[CACHESIZE];
 	U16     next[CACHESIZE];
 	U16     n, last;
 } GCache;
-
-#define MAXHTPX 2048
-#define MAXSS      6
 
 void setpx(GCache *c, F64 px)
 {
@@ -64,25 +59,6 @@ void setpx(GCache *c, F64 px)
 		c->bmp[i].s = w;
 		c->bmp[i].h = h;
 		c->bmp[i].p = aralloc(&c->mem, w*h * sizeof(Color));
-	}
-	c->ss = CLAMP((U64)MAXHTPX / h, (U64)1, (U64)MAXSS);
-	c->tmp.w = w * c->ss;
-	c->tmp.s = w * c->ss;
-	c->tmp.h = h * c->ss;
-	c->tmp.p = aralloc(&c->mem, (c->ss*c->ss)*w*h * sizeof(Color));
-}
-
-static void addglyph(GCache *c, Image *b, Glyph *g)
-{
-	drawclear(&c->tmp, 0);
-	drawbmp(&c->tmp, c->xoff * c->ss, c->yoff * c->ss, *g, c->scale * c->ss);
-	for (I y = 0; y < b->h; y++)
-	for (I x = 0; x < b->w; x++) {
-		I n = 0;
-		for (I dy = 0; dy < c->ss; dy++)
-		for (I dx = 0; dx < c->ss; dx++)
-			n += PIXEL(&c->tmp, x*c->ss + dx, y*c->ss + dy);
-		*(F32 *)&PIXEL(b, x, y) = n / (F64)(c->ss*c->ss);
 	}
 }
 
@@ -110,7 +86,7 @@ Image *lookup(GCache *c, Glyph *g)
 	Image *b = &c->bmp[c->last];
 	if (!found) {
 		c->map[c->last] = g;
-		addglyph(c, b, g);
+		drawbmpaa(b, c->xoff, c->yoff, *g, c->scale);
 	}
 	return b;
 }
@@ -119,10 +95,8 @@ void drawgbitmap(Image *f, I16 x0, I16 y0, Image *b, Color c)
 {
 	for (I16 y = CLIPY(f, y0); y < CLIPY(f, y0 + b->h); y++)
 	for (I16 x = CLIPX(f, x0); x < CLIPX(f, x0 + b->w); x++) {
-		if (PIXEL(b, x - x0, y - y0)) {
-			U8 a = *(F32 *)&PIXEL(b, x - x0, y - y0) * 255.0;
-			PIXEL(f, x, y) = blend(PIXEL(f, x, y), RGBA(R(c), G(c), B(c), a));
-		}
+		U8 a = *(F32 *)&PIXEL(b, x - x0, y - y0) * 255.0;
+		PIXEL(f, x, y) = blend(PIXEL(f, x, y), RGBA(R(c), G(c), B(c), a));
 	}
 }
 
@@ -137,30 +111,41 @@ I16 drawchar(Image *f, I16 x, I16 y, GCache *gc, U64 code, Color c)
 
 U32 textwidth(char *t, GCache *c)
 {
-	U32 w = 0;
+	U32 w = 0, wmax = 0;
 	for (;;) {
 		U32 code;
 		OK ok = utf8(&t, &code);
 		if (!ok || !code)
-			return w;
-		U16 idx = findglyph(c->fn, code);
-		Glyph *g = &c->fn.glyphs[idx];
-		w += g->advance * c->scale;
+			return MAX(w, wmax);
+		if (code == '\n') {
+			wmax = MAX(w, wmax), w = 0;
+		} else if (code == '\t') {
+			w += textwidth("    ", c);
+		} else {
+			U16 idx = findglyph(c->fn, code);
+			Glyph *g = &c->fn.glyphs[idx];
+			w += g->advance * c->scale;
+		}
 	}
 }
 
-void drawtext(Image *f, I16 x, I16 y, GCache *gc, char *t, Color c)
+U32 drawtext(Image *f, I16 x, I16 y, GCache *gc, char *t, Color c)
 {
+	I16 xstart = x;
+	I16 ylnstep = (gc->fn.ascend - gc->fn.descend + gc->fn.linegap)*gc->scale;
 	for (;;) {
 		U32 code;
 		OK ok = utf8(&t, &code);
 		if (!ok || !code)
-			return;
-		U16 idx = findglyph(gc->fn, code);
-		Glyph *g = &gc->fn.glyphs[idx];
-		Image *b = lookup(gc, g);
-		drawgbitmap(f, x - gc->xoff, y - gc->yoff, b, c);
-		x += g->advance * gc->scale;
+			return x - xstart;
+		if (code == '\n') {
+			y += ylnstep;
+			x = xstart;
+		} else if (code == '\t') {
+			x += drawtext(f, x, y, gc, "    ", c);
+		} else {
+			x += drawchar(f, x, y, gc, code, c);
+		}
 	}
 }
 

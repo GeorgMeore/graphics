@@ -233,18 +233,22 @@ static void putquad(Image *f, F64 x1, F64 y1, F64 x2, F64 y2, F64 x3, F64 y3)
 	putquad(f, mx, my, rx, ry, x3, y3);
 }
 
-/* NOTE: because of grid-fitting, on small font sizes the results are suboptimal */
 void drawbmpaa(Image *f, I16 x0, I16 y0, Glyph g, F64 scale)
 {
 	drawclear(f, 0);
 	if (!g.nseg)
 		return;
 	for (U16 i = 0; i < g.nseg; i++) {
-		Segment s = segtransform(g.segs[i], x0, y0, scale);
+		Segment s = g.segs[i];
+		F64 x[3], y[3];
+		for (U8 j = 0; j < 3; j++) {
+			x[j] = x0 + s.x[j]*scale;
+			y[j] = y0 - s.y[j]*scale;
+		}
 		if (s.type == SegLine)
-			putline(f, s.x[0], s.y[0], s.x[1], s.y[1]);
+			putline(f, x[0], y[0], x[1], y[1]);
 		else
-			putquad(f, s.x[0], s.y[0], s.x[1], s.y[1], s.x[2], s.y[2]);
+			putquad(f, x[0], y[0], x[1], y[1], x[2], y[2]);
 	}
 	for (I16 y = 0; y < f->h; y++) {
 		F64 a = 0;
