@@ -28,12 +28,12 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	winopen(600, 600, argv[0], 60);
-	while (!keyisdown('q')) {
+	while (!keyisdown(KeyQ)) {
 		Image *f = frame();
+		if (!f)
+			break;
 		drawclear(f, BLACK);
 		drawimage(f, mousex() - i.w/2, mousey() - i.h/2, &i);
 	}
-	arfree(&mem);
-	winclose();
 	return 0;
 }

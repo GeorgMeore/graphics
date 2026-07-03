@@ -14,5 +14,6 @@ U64 timens(void)
 void sleepns(U64 t)
 {
 	struct timespec ts = {t / 1000000000, t % 1000000000};
-	clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, 0);
+	nanosleep(&ts, 0);
+	//clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, 0);
 }

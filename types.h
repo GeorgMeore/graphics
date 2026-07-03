@@ -10,7 +10,7 @@ typedef unsigned long  U64;
 typedef long           I64;
 typedef U64            U; /* address sized unsigned */
 typedef I64            I; /* address sized signed */
-typedef U8             OK; /* bool-ish */
+typedef int            OK; /* bool-ish */
 
 #define ISUNSIGNED(t) ((t)(-1) > 0)
 #define ISSIGNED(t) (!ISUNSIGNED(t))

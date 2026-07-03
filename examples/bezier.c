@@ -26,9 +26,9 @@ void updatepoint(Image *i, int p[2])
 {
 	static void *curr = 0;
 	int mx = mousex(), my = mousey();
-	if (!btnisdown(1))
+	if (!btnisdown(BtnLeft))
 		curr = 0;
-	else if (!curr && SQUARE(p[0] - mx) + SQUARE(p[1] - my) < SQUARE(6))
+	else if (!curr && SQUARE(p[0] - mx) + SQUARE(p[1] - my) < SQUARE(8))
 		curr = p;
 	if (curr == p) {
 		p[0] = CLAMP(mx, 0, i->w);
@@ -38,12 +38,14 @@ void updatepoint(Image *i, int p[2])
 
 int main(void)
 {
-	winopen(600, 600, "Bezier", 60);
+	winopen(600, 600, "Bezier", 0);
 	int tmpcnt = 0, tmp[3][2];
 	Bezier2 *head = 0;
-	while (!keyisdown('q')) {
-		Image *fb = frame();
-		if (btnwaspressed(3)) {
+	while (!keyisdown(KeyQ)) {
+		Image *f = frame();
+		if (!f)
+			break;
+		if (btnwaspressed(BtnRight)) {
 			tmp[tmpcnt][0] = mousex();
 			tmp[tmpcnt][1] = mousey();
 			tmpcnt += 1;
@@ -52,7 +54,7 @@ int main(void)
 				head = bezier2(tmp, head);
 			}
 		}
-		if (btnwaspressed(2)) {
+		if (keywaspressed(KeyBackspace)) {
 			if (tmpcnt) {
 				tmpcnt -= 1;
 			} else if (head) {
@@ -61,19 +63,18 @@ int main(void)
 				memfree(top);
 			}
 		}
-		drawclear(fb, BLACK);
+		drawclear(f, BLACK);
 		for (Bezier2 *c = head; c; c = c->next) {
 			for (int i = 0; i < 3; i++)
-				updatepoint(fb, c->pt[i]);
+				updatepoint(f, c->pt[i]);
 			for (int i = 0; i < 3; i++)
-				drawline(fb, c->pt[i][0], c->pt[i][1], c->pt[1][0], c->pt[1][1], RGBA(40, 40, 40, 255));
+				drawline(f, c->pt[i][0], c->pt[i][1], c->pt[1][0], c->pt[1][1], RGBA(40, 40, 40, 255));
 			for (int i = 0; i < 3; i++)
-				drawsmoothcircle(fb, c->pt[i][0], c->pt[i][1], 6, WHITE);
-			drawbezier(fb, c->pt[0][0], c->pt[0][1], c->pt[1][0], c->pt[1][1], c->pt[2][0], c->pt[2][1], WHITE);
+				drawsmoothcircle(f, c->pt[i][0], c->pt[i][1], 6, WHITE);
+			drawbezier(f, c->pt[0][0], c->pt[0][1], c->pt[1][0], c->pt[1][1], c->pt[2][0], c->pt[2][1], WHITE);
 		}
 		for (int i = 0; i < tmpcnt; i++)
-			drawsmoothcircle(fb, tmp[i][0], tmp[i][1], 6, RED);
+			drawsmoothcircle(f, tmp[i][0], tmp[i][1], 6, RED);
 	}
-	winclose();
 	return 0;
 }

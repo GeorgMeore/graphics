@@ -8,7 +8,7 @@ Color blend(Color b, Color t)
 	U8 rc = divround(R(b)*(255-A(t)) + R(t)*A(t), 255);
 	U8 gc = divround(G(b)*(255-A(t)) + G(t)*A(t), 255);
 	U8 bc = divround(B(b)*(255-A(t)) + B(t)*A(t), 255);
-	return RGBA(rc, gc, bc, 0);
+	return RGBA(rc, gc, bc, 255);
 }
 
 /* NOTE: the formula can be derived by taking a base color

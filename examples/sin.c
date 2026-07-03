@@ -11,8 +11,10 @@ int main(int, char **argv)
 {
 	winopen(600, 600, argv[0], 60);
 	F64 t = 0;
-	while (!keyisdown('q')) {
+	while (!keyisdown(KeyQ)) {
 		Image *fb = frame();
+		if (!fb)
+			break;
 		t += lastframetime()/1e9;
 		drawclear(fb, BGCOLOR);
 		for (int i = 0; i < 200; i++) {
@@ -22,6 +24,5 @@ int main(int, char **argv)
 			drawsmoothcircle(fb, fb->w*i/200, fb->h/2 + fcos(t)*fsin(t*.4 + 4*PI*i/200 + 3*PI/2)*fb->h/2, 5, RGBA(110, 110, 110, 255));
 		}
 	}
-	winclose();
 	return 0;
 }

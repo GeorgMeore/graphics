@@ -10,7 +10,7 @@ void updatepoint(Image *i, int p[2])
 {
 	static void *curr = 0;
 	int mx = mousex(), my = mousey();
-	if (!btnisdown(1))
+	if (!btnisdown(BtnLeft))
 		curr = 0;
 	else if (!curr && SQUARE(p[0] - mx) + SQUARE(p[1] - my) < SQUARE(6))
 		curr = p;
@@ -29,20 +29,21 @@ int main(void)
 	int pt[3][2] = {{100, 100}, {200, 200}, {300, 100}};
 	Color c[3] = {RED, GREEN, BLUE};
 	int smooth = 1;
-	while (!keyisdown('q')) {
-		Image *fb = frame();
+	while (!keyisdown(KeyQ)) {
+		Image *f = frame();
+		if (!f)
+			break;
 		for (int i = 0; i < 3; i++)
-			updatepoint(fb, pt[i]);
-		if (keywaspressed('s'))
+			updatepoint(f, pt[i]);
+		if (keywaspressed(KeyS))
 			smooth = !smooth;
-		drawclear(fb, BGCOLOR);
+		drawclear(f, BGCOLOR);
 		for (int i = 0; i < 3; i++)
-			drawsmoothcircle(fb, pt[i][0], pt[i][1], 5, c[i]);
+			drawsmoothcircle(f, pt[i][0], pt[i][1], 5, c[i]);
 		if (smooth)
-			drawsmoothtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], TRCOLOR);
+			drawsmoothtriangle(f, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], TRCOLOR);
 		else
-			drawtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], TRCOLOR);
+			drawtriangle(f, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], TRCOLOR);
 	}
-	winclose();
 	return 0;
 }
