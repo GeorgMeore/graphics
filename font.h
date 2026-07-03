@@ -26,8 +26,8 @@ typedef struct {
 	I16    ymin, ymax;
 	U16    nglyph;
 	Glyph  *glyphs;
-	U16    npoints;
-	U16    *ctable[2];
+	U64    npoints;
+	U32    *ctable[2];
 } Font;
 
 U16 findglyph(Font f, U32 code);

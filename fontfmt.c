@@ -290,13 +290,14 @@ static OK parsemetrics(IOBuffer *b, Font *f, U32 hmtx, U32 hhea)
 	return 1;
 }
 
-static OK parsefmt4(IOBuffer *b, Arena *a, Font *f)
+static OK parsefmt4(IOBuffer *b, U64 start, Arena *a, Font *f)
 {
+	bseek(b, start);
 	skip(b, 2+2); /* length, language */
 	U16 segcnt = readbe(b, 2)/2;
 	skip(b, 2+2+2); /* searchRange, entrySelector, rangeShift */
 	U64 table = b->pos;
-	U32 npoints = 0;
+	U64 npoints = 0;
 	for (U16 i = 0; i < segcnt; i++) {
 		bseek(b, table + i*2);
 		U16 end = readbe(b, 2);
@@ -333,24 +334,64 @@ static OK parsefmt4(IOBuffer *b, Arena *a, Font *f)
 	return 1;
 }
 
-/* TODO: support format 12 tables */
+static OK parsefmt12(IOBuffer *b, U64 start, Arena *a, Font *f)
+{
+	bseek(b, start);
+	skip(b, 2+4+4); /* reserved, length, language */
+	U32 ngroups = readbe(b, 4);
+	U64 table = b->pos;
+	U64 npoints = 0;
+	for (U32 i = 0; i < ngroups; i++) {
+		U32 start = readbe(b, 4);
+		U32 end = readbe(b, 4);
+		U32 startglyph = readbe(b, 4);
+		U64 n = end - start + 1;
+		if (start > end || startglyph + n >= f->nglyph)
+			return 0;
+		npoints += n;
+	}
+	f->npoints = npoints;
+	f->ctable[0] = aralloc(a, npoints*sizeof(U32));
+	f->ctable[1] = aralloc(a, npoints*sizeof(U32));
+	bseek(b, table);
+	for (U16 i = 0, j = 0; i < ngroups; i++) {
+		U32 start = readbe(b, 4);
+		U32 end = readbe(b, 4);
+		U32 startglyph = readbe(b, 4);
+		for (U32 p = start; p <= end; p++, j++) {
+			f->ctable[0][j] = p;
+			f->ctable[1][j] = startglyph + (p - start);
+		}
+	}
+	return 1;
+}
+
 static OK parsectable(IOBuffer *b, Arena *a, Font *f, U32 cmap)
 {
 	bseek(b, cmap);
 	skip(b, 2); /* version */
 	U16 ntab = readbe(b, 2);
+	U64 fmt4 = 0, fmt12 = 0;
 	for (U16 i = 0; i < ntab; i++) {
 		U16 platformid = readbe(b, 2);
 		skip(b, 2); /* platformSpecificID */
 		U32 offset = readbe(b, 4);
 		if (platformid != 0)
 			continue;
+		U64 nextdsc = b->pos;
 		bseek(b, cmap + offset);
 		U16 format = readbe(b, 2);
 		if (format == 4)
-			return parsefmt4(b, a, f);
+			fmt4 = b->pos;
+		if (format == 12)
+			fmt12 = b->pos;
+		bseek(b, nextdsc);
 	}
-	return 1;
+	if (fmt12)
+		return parsefmt12(b, fmt12, a, f);
+	if (fmt4)
+		return parsefmt4(b, fmt4, a, f);
+	return 1; /* allow empty ctable, but not invalid (just because) */
 }
 
 /* TODO: maybe read the whole font file into memory (or mmap)? */
