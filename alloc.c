@@ -5,6 +5,8 @@
 #include "alloc.h"
 #include "math.h"
 
+#define PAGE_SIZE 4096
+
 /* IDEA: make all allocators accept the memory region to be managed
  * and provide a way of adding new regions. */
 
