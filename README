@@ -10,6 +10,6 @@ but then I kind of started doing other things I kind of wanted to do
 Building.
 =========
 
-To build this thing you'll need plan9's mk (either from plan9port or from 9base).
+To build this thing you'll need a c compiler and a posix shell.
 
-$ mk O=3
+$ ./build -O3
