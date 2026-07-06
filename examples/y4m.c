@@ -6,8 +6,6 @@
 #include "panic.h"
 #include "math.h"
 
-#define IMAGE(wv, hv) (Image){.w = (wv), .s = (wv), .h = (hv), .p = (Color[(wv)*(hv)]){0}}
-
 #define WIDTH  1920
 #define HEIGHT 1080
 #define FPS    60
@@ -41,6 +39,8 @@ void renderframe(Image *f, int n)
 	}
 }
 
+static Image frame = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
+
 /* TODO: make y4m a backend, that implements win.h, then it would be possible
  * to experiment interactively and then use the same code to generate a video. */
 int main(void)
@@ -50,7 +50,6 @@ int main(void)
 		panic("failed to open the output file!");
 		return 1;
 	}
-	Image frame = IMAGE(WIDTH, HEIGHT);
 	bprintln(&video, "YUV4MPEG2 W", OD(WIDTH), " H", OD(HEIGHT), " F60:1 A1:1 C444");
 	for (int f = 0; f < FPS*10; f++) {
 		bprintln(&video, "FRAME");

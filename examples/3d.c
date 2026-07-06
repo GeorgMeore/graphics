@@ -289,8 +289,8 @@ void rasterize(Image *f, Image *z, Camera c)
 #define WIDTH  600
 #define HEIGHT 600
 
-Image fbuf = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
-Image zbuf = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
+static Image fbuf = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
+static Image zbuf = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
 
 int main(int, char **argv)
 {
