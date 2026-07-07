@@ -509,4 +509,5 @@ OK font2c(Font fn, const char *var, const char *path)
 	bprintln(&b, "},");
 	bprintln(&b, "\t},");
 	bprintln(&b, "};");
+	return 1;
 }
