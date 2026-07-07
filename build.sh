@@ -1,12 +1,24 @@
 #!/bin/sh -e
 
-osarch=macos_arm64
-cflags="-I/opt/X11/include -I$PWD/platform/$osarch -I$PWD -Wall -Wextra -flto -fno-strict-aliasing -fwrapv"
-ldflags="-L/opt/X11/lib -lX11"
-
 usage() {
 	echo "$0 [-h] [-d] [-OLEVEL]"
 }
+
+case $(uname -sm) in
+	'Darwin arm64')
+		osarch=macos_arm64
+		cflags=-I/opt/X11/include
+		ldflags=-L/opt/X11/lib ;;
+	'Linux x86_64')
+		osarch=linux_amd64
+		ldflags='-lpulse -lpulse-simple' ;;
+	*)
+		echo "error: unhandled os/arch"
+		exit 1
+esac
+
+cflags="$cflags -I$PWD/platform/$osarch -I$PWD -Wall -Wextra -flto -fno-strict-aliasing -fwrapv"
+ldflags="$ldflags -lX11"
 
 for a in "$@"; do
 	case $a in
@@ -32,39 +44,49 @@ nonstale() {
 	done
 }
 
-nonstale win.o      win.c      ./*.h .cflags || cc -c $cflags -o win.o      win.c &
-nonstale draw.o     draw.c     ./*.h .cflags || cc -c $cflags -o draw.o     draw.c &
-nonstale prof.o     prof.c     ./*.h .cflags || cc -c $cflags -o prof.o     prof.c &
-nonstale ntime.o    ntime.c    ./*.h .cflags || cc -c $cflags -o ntime.o    ntime.c &
-nonstale panic.o    panic.c    ./*.h .cflags || cc -c $cflags -o panic.o    panic.c &
-nonstale io.o       io.c       ./*.h .cflags || cc -c $cflags -o io.o       io.c &
-nonstale image.o    image.c    ./*.h .cflags || cc -c $cflags -o image.o    image.c &
-nonstale imagefmt.o imagefmt.c ./*.h .cflags || cc -c $cflags -o imagefmt.o imagefmt.c &
-nonstale alloc.o    alloc.c    ./*.h .cflags || cc -c $cflags -o alloc.o    alloc.c &
-nonstale math.o     math.c     ./*.h .cflags || cc -c $cflags -o math.o     math.c &
-nonstale color.o    color.c    ./*.h .cflags || cc -c $cflags -o color.o    color.c &
-nonstale poly.o     poly.c     ./*.h .cflags || cc -c $cflags -o poly.o     poly.c &
-nonstale la.o       la.c       ./*.h .cflags || cc -c $cflags -o la.o       la.c &
-nonstale font.o     font.c     ./*.h .cflags || cc -c $cflags -o font.o     font.c &
-nonstale fontfmt.o  fontfmt.c  ./*.h .cflags || cc -c $cflags -o fontfmt.o  fontfmt.c &
-nonstale jump.o platform/$osarch/jump.s .cflags || cc -c $cflags -o jump.o platform/$osarch/jump.s &
+ccobj() {
+	# recompile the object if the source or any of the headers or cflags change
+	nonstale "$1" "$2" ./*.h ./platform/$osarch/*.h .cflags || cc -c $cflags -o "$1" "$2"
+}
+
+ccobj win.o      win.c &
+ccobj draw.o     draw.c &
+ccobj prof.o     prof.c &
+ccobj ntime.o    ntime.c &
+ccobj panic.o    panic.c &
+ccobj io.o       io.c &
+ccobj image.o    image.c &
+ccobj imagefmt.o imagefmt.c &
+ccobj alloc.o    alloc.c &
+ccobj math.o     math.c &
+ccobj color.o    color.c &
+ccobj poly.o     poly.c &
+ccobj la.o       la.c &
+ccobj font.o     font.c &
+ccobj fontfmt.o  fontfmt.c &
+ccobj jump.o     platform/$osarch/jump.s &
 wait
 
+ccexmpl() {
+	# recompile the example if any of the object files changed
+	nonstale "$1" "$2" ../*.o || cc $cflags -o "$1" "$2" ../*.o $ldflags
+}
+
 cd examples
-nonstale 3d       3d.c       ../*.o || cc $cflags -o 3d       3d.c       ../*.o $ldflags &
-nonstale bezier   bezier.c   ../*.o || cc $cflags -o bezier   bezier.c   ../*.o $ldflags &
-nonstale circle   circle.c   ../*.o || cc $cflags -o circle   circle.c   ../*.o $ldflags &
-nonstale dragon   dragon.c   ../*.o || cc $cflags -o dragon   dragon.c   ../*.o $ldflags &
-nonstale io       io.c       ../*.o || cc $cflags -o io       io.c       ../*.o $ldflags &
-nonstale line     line.c     ../*.o || cc $cflags -o line     line.c     ../*.o $ldflags &
-nonstale nbody    nbody.c    ../*.o || cc $cflags -o nbody    nbody.c    ../*.o $ldflags &
-nonstale paint    paint.c    ../*.o || cc $cflags -o paint    paint.c    ../*.o $ldflags &
-nonstale poly     poly.c     ../*.o || cc $cflags -o poly     poly.c     ../*.o $ldflags &
-nonstale ppm      ppm.c      ../*.o || cc $cflags -o ppm      ppm.c      ../*.o $ldflags &
-nonstale sin      sin.c      ../*.o || cc $cflags -o sin      sin.c      ../*.o $ldflags &
-nonstale split    split.c    ../*.o || cc $cflags -o split    split.c    ../*.o $ldflags &
-nonstale triangle triangle.c ../*.o || cc $cflags -o triangle triangle.c ../*.o $ldflags &
-nonstale ttf      ttf.c      ../*.o || cc $cflags -o ttf      ttf.c      ../*.o $ldflags &
-#nonstale wav      wav.c      ../*.o || cc $cflags -o wav      wav.c      ../*.o $ldflags &
-nonstale y4m      y4m.c      ../*.o || cc $cflags -o y4m      y4m.c      ../*.o $ldflags &
+ccexmpl 3d       3d.c &
+ccexmpl bezier   bezier.c &
+ccexmpl circle   circle.c &
+ccexmpl dragon   dragon.c &
+ccexmpl io       io.c &
+ccexmpl line     line.c &
+ccexmpl nbody    nbody.c &
+ccexmpl paint    paint.c &
+ccexmpl poly     poly.c &
+ccexmpl ppm      ppm.c &
+ccexmpl sin      sin.c &
+ccexmpl split    split.c &
+ccexmpl triangle triangle.c &
+ccexmpl ttf      ttf.c &
+[ $osarch != linux_amd64 ] || ccexmpl wav      wav.c &
+ccexmpl y4m      y4m.c &
 wait
