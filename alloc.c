@@ -28,6 +28,26 @@ static U64 aligndown(U64 v, U64 a)
 	return v/a*a;
 }
 
+void *palloc(U size)
+{
+	U asize = size + PAGE_SIZE;
+	if (asize < size)
+		return 0;
+	void *p = pagemap(asize);
+	if (!p)
+		return 0;
+	*(U *)p = asize;
+	return p + PAGE_SIZE;
+}
+
+void pfree(void *p)
+{
+	if (!p)
+		return;
+	U *sizep = p - PAGE_SIZE;
+	munmap(sizep, *sizep);
+}
+
 /*
  * The layout of a zone in memory:
  *                        Unallocated memory (Zone.free bytes)

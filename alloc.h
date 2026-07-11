@@ -5,6 +5,9 @@
 /* NOTE: alloc functions without 'a' suffix return word-aligned pointers */
 /* TODO: maybe use natural alignment instead? */
 
+void *palloc(U size);
+void pfree(void *p);
+
 /* TODO: use crc or something for metadata corruption detection */
 typedef struct Zone Zone;
 struct Zone {
