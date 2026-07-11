@@ -37,34 +37,34 @@ typedef struct {
 	OK needswap;
 	Cursor invis;
 	OK mouselocked;
-} X11;
+} X11Backend;
 
-static X11 defxwin;
+static X11Backend B;
 
 void winclose(void)
 {
-	if (defxwin.d)
-		XCloseDisplay(defxwin.d);
-	defxwin.d = 0;
-	if (defxwin.i)
-		XDestroyImage(defxwin.i);
-	defxwin.i = 0;
+	if (B.d)
+		XCloseDisplay(B.d);
+	B.d = 0;
+	if (B.i)
+		XDestroyImage(B.i);
+	B.i = 0;
 }
 
 static void onresize(U16 w, U16 h)
 {
 	if (!w || !h)
 		return;
-	if (defxwin.i) {
-		XDestroyImage(defxwin.i);
-		XFreePixmap(defxwin.d, defxwin.bb);
+	if (B.i) {
+		XDestroyImage(B.i);
+		XFreePixmap(B.d, B.bb);
 	}
-	defxwin.fb.p = Xmalloc(w*h*sizeof(defxwin.fb.p[0]));
-	defxwin.fb.w = w;
-	defxwin.fb.h = h;
-	defxwin.fb.s = w;
-	defxwin.i = XCreateImage(defxwin.d, defxwin.vis, defxwin.depth, ZPixmap, 0, (char*)defxwin.fb.p, w, h, 32, 0);
-	defxwin.bb = XCreatePixmap(defxwin.d, defxwin.win, w, h, defxwin.depth);
+	B.fb.p = Xmalloc(w*h*sizeof(B.fb.p[0]));
+	B.fb.w = w;
+	B.fb.h = h;
+	B.fb.s = w;
+	B.i = XCreateImage(B.d, B.vis, B.depth, ZPixmap, 0, (char*)B.fb.p, w, h, 32, 0);
+	B.bb = XCreatePixmap(B.d, B.win, w, h, B.depth);
 }
 
 static OK isrgb32(Display *d, Visual *v, int depth)
@@ -91,46 +91,46 @@ static int byteorder(void)
 /* TODO: look into the shared memory extension */
 void winopen(U16 w, U16 h, const char *title, U16 fps)
 {
-	if (defxwin.d)
-		return;
-	defxwin.d = XOpenDisplay(0);
-	if (!defxwin.d)
+	if (B.d)
+		panic("Connection already established");
+	B.d = XOpenDisplay(0);
+	if (!B.d)
 		panic("Failed to connect to the X server");
-	int s = DefaultScreen(defxwin.d);
-	defxwin.depth = DefaultDepth(defxwin.d, s);
-	defxwin.vis = DefaultVisual(defxwin.d, s);
+	int s = DefaultScreen(B.d);
+	B.depth = DefaultDepth(B.d, s);
+	B.vis = DefaultVisual(B.d, s);
 	/* NOTE: Check if the screen supports 32-bit RGB, we could also
 	 * try to search for an appropriate visual, but I don't think it matters */
-	if (!isrgb32(defxwin.d, defxwin.vis, defxwin.depth))
+	if (!isrgb32(B.d, B.vis, B.depth))
 		panic("The default display visual doesn't support 32-bit RGB");
-	defxwin.win = XCreateSimpleWindow(defxwin.d, RootWindow(defxwin.d, s), 0, 0, w, h, 0, 0, 0);
-	defxwin.gc = DefaultGC(defxwin.d, s);
-	XSelectInput(defxwin.d, defxwin.win,
+	B.win = XCreateSimpleWindow(B.d, RootWindow(B.d, s), 0, 0, w, h, 0, 0, 0);
+	B.gc = DefaultGC(B.d, s);
+	XSelectInput(B.d, B.win,
 		KeyPressMask|ButtonPressMask|ButtonReleaseMask|KeyReleaseMask|
 		StructureNotifyMask|PointerMotionMask|ExposureMask);
-	XSetGraphicsExposures(defxwin.d, defxwin.gc, False); /* X11 is very stupid */
-	XStoreName(defxwin.d, defxwin.win, title);
-	XMapWindow(defxwin.d, defxwin.win);
-	defxwin.needswap = byteorder() != defxwin.d->byte_order;
+	XSetGraphicsExposures(B.d, B.gc, False); /* X11 is very stupid */
+	XStoreName(B.d, B.win, title);
+	XMapWindow(B.d, B.win);
+	B.needswap = byteorder() != B.d->byte_order;
 	if (fps)
-		defxwin.targetns = 1e9 / fps;
+		B.targetns = 1e9 / fps;
 	else
-		defxwin.targetns = 0;
+		B.targetns = 0;
 	/* NOTE: hacky hacks to get an invisible cursor */
 	XColor c = {0};
-	Pixmap p = XCreatePixmap(defxwin.d, defxwin.win, 1, 1, 1);
-	defxwin.invis = XCreatePixmapCursor(defxwin.d, p, p, &c, &c, 0, 0);
+	Pixmap p = XCreatePixmap(B.d, B.win, 1, 1, 1);
+	B.invis = XCreatePixmapCursor(B.d, p, p, &c, &c, 0, 0);
 	/* NOTE: hacky hack to avoid having a 0x0 window on the first frame */
 	onresize(w, h);
 }
 
 void mouselock(OK on)
 {
-	defxwin.mouselocked = on;
+	B.mouselocked = on;
 	if (on)
-		XDefineCursor(defxwin.d, defxwin.win, defxwin.invis);
+		XDefineCursor(B.d, B.win, B.invis);
 	else
-		XUndefineCursor(defxwin.d, defxwin.win);
+		XUndefineCursor(B.d, B.win);
 }
 
 /* TODO: a more proper input handling */
@@ -140,45 +140,45 @@ void mouselock(OK on)
  * That's why we need to handle button and key states a bit differently. */
 static void onkey(U8 k, OK isdown)
 {
-	defxwin.gotpress |= !isdown;
-	defxwin.keydown[k] = isdown;
+	B.gotpress |= !isdown;
+	B.keydown[k] = isdown;
 }
 
 static void onbtn(U8 b, OK isdown)
 {
-	defxwin.gotpress |= !isdown;
-	defxwin.prevbtndown[b] = defxwin.btndown[b];
-	defxwin.btndown[b] = isdown;
+	B.gotpress |= !isdown;
+	B.prevbtndown[b] = B.btndown[b];
+	B.btndown[b] = isdown;
 }
 
 OK keyisdown(U8 k)
 {
-	return defxwin.keydown[k];
+	return B.keydown[k];
 }
 
 OK keywaspressed(U8 k)
 {
-	return !defxwin.keydown[k] && defxwin.prevkeydown[k];
+	return !B.keydown[k] && B.prevkeydown[k];
 }
 
 OK btnisdown(U8 b)
 {
-	return defxwin.btndown[b];
+	return B.btndown[b];
 }
 
 OK btnwaspressed(U8 b)
 {
-	return !defxwin.btndown[b] && defxwin.prevbtndown[b];
+	return !B.btndown[b] && B.prevbtndown[b];
 }
 
 I mousex(void)
 {
-	return defxwin.mousex;
+	return B.mousex;
 }
 
 I mousey(void)
 {
-	return defxwin.mousey;
+	return B.mousey;
 }
 
 #define REVERSE4(x) (\
@@ -196,38 +196,38 @@ static void swaprgb32(Image *i)
 
 U64 lastframetime(void)
 {
-	return defxwin.framens;
+	return B.framens;
 }
 
 void flush(void)
 {
-	if (!defxwin.i)
+	if (!B.i)
 		return;
-	if (defxwin.needswap)
+	if (B.needswap)
 		/* NOTE: Xlib can actually do the swapping for us, if the image's
 		 * byte_order field doesn't match server's, but... */
-		swaprgb32(&defxwin.fb);
-	XPutImage(defxwin.d, defxwin.bb, defxwin.gc, defxwin.i, 0, 0, 0, 0, defxwin.fb.w, defxwin.fb.h);
-	XCopyArea(defxwin.d, defxwin.bb, defxwin.win, defxwin.gc, 0, 0, defxwin.fb.w, defxwin.fb.h, 0, 0);
-	XSync(defxwin.d, 0);
+		swaprgb32(&B.fb);
+	XPutImage(B.d, B.bb, B.gc, B.i, 0, 0, 0, 0, B.fb.w, B.fb.h);
+	XCopyArea(B.d, B.bb, B.win, B.gc, 0, 0, B.fb.w, B.fb.h, 0, 0);
+	XSync(B.d, 0);
 }
 
 static void evpoll(void)
 {
 	for (I i = 0; i < COUNT; i++) {
-		defxwin.prevbtndown[i] = defxwin.btndown[i];
-		defxwin.prevkeydown[i] = defxwin.keydown[i];
+		B.prevbtndown[i] = B.btndown[i];
+		B.prevkeydown[i] = B.keydown[i];
 	}
 	/* NOTE: in the "event based" mode we want draw the next
 	 * frame when a key or a button was pressed */
-	if (!defxwin.targetns && !defxwin.gotpress) {
-		while (!XPending(defxwin.d))
+	if (!B.targetns && !B.gotpress) {
+		while (!XPending(B.d))
 			sleepns(1.5e6); /* NOTE: often enough, but not too often */
 	}
-	defxwin.gotpress = 0;
-	while (XPending(defxwin.d)) {
+	B.gotpress = 0;
+	while (XPending(B.d)) {
 		XEvent e;
-		XNextEvent(defxwin.d, &e);
+		XNextEvent(B.d, &e);
 		if (e.type == KeyPress)
 			onkey(XLookupKeysym(&e.xkey, 0), 1);
 		else if (e.type == KeyRelease)
@@ -239,30 +239,30 @@ static void evpoll(void)
 		else if (e.type == ButtonRelease)
 			onbtn(e.xbutton.button, 0);
 	}
-	defxwin.framens = timens() - defxwin.startns;
-	if (defxwin.framens < defxwin.targetns)
-		sleepns(defxwin.targetns - defxwin.framens);
-	defxwin.framens = timens() - defxwin.startns;
+	B.framens = timens() - B.startns;
+	if (B.framens < B.targetns)
+		sleepns(B.targetns - B.framens);
+	B.framens = timens() - B.startns;
 }
 
 Image *frame(void)
 {
-	if (!defxwin.d)
+	if (!B.d)
 		return 0;
 	flush();
 	evpoll();
 	Window r, c;
 	int rx, ry;
 	unsigned int mask;
-	XQueryPointer(defxwin.d, defxwin.win, &r, &c, &rx, &ry, &defxwin.mousex, &defxwin.mousey, &mask);
-	if (defxwin.mouselocked) {
-		defxwin.mousex -= defxwin.fb.w/2;
-		defxwin.mousey -= defxwin.fb.h/2;
-		XWarpPointer(defxwin.d, None, defxwin.win, 0, 0, 0, 0, defxwin.fb.w/2, defxwin.fb.h/2);
+	XQueryPointer(B.d, B.win, &r, &c, &rx, &ry, &B.mousex, &B.mousey, &mask);
+	if (B.mouselocked) {
+		B.mousex -= B.fb.w/2;
+		B.mousey -= B.fb.h/2;
+		XWarpPointer(B.d, None, B.win, 0, 0, 0, 0, B.fb.w/2, B.fb.h/2);
 		/* NOTE: XSync must me used here to make sure that the cursor is actually warped before
 		 * the user moves the mouse in during a new frame, or the movent can be lost. */
-		XSync(defxwin.d, 0);
+		XSync(B.d, 0);
 	}
-	defxwin.startns = timens();
-	return &defxwin.fb;
+	B.startns = timens();
+	return &B.fb;
 }
