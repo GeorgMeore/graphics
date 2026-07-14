@@ -7,7 +7,7 @@ usage() {
 case $(uname -sm) in
 	'Darwin arm64')
 		osarch=macos_arm64
-		cflags=-I/opt/X11/include
+		cflags="-I/opt/X11/include -DPAGE_SIZE=$(pagesize)"
 		ldflags=-L/opt/X11/lib ;;
 	'Linux x86_64')
 		osarch=linux_amd64
@@ -45,7 +45,7 @@ nonstale() {
 }
 
 ccobj() {
-	# recompile the object if the source or any of the headers or cflags change
+	# recompile the object if the source or any of the headers or cflags changed
 	nonstale "$1" "$2" ./*.h ./platform/$osarch/*.h .cflags || cc -c $cflags -o "$1" "$2"
 }
 
@@ -90,3 +90,5 @@ ccexmpl ttf      ttf.c &
 [ $osarch != linux_amd64 ] || ccexmpl wav      wav.c &
 ccexmpl y4m      y4m.c &
 wait
+
+# TODO: compile tests (TODO 2: write some decent tests)
