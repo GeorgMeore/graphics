@@ -27,6 +27,8 @@ int main(void)
 	Color c[2] = {RED, GREEN};
 	while (!keyisdown('q')) {
 		Image *f = frame();
+		if (!f)
+			break;
 		for (I i = 0; i < 2; i++)
 			updatepoint(f, pt[i]);
 		drawclear(f, BLACK);
@@ -34,6 +36,5 @@ int main(void)
 			drawsmoothcircle(f, pt[i][0], pt[i][1], 5, c[i]);
 		drawline(f, pt[0][0], pt[0][1], pt[1][0], pt[1][1], WHITE);
 	}
-	winclose();
 	return 0;
 }

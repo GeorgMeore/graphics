@@ -64,6 +64,8 @@ int main(void)
 	for (;;) {
 		profbegin("frame preparation");
 		Image *f = frame();
+		if (!f)
+			break;
 		Image l = subimage(*f, 0, 0, f->w/2, f->h);
 		Image r = subimage(*f, f->w/2, 0, f->w - f->w/2, f->h);
 		int mx = mousex(), my = mousey();
@@ -86,6 +88,5 @@ int main(void)
 
 		profdump();
 	}
-	winclose();
 	return 0;
 }

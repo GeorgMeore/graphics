@@ -168,6 +168,8 @@ int main(int argc, char **argv)
 	winopen(1920, 1080, argv[0], 0);
 	while (!keyisdown('q')) {
 		Image *f = frame();
+		if (!f)
+			break;
 		if (btnwaspressed(4))
 			setpx(&c, c.px * 1.1);
 		if (btnwaspressed(5))
@@ -176,8 +178,5 @@ int main(int argc, char **argv)
 		U32 l = textwidth(argv[2], &c);
 		drawtext(f, mousex() - l/2, mousey(), &c, argv[2], RGBA(255, 255, 255, 200));
 	}
-	winclose();
-	arfree(&c.mem);
-	arfree(&fntmem);
 	return 0;
 }

@@ -31,6 +31,8 @@ int main(int, char **argv)
 	U n = 1;
 	while (!keyisdown('q')) {
 		Image *f = frame();
+		if (!f)
+			break;
 		drawclear(f, BLACK);
 		if (btnwaspressed(4))
 			n += 1;
@@ -39,6 +41,5 @@ int main(int, char **argv)
 		I x = mousex(), y = mousey();
 		dragon(f, x, y, x+SIZE, y+SIZE, x+SIZE+SIZE, y, n, 1);
 	}
-	winclose();
 	return 0;
 }

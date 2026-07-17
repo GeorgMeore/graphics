@@ -128,7 +128,7 @@ int main(void)
 	winopen(640, 480, "paint", 0);
 	for (;;) {
 		Image *f = frame();
-		if (keywaspressed('q'))
+		if (keywaspressed('q') || !f)
 			break;
 		if (keyisdown('u'))
 			undopoint(&p);
@@ -145,6 +145,5 @@ int main(void)
 		if (keywaspressed('s'))
 			image2ppm(f, "out.ppm");
 	}
-	winclose();
 	return 0;
 }

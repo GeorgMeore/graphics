@@ -28,6 +28,8 @@ int main(void)
 	OK smooth = 1;
 	while (!keyisdown('q')) {
 		Image *f = frame();
+		if (!f)
+			break;
 		for (I i = 0; i < 2; i++)
 			updatepoint(f, pt[i]);
 		if (keywaspressed('s'))
@@ -40,6 +42,5 @@ int main(void)
 		for (I i = 0; i < 2; i++)
 			drawsmoothcircle(f, pt[i][0], pt[i][1], 5, c[i]);
 	}
-	winclose();
 	return 0;
 }

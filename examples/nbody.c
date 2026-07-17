@@ -33,6 +33,8 @@ int main(int, char **argv)
 	};
 	while (!keyisdown('q')) {
 		Image *f = frame();
+		if (!f)
+			break;
 		if (!keyisdown(' ')) {
 			F64 dt = lastframetime()/2e9;
 			for (int i = 0; i < N; i++)
@@ -74,6 +76,5 @@ int main(int, char **argv)
 		for (int i = 0; i < N; i++)
 			drawsmoothcircle(f, c[i][0], c[i][1], r[i], col[i]);
 	}
-	winclose();
 	return 0;
 }

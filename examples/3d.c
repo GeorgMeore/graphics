@@ -303,6 +303,8 @@ int main(int, char **argv)
 	OK trace = 1;
 	while (!keyisdown('q')) {
 		Image *f = frame();
+		if (!f)
+			break;
 		c.w = f->w/(F64)WIDTH;
 		c.h = f->h/(F64)HEIGHT;
 		if (mousex())
@@ -336,6 +338,5 @@ int main(int, char **argv)
 		for (U16 x = 0; x < f->w; x++)
 			PIXEL(f, x, y) = PIXEL(&fbuf, x*WIDTH/f->w, y*HEIGHT/f->h);
 	}
-	winclose();
 	return 0;
 }

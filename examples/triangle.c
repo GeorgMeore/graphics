@@ -30,19 +30,20 @@ int main(void)
 	Color c[3] = {RED, GREEN, BLUE};
 	int smooth = 1;
 	while (!keyisdown('q')) {
-		Image *fb = frame();
+		Image *f = frame();
+		if (!f)
+			break;
 		for (int i = 0; i < 3; i++)
-			updatepoint(fb, pt[i]);
+			updatepoint(f, pt[i]);
 		if (keywaspressed('s'))
 			smooth = !smooth;
-		drawclear(fb, BGCOLOR);
+		drawclear(f, BGCOLOR);
 		for (int i = 0; i < 3; i++)
-			drawsmoothcircle(fb, pt[i][0], pt[i][1], 5, c[i]);
+			drawsmoothcircle(f, pt[i][0], pt[i][1], 5, c[i]);
 		if (smooth)
-			drawsmoothtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], TRCOLOR);
+			drawsmoothtriangle(f, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], TRCOLOR);
 		else
-			drawtriangle(fb, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], TRCOLOR);
+			drawtriangle(f, pt[0][0], pt[0][1], pt[1][0], pt[1][1], pt[2][0], pt[2][1], TRCOLOR);
 	}
-	winclose();
 	return 0;
 }

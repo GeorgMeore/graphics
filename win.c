@@ -37,19 +37,11 @@ typedef struct {
 	OK needswap;
 	Cursor invis;
 	OK mouselocked;
+	Atom delete;
+	OK dead;
 } X11Backend;
 
 static X11Backend B;
-
-void winclose(void)
-{
-	if (B.d)
-		XCloseDisplay(B.d);
-	B.d = 0;
-	if (B.i)
-		XDestroyImage(B.i);
-	B.i = 0;
-}
 
 static void onresize(U16 w, U16 h)
 {
@@ -88,11 +80,12 @@ static int byteorder(void)
 }
 
 /* TODO: more proper error handling */
+
 /* TODO: look into the shared memory extension */
 void winopen(U16 w, U16 h, const char *title, U16 fps)
 {
 	if (B.d)
-		panic("Connection already established");
+		panic("Connection was already established");
 	B.d = XOpenDisplay(0);
 	if (!B.d)
 		panic("Failed to connect to the X server");
@@ -108,6 +101,8 @@ void winopen(U16 w, U16 h, const char *title, U16 fps)
 	XSelectInput(B.d, B.win,
 		KeyPressMask|ButtonPressMask|ButtonReleaseMask|KeyReleaseMask|
 		StructureNotifyMask|PointerMotionMask|ExposureMask);
+	B.delete = XInternAtom(B.d, "WM_DELETE_WINDOW", False);
+	XSetWMProtocols(B.d, B.win, &B.delete, 1);
 	XSetGraphicsExposures(B.d, B.gc, False); /* X11 is very stupid */
 	XStoreName(B.d, B.win, title);
 	XMapWindow(B.d, B.win);
@@ -126,6 +121,8 @@ void winopen(U16 w, U16 h, const char *title, U16 fps)
 
 void mouselock(OK on)
 {
+	if (B.dead)
+		return;
 	B.mouselocked = on;
 	if (on)
 		XDefineCursor(B.d, B.win, B.invis);
@@ -133,15 +130,34 @@ void mouselock(OK on)
 		XUndefineCursor(B.d, B.win);
 }
 
-/* TODO: a more proper input handling */
+/* TODO: Support text input via Xutf8LookupString. Probably a small
+ * per-frame accumulative buffer will do, but I'll need to figure out
+ * how to handle deletes/modifiers/other special stuff. */
+
+/* NOTE: all currently supported keys are listed here explicitly,
+ * that's probably not optimal, but it's predictable and simple */
+static KeySym keymap[COUNT] = {
+	[' '] = XK_space,
+	['0'] = XK_0, XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9,
+	['a'] = XK_a, XK_b, XK_c, XK_d, XK_e, XK_f, XK_g, XK_h, XK_i, XK_j,
+		XK_k, XK_l, XK_m, XK_n, XK_o, XK_p, XK_q, XK_r, XK_s, XK_t, XK_u,
+		XK_v, XK_w, XK_x, XK_y, XK_z,
+};
+
 /* NOTE: When you hold down a keyboard key the X server
  * sends you repeated "Release/Press" pairs, when you
  * scroll with mouse or touchpad you get repeated "Press/Release".
  * That's why we need to handle button and key states a bit differently. */
-static void onkey(U8 k, OK isdown)
+
+static void onkey(KeySym k, OK isdown)
 {
-	B.gotpress |= !isdown;
-	B.keydown[k] = isdown;
+	for (I i = 0; i < COUNT; i++) {
+		if (keymap[i] == k) {
+			B.gotpress |= !isdown;
+			B.keydown[i] = isdown;
+			return;
+		}
+	}
 }
 
 static void onbtn(U8 b, OK isdown)
@@ -201,7 +217,7 @@ U64 lastframetime(void)
 
 void flush(void)
 {
-	if (!B.i)
+	if (!B.i || B.dead)
 		return;
 	if (B.needswap)
 		/* NOTE: Xlib can actually do the swapping for us, if the image's
@@ -238,6 +254,8 @@ static void evpoll(void)
 			onbtn(e.xbutton.button, 1);
 		else if (e.type == ButtonRelease)
 			onbtn(e.xbutton.button, 0);
+		else if (e.type == ClientMessage && (Atom)e.xclient.data.l[0] == B.delete)
+			B.dead = 1;
 	}
 	B.framens = timens() - B.startns;
 	if (B.framens < B.targetns)
@@ -247,10 +265,12 @@ static void evpoll(void)
 
 Image *frame(void)
 {
-	if (!B.d)
+	if (!B.d || B.dead)
 		return 0;
 	flush();
 	evpoll();
+	if (B.dead)
+		return 0;
 	Window r, c;
 	int rx, ry;
 	unsigned int mask;

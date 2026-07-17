@@ -1,5 +1,4 @@
 void   winopen(U16 w, U16 h, const char *title, U16 fps);
-void   winclose(void);
 Image* frame(void);
 void   flush(void);
 U64    lastframetime(void);
