@@ -1,7 +1,7 @@
 #!/bin/sh -e
 
 usage() {
-	echo "$0 [-h] [-d] [-OLEVEL]"
+	echo "$0 [-h] [-d] [-oLEVEL]"
 }
 
 case $(uname -sm) in
@@ -24,7 +24,7 @@ for a in "$@"; do
 	case $a in
 	-h)  usage; exit ;;
 	-d)  cflags="$cflags -g -fsanitize=undefined,address" ;;
-	-O*) cflags="$cflags $a" ;;
+	-o*) cflags="$cflags -O${a#-o}" ;;
 	*)   usage; exit 1 ;;
 	esac
 done
