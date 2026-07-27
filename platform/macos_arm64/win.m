@@ -28,6 +28,7 @@ typedef struct {
 	U8 flags;
 	OK keydown[COUNT];
 	OK prevkeydown[COUNT];
+	CGFloat scale;
 } MacBackend;
 
 /* NOTE: every external function that interacts with AppKit objects
@@ -40,12 +41,9 @@ static MacBackend B;
 static void onresize(void)
 {
 	NSSize s = B.win.contentView.bounds.size;
-	CGFloat f = B.win.backingScaleFactor;
-	U16 w = s.width;
-	U16 h = s.height;
-	//B.win.contentView.layer.contentsScale = f;
-	//U16 w = s.width*f;
-	//U16 h = s.height*f;
+	B.scale = B.win.backingScaleFactor;
+	U16 w = s.width * B.scale;
+	U16 h = s.height * B.scale;
 	pfree(B.fb.p);
 	B.fb.p = palloc(w*h*sizeof(Color));
 	B.fb.w = w;
@@ -115,13 +113,19 @@ void flush(void)
 	CGDataProviderRelease(dp);
 	CGColorSpaceRelease(cs);
 	B.win.contentView.layer.contents = (id)i;
+	B.win.contentView.layer.contentsScale = B.scale;
 	CGImageRelease(i);
 	[CATransaction flush];
 	}
 }
 
+U64 lastframetime(void)
+{
+	return B.framens;
+}
+
 /* TODO: support more keys */
-static U8 keycode[COUNT] = {
+static U8 keymap[COUNT] = {
 	[' '] = kVK_Space,
 	['0'] = kVK_ANSI_0, kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4,
 		kVK_ANSI_5, kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8, kVK_ANSI_9,
@@ -133,30 +137,27 @@ static U8 keycode[COUNT] = {
 		kVK_ANSI_Z,
 };
 
-U64 lastframetime(void)
-{
-	return B.framens;
-}
-
 OK keyisdown(U8 k)
 {
-	return B.keydown[keycode[k]];
+	return B.keydown[k];
 }
 
 OK keywaspressed(U8 k)
 {
-	U8 c = keycode[k];
-	return !B.keydown[c] && B.prevkeydown[c];
+	return !B.keydown[k] && B.prevkeydown[k];
 }
 
 void mouselock(OK on)
 {
 	@autoreleasepool {
 	B.mouselocked = on;
-	if (on)
+	if (on) {
+		CGAssociateMouseAndMouseCursorPosition(false);
 		[NSCursor hide];
-	else
+	} else {
+		CGAssociateMouseAndMouseCursorPosition(true);
 		[NSCursor unhide];
+	}
 	}
 }
 
@@ -168,6 +169,32 @@ I mousex(void)
 I mousey(void)
 {
 	return B.mousey;
+}
+
+static void onkey(NSEvent *ev, OK isdown)
+{
+	if (ev.isARepeat)
+		return;
+	UInt16 code = ev.keyCode;
+	for (I i = 0; i < COUNT; i++) {
+		if (keymap[i] == code) {
+			B.keydown[i] = isdown;
+			return;
+		}
+	}
+}
+
+static void onmousemove(NSEvent *ev)
+{
+	if (!B.mouselocked)
+		return;
+	B.mousex += ev.deltaX * B.scale;
+	B.mousey += ev.deltaY * B.scale;
+}
+
+static void onmousebtn(NSEvent *ev, OK isdown)
+{
+	NSLog(@"Mouse button %d\n", ev.buttonNumber);
 }
 
 /* NOTE: unfortunately this style of api where the main loop
@@ -188,14 +215,26 @@ static void evpoll(void)
 			break;
 		switch (ev.type) {
 		case NSEventTypeKeyDown:
-			if (!ev.isARepeat && ev.keyCode < COUNT)
-				B.keydown[ev.keyCode] = 1;
+			onkey(ev, 1);
 			continue;
 		case NSEventTypeKeyUp:
-			if (ev.keyCode < COUNT)
-				B.keydown[ev.keyCode] = 0;
+			onkey(ev, 0);
 			continue;
-		/* TODO: mouse buttons */
+		case NSEventTypeMouseMoved:
+		case NSEventTypeLeftMouseDragged:
+		case NSEventTypeRightMouseDragged:
+			onmousemove(ev);
+			continue;
+		case NSEventTypeLeftMouseDown:
+		case NSEventTypeRightMouseDown:
+		case NSEventTypeOtherMouseDown:
+			onmousebtn(ev, 1);
+			break;
+		case NSEventTypeLeftMouseUp:
+		case NSEventTypeRightMouseUp:
+		case NSEventTypeOtherMouseUp:
+			onmousebtn(ev, 0);
+			break;
 		default:
 			break;
 		}
@@ -214,25 +253,22 @@ Image* frame(void)
 	B.framens = timens() - B.startns;
 	if (B.framens < B.targetns)
 		sleepns(B.targetns - B.framens);
+	if (B.mouselocked) {
+		B.mousex = 0;
+		B.mousey = 0;
+	} else {
+		NSPoint m = B.win.mouseLocationOutsideOfEventStream;
+		B.mousex = m.x*B.scale;
+		B.mousey = B.fb.h - m.y*B.scale;
+	}
 	evpoll();
 	if (B.flags & WindowClosed)
 		return 0;
-	NSPoint m = B.win.mouseLocationOutsideOfEventStream;
-	B.mousex = m.x;
-	B.mousey = B.fb.h - m.y;
-	if (B.mouselocked) {
-		B.mousex -= B.fb.w/2;
-		B.mousey -= B.fb.h/2;
-		NSPoint p = [B.win convertRectToScreen:NSMakeRect(B.fb.w/2, B.fb.h/2, 0, 0)].origin;
-		CGFloat h = NSMaxY([[NSScreen screens] firstObject].frame);
-		CGWarpMouseCursorPosition(CGPointMake(p.x, h - p.y));
-	}
 	B.startns = timens();
 	return &B.fb;
 	}
 }
 
-/* TODO: account for backingScaleFactor to support retina */
 /* TODO: maybe try rendering through IOSurfaceRef */
 
 void render1(Image *f, F64 t)
@@ -254,14 +290,14 @@ void render2(Image *f, F64 t)
 
 int main()
 {
-	winopen(1000, 600, "Test", 30);
+	winopen(1000, 600, "Test", 60);
 	F64 t = 0;
 	while (!keywaspressed('q')) {
 		Image *f = frame();
 		if (!f)
 			break;
 		t += lastframetime()/1e9;
-		render2(f, t);
+		render1(f, t);
 	}
 	return 0;
 }
