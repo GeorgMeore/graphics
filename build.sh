@@ -4,6 +4,8 @@ usage() {
 	echo "$0 [-h] [-d] [-oLEVEL]"
 }
 
+cd "${0%/*}" # in case we're called from other directory
+
 case $(uname -sm) in
 	'Darwin arm64')
 		osarch=macos_arm64
