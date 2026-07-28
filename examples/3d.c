@@ -165,7 +165,7 @@ Color ray(Vec o, Vec d)
 	}
 	last = 0;
 	f = CLAMP(fabs(f), 0, 1);
-	return RGBA(R(c)*f, G(c)*f, B(c)*f, 0);
+	return RGBA(R(c)*f, G(c)*f, B(c)*f, 255);
 }
 
 void raytrace(Image *f, Camera c)
