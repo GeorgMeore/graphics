@@ -8,10 +8,9 @@
 #include "../../win.h"
 #include "../../ntime.h"
 #include "../../alloc.h"
-#include "../../draw.h"
-#include "../../math.h"
 
-#define COUNT 256
+#define KEYCOUNT 256
+#define BTNCOUNT 8
 
 /* NOTE: this module is compiled without ARC, so no problems
  * with storing object pointers in C structs */
@@ -26,8 +25,10 @@ typedef struct {
 	I  mousex;
 	I  mousey;
 	U8 flags;
-	OK keydown[COUNT];
-	OK prevkeydown[COUNT];
+	OK keydown[KEYCOUNT];
+	OK prevkeydown[KEYCOUNT];
+	OK btndown[BTNCOUNT];
+	OK prevbtndown[BTNCOUNT];
 	CGFloat scale;
 } MacBackend;
 
@@ -124,19 +125,6 @@ U64 lastframetime(void)
 	return B.framens;
 }
 
-/* TODO: support more keys */
-static U8 keymap[COUNT] = {
-	[' '] = kVK_Space,
-	['0'] = kVK_ANSI_0, kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4,
-		kVK_ANSI_5, kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8, kVK_ANSI_9,
-	['a'] = kVK_ANSI_A, kVK_ANSI_B, kVK_ANSI_C, kVK_ANSI_D, kVK_ANSI_E,
-		kVK_ANSI_F, kVK_ANSI_G, kVK_ANSI_H, kVK_ANSI_I, kVK_ANSI_J,
-		kVK_ANSI_K, kVK_ANSI_L, kVK_ANSI_M, kVK_ANSI_N, kVK_ANSI_O,
-		kVK_ANSI_P, kVK_ANSI_Q, kVK_ANSI_R, kVK_ANSI_S, kVK_ANSI_T,
-		kVK_ANSI_U, kVK_ANSI_V, kVK_ANSI_W, kVK_ANSI_X, kVK_ANSI_Y,
-		kVK_ANSI_Z,
-};
-
 OK keyisdown(U8 k)
 {
 	return B.keydown[k];
@@ -161,6 +149,16 @@ void mouselock(OK on)
 	}
 }
 
+OK btnisdown(U8 b)
+{
+	return B.btndown[b];
+}
+
+OK btnwaspressed(U8 b)
+{
+	return !B.btndown[b] && B.prevbtndown[b];
+}
+
 I mousex(void)
 {
 	return B.mousex;
@@ -171,14 +169,37 @@ I mousey(void)
 	return B.mousey;
 }
 
+typedef struct {
+	U8     key;
+	UInt16 code;
+} KeyPair;
+
+/* TODO: support more keys */
+static KeyPair kmap[] = {
+	{' ', kVK_Space},
+	{'0', kVK_ANSI_0}, {'1', kVK_ANSI_1}, {'2', kVK_ANSI_2}, {'3', kVK_ANSI_3},
+	{'4', kVK_ANSI_4}, {'5', kVK_ANSI_5}, {'6', kVK_ANSI_6}, {'7', kVK_ANSI_7},
+	{'8', kVK_ANSI_8}, {'9', kVK_ANSI_9},
+	{'a', kVK_ANSI_A}, {'b', kVK_ANSI_B}, {'c', kVK_ANSI_C}, {'d', kVK_ANSI_D},
+	{'e', kVK_ANSI_E}, {'f', kVK_ANSI_F}, {'g', kVK_ANSI_G}, {'h', kVK_ANSI_H},
+	{'i', kVK_ANSI_I}, {'j', kVK_ANSI_J}, {'k', kVK_ANSI_K}, {'l', kVK_ANSI_L},
+	{'m', kVK_ANSI_M}, {'n', kVK_ANSI_N}, {'o', kVK_ANSI_O}, {'p', kVK_ANSI_P},
+	{'q', kVK_ANSI_Q}, {'r', kVK_ANSI_R}, {'s', kVK_ANSI_S}, {'t', kVK_ANSI_T},
+	{'u', kVK_ANSI_U}, {'v', kVK_ANSI_V}, {'w', kVK_ANSI_W}, {'x', kVK_ANSI_X},
+	{'y', kVK_ANSI_Y}, {'z', kVK_ANSI_Z},
+};
+
+#define KMAPCOUNT (sizeof(kmap)/sizeof(kmap[0]))
+
 static void onkey(NSEvent *ev, OK isdown)
 {
 	if (ev.isARepeat)
 		return;
 	UInt16 code = ev.keyCode;
-	for (I i = 0; i < COUNT; i++) {
-		if (keymap[i] == code) {
-			B.keydown[i] = isdown;
+	for (I i = 0; i < KMAPCOUNT; i++) {
+		KeyPair p = kmap[i];
+		if (p.code == code) {
+			B.keydown[p.key] = isdown;
 			return;
 		}
 	}
@@ -194,7 +215,11 @@ static void onmousemove(NSEvent *ev)
 
 static void onmousebtn(NSEvent *ev, OK isdown)
 {
-	NSLog(@"Mouse button %d\n", ev.buttonNumber);
+	if (ev.buttonNumber >= BTNCOUNT)
+		return;
+	U8 b = ev.buttonNumber;
+	B.prevbtndown[b] = B.btndown[b];
+	B.btndown[b] = isdown;
 }
 
 /* NOTE: unfortunately this style of api where the main loop
@@ -203,7 +228,9 @@ static void onmousebtn(NSEvent *ev, OK isdown)
 
 static void evpoll(void)
 {
-	for (I i = 0; i < COUNT; i++)
+	for (I i = 0; i < BTNCOUNT; i++)
+		B.prevbtndown[i] = B.btndown[i];
+	for (I i = 0; i < KEYCOUNT; i++)
 		B.prevkeydown[i] = B.keydown[i];
 	B.flags = 0;
 	for (;;) {
@@ -253,6 +280,7 @@ Image* frame(void)
 	B.framens = timens() - B.startns;
 	if (B.framens < B.targetns)
 		sleepns(B.targetns - B.framens);
+	B.startns = timens();
 	if (B.mouselocked) {
 		B.mousex = 0;
 		B.mousey = 0;
@@ -264,11 +292,12 @@ Image* frame(void)
 	evpoll();
 	if (B.flags & WindowClosed)
 		return 0;
-	B.startns = timens();
 	return &B.fb;
 	}
 }
 
+/* TODO: support event-based mode (fps=0) */
+/* FIXME: mouse button numbers is diffrent than in x11 */
 /* TODO: maybe try rendering through IOSurfaceRef */
 
 void render1(Image *f, F64 t)
