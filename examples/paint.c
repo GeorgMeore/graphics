@@ -128,21 +128,21 @@ int main(void)
 	winopen(640, 480, "paint", 0);
 	for (;;) {
 		Image *f = frame();
-		if (keywaspressed('q') || !f)
+		if (keywaspressed(KeyQ) || !f)
 			break;
-		if (keyisdown('u'))
+		if (keyisdown(KeyU))
 			undopoint(&p);
-		if (keywaspressed('y'))
+		if (keywaspressed(KeyY))
 			undocurve(&p);
-		if (btnisdown(1))
+		if (btnisdown(BtnLeft))
 			addpoint(&p, mousex(), mousey());
 		else
 			endcurve(&p);
 		drawclear(f, BGCOLOR);
 		drawcurves(f, p);
-		if (btnisdown(3))
+		if (btnisdown(BtnMiddle))
 			drawfill(f, mousex(), mousey(), FILLCOLOR);
-		if (keywaspressed('s'))
+		if (keywaspressed(KeyS))
 			image2ppm(f, "out.ppm");
 	}
 	return 0;

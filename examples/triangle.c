@@ -10,7 +10,7 @@ void updatepoint(Image *i, int p[2])
 {
 	static void *curr = 0;
 	int mx = mousex(), my = mousey();
-	if (!btnisdown(1))
+	if (!btnisdown(BtnLeft))
 		curr = 0;
 	else if (!curr && SQUARE(p[0] - mx) + SQUARE(p[1] - my) < SQUARE(6))
 		curr = p;
@@ -29,13 +29,13 @@ int main(void)
 	int pt[3][2] = {{100, 100}, {200, 200}, {300, 100}};
 	Color c[3] = {RED, GREEN, BLUE};
 	int smooth = 1;
-	while (!keyisdown('q')) {
+	while (!keyisdown(KeyQ)) {
 		Image *f = frame();
 		if (!f)
 			break;
 		for (int i = 0; i < 3; i++)
 			updatepoint(f, pt[i]);
-		if (keywaspressed('s'))
+		if (keywaspressed(KeyS))
 			smooth = !smooth;
 		drawclear(f, BGCOLOR);
 		for (int i = 0; i < 3; i++)

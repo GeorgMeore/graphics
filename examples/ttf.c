@@ -166,13 +166,13 @@ int main(int argc, char **argv)
 	GCache c = {.fn = fn};
 	setpx(&c, 20);
 	winopen(1920, 1080, argv[0], 0);
-	while (!keyisdown('q')) {
+	while (!keyisdown(KeyQ)) {
 		Image *f = frame();
 		if (!f)
 			break;
-		if (btnwaspressed(4))
+		if (btnwaspressed(BtnUp))
 			setpx(&c, c.px * 1.1);
-		if (btnwaspressed(5))
+		if (btnwaspressed(BtnDown))
 			setpx(&c, c.px / 1.1);
 		drawclear(f, RGBA(18, 18, 18, 255));
 		U32 l = textwidth(argv[2], &c);

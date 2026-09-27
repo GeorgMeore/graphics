@@ -31,11 +31,11 @@ int main(int, char **argv)
 		RGBA(70, 110, 110, 200),
 		RGBA(110, 110, 70, 200)
 	};
-	while (!keyisdown('q')) {
+	while (!keyisdown(KeyQ)) {
 		Image *f = frame();
 		if (!f)
 			break;
-		if (!keyisdown(' ')) {
+		if (!keyisdown(KeySpace)) {
 			F64 dt = lastframetime()/2e9;
 			for (int i = 0; i < N; i++)
 			for (int j = i+1; j < N; j++) {

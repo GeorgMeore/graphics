@@ -8,28 +8,26 @@
 #include "../../win.h"
 #include "../../ntime.h"
 #include "../../alloc.h"
-
-#define KEYCOUNT 256
-#define BTNCOUNT 8
+#include "../../math.h"
 
 /* NOTE: this module is compiled without ARC, so no problems
  * with storing object pointers in C structs */
 typedef struct {
-	Image fb;
+	Image         fb;
 	NSApplication *app;
-	NSWindow *win;
-	U64 targetns;
-	U64 startns;
-	U64 framens;
-	OK mouselocked;
-	I  mousex;
-	I  mousey;
-	U8 flags;
-	OK keydown[KEYCOUNT];
-	OK prevkeydown[KEYCOUNT];
-	OK btndown[BTNCOUNT];
-	OK prevbtndown[BTNCOUNT];
-	CGFloat scale;
+	NSWindow      *win;
+	CGFloat       scale;
+	U64           targetns;
+	U64           startns;
+	U64           framens;
+	OK            mouselocked;
+	I             mousex;
+	I             mousey;
+	U8            flags;
+	U64           keys, prevkeys;
+	U64           btns, prevbtns;
+	/* TODO: add a user-facing io event buffer for applications
+	 * that need finer-grained io control */
 } MacBackend;
 
 /* NOTE: every external function that interacts with AppKit objects
@@ -67,6 +65,7 @@ static void evwatch(NSNotificationName name, WindowFlag flag)
 		}];
 }
 
+/* TODO: maybe try rendering through IOSurfaceRef */
 void winopen(U16 w, U16 h, const char *title, U16 fps)
 {
 	@autoreleasepool {
@@ -125,14 +124,14 @@ U64 lastframetime(void)
 	return B.framens;
 }
 
-OK keyisdown(U8 k)
+OK keyisdown(Key k)
 {
-	return B.keydown[k];
+	return (B.keys & k) == k;
 }
 
-OK keywaspressed(U8 k)
+OK keywaspressed(Key k)
 {
-	return !B.keydown[k] && B.prevkeydown[k];
+	return (~B.keys & B.prevkeys & k) == k;
 }
 
 void mouselock(OK on)
@@ -149,14 +148,14 @@ void mouselock(OK on)
 	}
 }
 
-OK btnisdown(U8 b)
+OK btnisdown(Btn b)
 {
-	return B.btndown[b];
+	return (B.btns & b) == b;
 }
 
-OK btnwaspressed(U8 b)
+OK btnwaspressed(Btn b)
 {
-	return !B.btndown[b] && B.prevbtndown[b];
+	return (~B.btns & B.prevbtns & b) == b;
 }
 
 I mousex(void)
@@ -169,40 +168,73 @@ I mousey(void)
 	return B.mousey;
 }
 
-typedef struct {
-	U8     key;
-	UInt16 code;
-} KeyPair;
-
-/* TODO: support more keys */
-static KeyPair kmap[] = {
-	{' ', kVK_Space},
-	{'0', kVK_ANSI_0}, {'1', kVK_ANSI_1}, {'2', kVK_ANSI_2}, {'3', kVK_ANSI_3},
-	{'4', kVK_ANSI_4}, {'5', kVK_ANSI_5}, {'6', kVK_ANSI_6}, {'7', kVK_ANSI_7},
-	{'8', kVK_ANSI_8}, {'9', kVK_ANSI_9},
-	{'a', kVK_ANSI_A}, {'b', kVK_ANSI_B}, {'c', kVK_ANSI_C}, {'d', kVK_ANSI_D},
-	{'e', kVK_ANSI_E}, {'f', kVK_ANSI_F}, {'g', kVK_ANSI_G}, {'h', kVK_ANSI_H},
-	{'i', kVK_ANSI_I}, {'j', kVK_ANSI_J}, {'k', kVK_ANSI_K}, {'l', kVK_ANSI_L},
-	{'m', kVK_ANSI_M}, {'n', kVK_ANSI_N}, {'o', kVK_ANSI_O}, {'p', kVK_ANSI_P},
-	{'q', kVK_ANSI_Q}, {'r', kVK_ANSI_R}, {'s', kVK_ANSI_S}, {'t', kVK_ANSI_T},
-	{'u', kVK_ANSI_U}, {'v', kVK_ANSI_V}, {'w', kVK_ANSI_W}, {'x', kVK_ANSI_X},
-	{'y', kVK_ANSI_Y}, {'z', kVK_ANSI_Z},
-};
-
-#define KMAPCOUNT (sizeof(kmap)/sizeof(kmap[0]))
-
-static void onkey(NSEvent *ev, OK isdown)
+static void onkey(UInt16 code, OK isdown)
 {
-	if (ev.isARepeat)
+	Key k;
+	switch (code) {
+	case kVK_ANSI_Grave:     k = KeyGrave;     break;
+	case kVK_Space:          k = KeySpace;     break;
+	case kVK_ANSI_0:         k = Key0;         break;
+	case kVK_ANSI_1:         k = Key1;         break;
+	case kVK_ANSI_2:         k = Key2;         break;
+	case kVK_ANSI_3:         k = Key3;         break;
+	case kVK_ANSI_4:         k = Key4;         break;
+	case kVK_ANSI_5:         k = Key5;         break;
+	case kVK_ANSI_6:         k = Key6;         break;
+	case kVK_ANSI_7:         k = Key7;         break;
+	case kVK_ANSI_8:         k = Key8;         break;
+	case kVK_ANSI_9:         k = Key9;         break;
+	case kVK_ANSI_A:         k = KeyA;         break;
+	case kVK_ANSI_B:         k = KeyB;         break;
+	case kVK_ANSI_C:         k = KeyC;         break;
+	case kVK_ANSI_D:         k = KeyD;         break;
+	case kVK_ANSI_E:         k = KeyE;         break;
+	case kVK_ANSI_F:         k = KeyF;         break;
+	case kVK_ANSI_G:         k = KeyG;         break;
+	case kVK_ANSI_H:         k = KeyH;         break;
+	case kVK_ANSI_I:         k = KeyI;         break;
+	case kVK_ANSI_J:         k = KeyJ;         break;
+	case kVK_ANSI_K:         k = KeyK;         break;
+	case kVK_ANSI_L:         k = KeyL;         break;
+	case kVK_ANSI_M:         k = KeyM;         break;
+	case kVK_ANSI_N:         k = KeyN;         break;
+	case kVK_ANSI_O:         k = KeyO;         break;
+	case kVK_ANSI_P:         k = KeyP;         break;
+	case kVK_ANSI_Q:         k = KeyQ;         break;
+	case kVK_ANSI_R:         k = KeyR;         break;
+	case kVK_ANSI_S:         k = KeyS;         break;
+	case kVK_ANSI_T:         k = KeyT;         break;
+	case kVK_ANSI_U:         k = KeyU;         break;
+	case kVK_ANSI_V:         k = KeyV;         break;
+	case kVK_ANSI_W:         k = KeyW;         break;
+	case kVK_ANSI_X:         k = KeyX;         break;
+	case kVK_ANSI_Y:         k = KeyY;         break;
+	case kVK_ANSI_Z:         k = KeyZ;         break;
+	case kVK_ANSI_Minus:     k = KeyMinus;     break;
+	case kVK_ANSI_Equal:     k = KeyEqual;     break;
+	case kVK_Delete:         k = KeyBackspace; break;
+	case kVK_ANSI_Semicolon: k = KeySemicolon; break;
+	case kVK_ANSI_Quote:     k = KeyDQuote;    break;
+	case kVK_ANSI_Backslash: k = KeyBSlash;    break;
+	case kVK_ANSI_Period:    k = KeyDot;       break;
+	case kVK_ANSI_Slash:     k = KeySlash;     break;
+	case kVK_Return:         k = KeyEnter;     break;
+	case kVK_Tab:            k = KeyTab;       break;
+	case kVK_Shift:          k = KeyLShift;    break;
+	case kVK_RightShift:     k = KeyRShift;    break;
+	case kVK_Control:        k = KeyLCtrl;     break;
+	case kVK_RightControl:   k = KeyRCtrl;     break;
+	case kVK_Option:         k = KeyLAlt;      break;
+	case kVK_RightOption:    k = KeyRAlt;      break;
+	case kVK_Command:        k = KeyLWin;      break;
+	case kVK_RightCommand:   k = KeyRWin;      break;
+	default:
 		return;
-	UInt16 code = ev.keyCode;
-	for (I i = 0; i < KMAPCOUNT; i++) {
-		KeyPair p = kmap[i];
-		if (p.code == code) {
-			B.keydown[p.key] = isdown;
-			return;
-		}
 	}
+	if (isdown)
+		B.keys |= k;
+	else
+		B.keys &= ~k;
 }
 
 static void onmousemove(NSEvent *ev)
@@ -213,13 +245,47 @@ static void onmousemove(NSEvent *ev)
 	B.mousey += ev.deltaY * B.scale;
 }
 
-static void onmousebtn(NSEvent *ev, OK isdown)
+static void onmousebtn(NSInteger num, OK isdown)
 {
-	if (ev.buttonNumber >= BTNCOUNT)
+	Btn b;
+	switch (num) {
+	case 0: b = BtnLeft;   break;
+	case 1: b = BtnRight;  break;
+	case 2: b = BtnMiddle; break;
+	default:
 		return;
-	U8 b = ev.buttonNumber;
-	B.prevbtndown[b] = B.btndown[b];
-	B.btndown[b] = isdown;
+	}
+	B.prevbtns = B.btns;
+	if (isdown)
+		B.btns |= b;
+	else
+		B.btns &= ~b;
+}
+
+static void onflagschanged(NSUInteger flags)
+{
+	onkey(kVK_Shift,        BOOL(flags & NX_DEVICELSHIFTKEYMASK));
+	onkey(kVK_RightShift,   BOOL(flags & NX_DEVICERSHIFTKEYMASK));
+	onkey(kVK_Control,      BOOL(flags & NX_DEVICELCTLKEYMASK));
+	onkey(kVK_RightControl, BOOL(flags & NX_DEVICERCTLKEYMASK));
+	onkey(kVK_Command,      BOOL(flags & NX_DEVICELCMDKEYMASK));
+	onkey(kVK_RightCommand, BOOL(flags & NX_DEVICERCMDKEYMASK));
+	onkey(kVK_Option,       BOOL(flags & NX_DEVICELALTKEYMASK));
+	onkey(kVK_RightOption,  BOOL(flags & NX_DEVICERALTKEYMASK));
+	/* NOTE: this actually tracks caps mode not press/release */
+	onkey(kVK_CapsLock,     BOOL(flags & NSEventModifierFlagCapsLock));
+}
+
+static void onscrollwheel(CGFloat deltaY)
+{
+	Btn b;
+	if (deltaY > 0)
+		b = BtnUp;
+	else if (deltaY < 0)
+		b = BtnDown;
+	else
+		return;
+	B.prevbtns |= b;
 }
 
 /* NOTE: unfortunately this style of api where the main loop
@@ -228,24 +294,31 @@ static void onmousebtn(NSEvent *ev, OK isdown)
 
 static void evpoll(void)
 {
-	for (I i = 0; i < BTNCOUNT; i++)
-		B.prevbtndown[i] = B.btndown[i];
-	for (I i = 0; i < KEYCOUNT; i++)
-		B.prevkeydown[i] = B.keydown[i];
+	B.prevkeys = B.keys;
+	B.prevbtns = B.btns;
 	B.flags = 0;
+	OK wait = !B.targetns;
 	for (;;) {
 		NSEvent *ev = [B.app nextEventMatchingMask:NSEventMaskAny
 			untilDate:[NSDate distantPast]
 			inMode:NSDefaultRunLoopMode
 			dequeue:YES];
-		if (!ev)
-			break;
+		if (!ev) {
+			if (wait) {
+				sleepns(1.5e6);
+				continue;
+			} else {
+				break;
+			}
+		}
+		wait = 0;
 		switch (ev.type) {
 		case NSEventTypeKeyDown:
-			onkey(ev, 1);
+			if (!ev.isARepeat)
+				onkey(ev.keyCode, 1);
 			continue;
 		case NSEventTypeKeyUp:
-			onkey(ev, 0);
+			onkey(ev.keyCode, 0);
 			continue;
 		case NSEventTypeMouseMoved:
 		case NSEventTypeLeftMouseDragged:
@@ -255,12 +328,18 @@ static void evpoll(void)
 		case NSEventTypeLeftMouseDown:
 		case NSEventTypeRightMouseDown:
 		case NSEventTypeOtherMouseDown:
-			onmousebtn(ev, 1);
+			onmousebtn(ev.buttonNumber, 1);
 			break;
 		case NSEventTypeLeftMouseUp:
 		case NSEventTypeRightMouseUp:
 		case NSEventTypeOtherMouseUp:
-			onmousebtn(ev, 0);
+			onmousebtn(ev.buttonNumber, 0);
+			break;
+		case NSEventTypeFlagsChanged:
+			onflagschanged(ev.modifierFlags);
+			break;
+		case NSEventTypeScrollWheel:
+			onscrollwheel(ev.deltaY);
 			break;
 		default:
 			break;
@@ -296,37 +375,5 @@ Image* frame(void)
 	}
 }
 
-/* TODO: support event-based mode (fps=0) */
-/* FIXME: mouse button numbers is diffrent than in x11 */
-/* TODO: maybe try rendering through IOSurfaceRef */
-
-void render1(Image *f, F64 t)
-{
-	drawclear(f, WHITE);
-	drawcircle(f, mousex(), mousey(), 100, RED);
-}
-
-void render2(Image *f, F64 t)
-{
-	drawclear(f, RGBA(18, 18, 18, 255));
-	for (int i = 0; i < 200; i++) {
-		drawsmoothcircle(f, f->w*i/200, f->h/2 + fsin(t)*fsin(t + 4*PI*i/200)*f->h/2, 5, RGBA(110, 70, 70, 255));
-		drawsmoothcircle(f, f->w*i/200, f->h/2 + fcos(t)*fcos(t*.8 + 4*PI*i/200)*f->h/2, 5, RGBA(70, 110, 70, 255));
-		drawsmoothcircle(f, f->w*i/200, f->h/2 + fsin(t)*fsin(t*.6 + 4*PI*i/200 + PI)*f->h/2, 5, RGBA(70, 70, 110, 255));
-		drawsmoothcircle(f, f->w*i/200, f->h/2 + fcos(t)*fsin(t*.4 + 4*PI*i/200 + 3*PI/2)*f->h/2, 5, RGBA(110, 110, 110, 255));
-	}
-}
-
-int main()
-{
-	winopen(1000, 600, "Test", 60);
-	F64 t = 0;
-	while (!keywaspressed('q')) {
-		Image *f = frame();
-		if (!f)
-			break;
-		t += lastframetime()/1e9;
-		render1(f, t);
-	}
-	return 0;
-}
+/* FIXME: the mouse coordinates might be a bit off, noticed while dragging points
+ * in examples/bezier */

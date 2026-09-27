@@ -28,7 +28,7 @@ typedef struct {
 	OK prevkeydown[COUNT];
 	OK btndown[COUNT];
 	OK prevbtndown[COUNT];
-	OK gotpress;
+	OK gotinput;
 	int mousex;
 	int mousey;
 	U64 targetns;
@@ -134,15 +134,26 @@ void mouselock(OK on)
  * per-frame accumulative buffer will do, but I'll need to figure out
  * how to handle deletes/modifiers/other special stuff. */
 
+typedef struct {
+	U8     key;
+	KeySym code;
+} KeyPair;
+
 /* NOTE: all currently supported keys are listed here explicitly,
  * that's probably not optimal, but it's predictable and simple */
-static KeySym keymap[COUNT] = {
-	[' '] = XK_space,
-	['0'] = XK_0, XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9,
-	['a'] = XK_a, XK_b, XK_c, XK_d, XK_e, XK_f, XK_g, XK_h, XK_i, XK_j,
-		XK_k, XK_l, XK_m, XK_n, XK_o, XK_p, XK_q, XK_r, XK_s, XK_t, XK_u,
-		XK_v, XK_w, XK_x, XK_y, XK_z,
+static KeyPair kmap[] = {
+	{' ', XK_space},
+	{'0', XK_0}, {'1', XK_1}, {'2', XK_2}, {'3', XK_3}, {'4', XK_4},
+	{'5', XK_5}, {'6', XK_6}, {'7', XK_7}, {'8', XK_8}, {'9', XK_9},
+	{'a', XK_a}, {'b', XK_b}, {'c', XK_c}, {'d', XK_d}, {'e', XK_e},
+	{'f', XK_f}, {'g', XK_g}, {'h', XK_h}, {'i', XK_i}, {'j', XK_j},
+	{'k', XK_k}, {'l', XK_l}, {'m', XK_m}, {'n', XK_n}, {'o', XK_o},
+	{'p', XK_p}, {'q', XK_q}, {'r', XK_r}, {'s', XK_s}, {'t', XK_t},
+	{'u', XK_u}, {'v', XK_v}, {'w', XK_w}, {'x', XK_x}, {'y', XK_y},
+	{'z', XK_z},
 };
+
+#define KMAPCOUNT (sizeof(kmap)/sizeof(kmap[0]))
 
 /* NOTE: When you hold down a keyboard key the X server
  * sends you repeated "Release/Press" pairs, when you
@@ -151,10 +162,11 @@ static KeySym keymap[COUNT] = {
 
 static void onkey(KeySym k, OK isdown)
 {
-	for (I i = 0; i < COUNT; i++) {
-		if (keymap[i] == k) {
-			B.gotpress |= !isdown;
-			B.keydown[i] = isdown;
+	for (I i = 0; i < KMAPCOUNT; i++) {
+		KeyPair p = keymap[i];
+		if (p.code == k) {
+			B.gotinput |= !isdown;
+			B.keydown[p.key] = isdown;
 			return;
 		}
 	}
@@ -162,7 +174,7 @@ static void onkey(KeySym k, OK isdown)
 
 static void onbtn(U8 b, OK isdown)
 {
-	B.gotpress |= !isdown;
+	B.gotinput |= !isdown;
 	B.prevbtndown[b] = B.btndown[b];
 	B.btndown[b] = isdown;
 }
@@ -236,11 +248,11 @@ static void evpoll(void)
 	}
 	/* NOTE: in the "event based" mode we want draw the next
 	 * frame when a key or a button was pressed */
-	if (!B.targetns && !B.gotpress) {
+	if (!B.targetns && !B.gotinput) {
 		while (!XPending(B.d))
 			sleepns(1.5e6); /* NOTE: often enough, but not too often */
 	}
-	B.gotpress = 0;
+	B.gotinput = 0;
 	while (XPending(B.d)) {
 		XEvent e;
 		XNextEvent(B.d, &e);
@@ -257,10 +269,6 @@ static void evpoll(void)
 		else if (e.type == ClientMessage && (Atom)e.xclient.data.l[0] == B.delete)
 			B.dead = 1;
 	}
-	B.framens = timens() - B.startns;
-	if (B.framens < B.targetns)
-		sleepns(B.targetns - B.framens);
-	B.framens = timens() - B.startns;
 }
 
 Image *frame(void)
@@ -268,6 +276,10 @@ Image *frame(void)
 	if (!B.d || B.dead)
 		return 0;
 	flush();
+	B.framens = timens() - B.startns;
+	if (B.framens < B.targetns)
+		sleepns(B.targetns - B.framens);
+	B.startns = timens();
 	evpoll();
 	if (B.dead)
 		return 0;
@@ -283,6 +295,5 @@ Image *frame(void)
 		 * the user moves the mouse in during a new frame, or the movent can be lost. */
 		XSync(B.d, 0);
 	}
-	B.startns = timens();
 	return &B.fb;
 }

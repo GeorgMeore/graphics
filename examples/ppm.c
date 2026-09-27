@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	winopen(600, 600, argv[0], 60);
-	while (!keyisdown('q')) {
+	while (!keyisdown(KeyQ)) {
 		Image *f = frame();
 		if (!f)
 			break;

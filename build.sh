@@ -9,18 +9,17 @@ cd "${0%/*}" # in case we're called from other directory
 case $(uname -sm) in
 	'Darwin arm64')
 		osarch=macos_arm64
-		cflags="-I/opt/X11/include -DPAGE_SIZE=$(pagesize)"
-		ldflags=-L/opt/X11/lib ;;
+		cflags="-DPAGE_SIZE=$(pagesize)"
+		ldflags='-framework Cocoa -framework QuartzCore' ;;
 	'Linux x86_64')
 		osarch=linux_amd64
-		ldflags='-lpulse -lpulse-simple' ;;
+		ldflags='-lX11 -lpulse -lpulse-simple' ;;
 	*)
 		echo "error: unhandled os/arch"
 		exit 1
 esac
 
 cflags="$cflags -I$PWD/platform/$osarch -I$PWD -Wall -Wextra -flto -fno-strict-aliasing -fwrapv"
-ldflags="$ldflags -lX11"
 
 for a in "$@"; do
 	case $a in
@@ -51,7 +50,6 @@ ccobj() {
 	nonstale "$1" "$2" ./*.h ./platform/$osarch/*.h .cflags || cc -c $cflags -o "$1" "$2"
 }
 
-ccobj win.o      win.c &
 ccobj draw.o     draw.c &
 ccobj prof.o     prof.c &
 ccobj ntime.o    ntime.c &
@@ -67,6 +65,10 @@ ccobj la.o       la.c &
 ccobj font.o     font.c &
 ccobj fontfmt.o  fontfmt.c &
 ccobj jump.o     platform/$osarch/jump.s &
+case $osarch in
+	linux_amd64) ccobj win.o platform/$osarch/win.c & ;;
+	macos_arm64) cc -g -c -o win.o platform/$osarch/win.m & ;;
+esac
 wait
 
 ccexmpl() {
@@ -89,7 +91,7 @@ ccexmpl sin      sin.c &
 ccexmpl split    split.c &
 ccexmpl triangle triangle.c &
 ccexmpl ttf      ttf.c &
-[ $osarch != linux_amd64 ] || ccexmpl wav      wav.c &
+#[ $osarch != linux_amd64 ] || ccexmpl wav      wav.c &
 ccexmpl y4m      y4m.c &
 wait
 

@@ -54,7 +54,7 @@ void drawgradients(Image *i, int dx, int dy)
 {
 	for (int x = 0; x < i->w; x++)
 	for (int y = 0; y < i->h; y++)
-		PIXEL(i, x, y) = RGBA(0, (U8)(x-dx), (U8)(y-dy), 0);
+		PIXEL(i, x, y) = RGBA(0, (U8)(x-dx), (U8)(y-dy), 255);
 }
 
 int main(void)
@@ -80,11 +80,11 @@ int main(void)
 		drawrect(f, mx, my, -50, 50, RGBA(255, 0, 255, 100));
 		profend();
 
-		if (keyisdown('q')) break;
-		if (keyisdown('d')) dx -= 4;
-		if (keyisdown('a')) dx += 4;
-		if (keyisdown('s')) dy -= 4;
-		if (keyisdown('w')) dy += 4;
+		if (keyisdown(KeyQ)) break;
+		if (keyisdown(KeyD)) dx -= 4;
+		if (keyisdown(KeyA)) dx += 4;
+		if (keyisdown(KeyS)) dy -= 4;
+		if (keyisdown(KeyW)) dy += 4;
 
 		profdump();
 	}

@@ -28,17 +28,17 @@ int main(int, char **argv)
 	F64 xscale = .0125, yscale = 20;
 	I16 xstep = tickstep(xscale), ystep = tickstep(yscale);
 	winopen(1920, 1080, argv[0], 60);
-	while (!keyisdown('q')) {
+	while (!keyisdown(KeyQ)) {
 		Image *f = frame();
 		if (!f)
 			break;
-		if (keyisdown('x') && keyisdown('o'))
+		if (keyisdown(KeyX) && keyisdown(KeyO))
 			xscale *= 1.025, xstep = tickstep(xscale);
-		if (keyisdown('x') && keyisdown('i'))
+		if (keyisdown(KeyX) && keyisdown(KeyI))
 			xscale /= 1.025, xstep = tickstep(xscale);
-		if (keyisdown('y') && keyisdown('i'))
+		if (keyisdown(KeyY) && keyisdown(KeyI))
 			yscale *= 1.025, ystep = tickstep(yscale);
-		if (keyisdown('y') && keyisdown('o'))
+		if (keyisdown(KeyY) && keyisdown(KeyO))
 			yscale /= 1.025, ystep = tickstep(yscale);
 		drawclear(f, BGCOLOR);
 		drawline(f, 0, f->h/2, f->w, f->h/2, LINECOLOR);

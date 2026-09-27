@@ -26,9 +26,9 @@ void updatepoint(Image *i, int p[2])
 {
 	static void *curr = 0;
 	int mx = mousex(), my = mousey();
-	if (!btnisdown(1))
+	if (!btnisdown(BtnLeft))
 		curr = 0;
-	else if (!curr && SQUARE(p[0] - mx) + SQUARE(p[1] - my) < SQUARE(6))
+	else if (!curr && SQUARE(p[0] - mx) + SQUARE(p[1] - my) < SQUARE(8))
 		curr = p;
 	if (curr == p) {
 		p[0] = CLAMP(mx, 0, i->w);
@@ -38,14 +38,14 @@ void updatepoint(Image *i, int p[2])
 
 int main(void)
 {
-	winopen(600, 600, "Bezier", 60);
+	winopen(600, 600, "Bezier", 0);
 	int tmpcnt = 0, tmp[3][2];
 	Bezier2 *head = 0;
-	while (!keyisdown('q')) {
+	while (!keyisdown(KeyQ)) {
 		Image *f = frame();
 		if (!f)
 			break;
-		if (btnwaspressed(3)) {
+		if (btnwaspressed(BtnRight)) {
 			tmp[tmpcnt][0] = mousex();
 			tmp[tmpcnt][1] = mousey();
 			tmpcnt += 1;
@@ -54,7 +54,7 @@ int main(void)
 				head = bezier2(tmp, head);
 			}
 		}
-		if (btnwaspressed(2)) {
+		if (keywaspressed(KeyBackspace)) {
 			if (tmpcnt) {
 				tmpcnt -= 1;
 			} else if (head) {

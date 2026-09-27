@@ -301,7 +301,7 @@ int main(int, char **argv)
 	};
 	mouselock(1);
 	OK trace = 1;
-	while (!keyisdown('q')) {
+	while (!keyisdown(KeyQ)) {
 		Image *f = frame();
 		if (!f)
 			break;
@@ -311,19 +311,19 @@ int main(int, char **argv)
 			c.rot = mmul(roty(mousex() / (F64)f->w), c.rot);
 		if (mousey())
 			c.rot = mmul(c.rot, rotx(mousey() / (F64)f->h));
-		if (keyisdown('h'))
+		if (keyisdown(KeyH))
 			c.rot = mmul(c.rot, rotz(.05));
-		if (keyisdown('l'))
+		if (keyisdown(KeyL))
 			c.rot = mmul(c.rot, rotz(-.05));
-		if (keyisdown('w'))
+		if (keyisdown(KeyW))
 			c.pos = vadd(c.pos, mapply(c.rot, (Vec){0, 0, .05}));
-		if (keyisdown('s'))
+		if (keyisdown(KeyS))
 			c.pos = vadd(c.pos, mapply(c.rot, (Vec){0, 0, -.05}));
-		if (keyisdown('a'))
+		if (keyisdown(KeyA))
 			c.pos = vadd(c.pos, mapply(c.rot, (Vec){-.05, 0, 0}));
-		if (keyisdown('d'))
+		if (keyisdown(KeyD))
 			c.pos = vadd(c.pos, mapply(c.rot, (Vec){.05, 0, 0}));
-		if (keywaspressed('r'))
+		if (keywaspressed(KeyR))
 			trace = !trace;
 		/* TODO: There sometimes are triangle rendering differences
 		 * between the rasterizer and the raytracer.

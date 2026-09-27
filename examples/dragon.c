@@ -29,14 +29,14 @@ int main(int, char **argv)
 {
 	winopen(1920, 1080, argv[0], 0);
 	U n = 1;
-	while (!keyisdown('q')) {
+	while (!keyisdown(KeyQ)) {
 		Image *f = frame();
 		if (!f)
 			break;
 		drawclear(f, BLACK);
-		if (btnwaspressed(4))
+		if (btnwaspressed(BtnUp))
 			n += 1;
-		if (btnwaspressed(5) && n)
+		if (btnwaspressed(BtnDown) && n)
 			n -= 1;
 		I x = mousex(), y = mousey();
 		dragon(f, x, y, x+SIZE, y+SIZE, x+SIZE+SIZE, y, n, 1);
