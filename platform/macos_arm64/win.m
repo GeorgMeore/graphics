@@ -126,12 +126,12 @@ U64 lastframetime(void)
 
 OK keyisdown(Key k)
 {
-	return (B.keys & k) == k;
+	return BOOL(B.keys & k);
 }
 
 OK keywaspressed(Key k)
 {
-	return (~B.keys & B.prevkeys & k) == k;
+	return BOOL(~B.keys & B.prevkeys & k);
 }
 
 void mouselock(OK on)
@@ -150,12 +150,12 @@ void mouselock(OK on)
 
 OK btnisdown(Btn b)
 {
-	return (B.btns & b) == b;
+	return BOOL(B.btns & b);
 }
 
 OK btnwaspressed(Btn b)
 {
-	return (~B.btns & B.prevbtns & b) == b;
+	return BOOL(~B.btns & B.prevbtns & b);
 }
 
 I mousex(void)
@@ -215,7 +215,7 @@ static void onkey(UInt16 code, OK isdown)
 	case kVK_Delete:         k = KeyBackspace; break;
 	case kVK_ANSI_Semicolon: k = KeySemicolon; break;
 	case kVK_ANSI_Quote:     k = KeyDQuote;    break;
-	case kVK_ANSI_Backslash: k = KeyBSlash;    break;
+	case kVK_ANSI_Backslash: k = KeyBackslash; break;
 	case kVK_ANSI_Period:    k = KeyDot;       break;
 	case kVK_ANSI_Slash:     k = KeySlash;     break;
 	case kVK_Return:         k = KeyEnter;     break;
@@ -228,6 +228,7 @@ static void onkey(UInt16 code, OK isdown)
 	case kVK_RightOption:    k = KeyRAlt;      break;
 	case kVK_Command:        k = KeyLWin;      break;
 	case kVK_RightCommand:   k = KeyRWin;      break;
+	case kVK_CapsLock:       k = KeyCaps;      break;
 	default:
 		return;
 	}

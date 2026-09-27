@@ -8,37 +8,34 @@
 #include "color.h"
 #include "image.h"
 #include "win.h"
+#include "math.h"
 
 #define RMASK RGBA(0xFF, 0, 0, 0)
 #define GMASK RGBA(0, 0xFF, 0, 0)
 #define BMASK RGBA(0, 0, 0xFF, 0)
 
-#define COUNT 256 /* keys/buttons */
-
 typedef struct {
-	Image fb;
+	Image   fb;
 	Display *d;
-	Visual *vis;
-	XImage *i;
-	Pixmap bb;
-	Window win;
-	int depth;
-	GC gc;
-	OK keydown[COUNT];
-	OK prevkeydown[COUNT];
-	OK btndown[COUNT];
-	OK prevbtndown[COUNT];
-	OK gotinput;
-	int mousex;
-	int mousey;
-	U64 targetns;
-	U64 startns;
-	U64 framens;
-	OK needswap;
-	Cursor invis;
-	OK mouselocked;
-	Atom delete;
-	OK dead;
+	Visual  *vis;
+	XImage  *i;
+	Pixmap  bb;
+	Window  win;
+	int     depth;
+	GC      gc;
+	U64     keys, prevkeys;
+	U64     btns, prevbtns;
+	OK      gotinput;
+	int     mousex;
+	int     mousey;
+	U64     targetns;
+	U64     startns;
+	U64     framens;
+	OK      needswap;
+	Cursor  invis;
+	OK      mouselocked;
+	Atom    delete;
+	OK      dead;
 } X11Backend;
 
 static X11Backend B;
@@ -134,69 +131,116 @@ void mouselock(OK on)
  * per-frame accumulative buffer will do, but I'll need to figure out
  * how to handle deletes/modifiers/other special stuff. */
 
-typedef struct {
-	U8     key;
-	KeySym code;
-} KeyPair;
-
-/* NOTE: all currently supported keys are listed here explicitly,
- * that's probably not optimal, but it's predictable and simple */
-static KeyPair kmap[] = {
-	{' ', XK_space},
-	{'0', XK_0}, {'1', XK_1}, {'2', XK_2}, {'3', XK_3}, {'4', XK_4},
-	{'5', XK_5}, {'6', XK_6}, {'7', XK_7}, {'8', XK_8}, {'9', XK_9},
-	{'a', XK_a}, {'b', XK_b}, {'c', XK_c}, {'d', XK_d}, {'e', XK_e},
-	{'f', XK_f}, {'g', XK_g}, {'h', XK_h}, {'i', XK_i}, {'j', XK_j},
-	{'k', XK_k}, {'l', XK_l}, {'m', XK_m}, {'n', XK_n}, {'o', XK_o},
-	{'p', XK_p}, {'q', XK_q}, {'r', XK_r}, {'s', XK_s}, {'t', XK_t},
-	{'u', XK_u}, {'v', XK_v}, {'w', XK_w}, {'x', XK_x}, {'y', XK_y},
-	{'z', XK_z},
-};
-
-#define KMAPCOUNT (sizeof(kmap)/sizeof(kmap[0]))
-
 /* NOTE: When you hold down a keyboard key the X server
  * sends you repeated "Release/Press" pairs, when you
  * scroll with mouse or touchpad you get repeated "Press/Release".
  * That's why we need to handle button and key states a bit differently. */
 
-static void onkey(KeySym k, OK isdown)
+static void onkey(KeySym sym, OK isdown)
 {
-	for (I i = 0; i < KMAPCOUNT; i++) {
-		KeyPair p = keymap[i];
-		if (p.code == k) {
-			B.gotinput |= !isdown;
-			B.keydown[p.key] = isdown;
-			return;
-		}
+	Key k;
+	switch (sym) {
+	case XK_space:        k = KeySpace;     break;
+	case XK_0:            k = Key0;         break;
+	case XK_1:            k = Key1;         break;
+	case XK_2:            k = Key2;         break;
+	case XK_3:            k = Key3;         break;
+	case XK_4:            k = Key4;         break;
+	case XK_5:            k = Key5;         break;
+	case XK_6:            k = Key6;         break;
+	case XK_7:            k = Key7;         break;
+	case XK_8:            k = Key8;         break;
+	case XK_9:            k = Key9;         break;
+	case XK_a:            k = KeyA;         break;
+	case XK_b:            k = KeyB;         break;
+	case XK_c:            k = KeyC;         break;
+	case XK_d:            k = KeyD;         break;
+	case XK_e:            k = KeyE;         break;
+	case XK_f:            k = KeyF;         break;
+	case XK_g:            k = KeyG;         break;
+	case XK_h:            k = KeyH;         break;
+	case XK_i:            k = KeyI;         break;
+	case XK_j:            k = KeyJ;         break;
+	case XK_k:            k = KeyK;         break;
+	case XK_l:            k = KeyL;         break;
+	case XK_m:            k = KeyM;         break;
+	case XK_n:            k = KeyN;         break;
+	case XK_o:            k = KeyO;         break;
+	case XK_p:            k = KeyP;         break;
+	case XK_q:            k = KeyQ;         break;
+	case XK_r:            k = KeyR;         break;
+	case XK_s:            k = KeyS;         break;
+	case XK_t:            k = KeyT;         break;
+	case XK_u:            k = KeyU;         break;
+	case XK_v:            k = KeyV;         break;
+	case XK_w:            k = KeyW;         break;
+	case XK_x:            k = KeyX;         break;
+	case XK_y:            k = KeyY;         break;
+	case XK_z:            k = KeyZ;         break;
+	case XK_minus:        k = KeyMinus;     break;
+	case XK_equal:        k = KeyEqual;     break;
+	case XK_BackSpace:    k = KeyBackspace; break;
+	case XK_bracketleft:  k = KeyLBracket;  break;
+	case XK_bracketright: k = KeyRBracket;  break;
+	case XK_backslash:    k = KeyBackslash; break;
+	case XK_semicolon:    k = KeySemicolon; break;
+	case XK_Tab:          k = KeyTab;       break;
+	case XK_Shift_L:      k = KeyLShift;    break;
+	case XK_Shift_R:      k = KeyRShift;    break;
+	case XK_Control_L:    k = KeyLCtrl;     break;
+	case XK_Control_R:    k = KeyRCtrl;     break;
+	case XK_Alt_L:        k = KeyLAlt;      break;
+	case XK_Alt_R:        k = KeyRAlt;      break;
+	case XK_Super_L:      k = KeyLWin;      break;
+	case XK_Super_R:      k = KeyRWin;      break;
+	case XK_Caps_Lock:    k = KeyCaps;      break;
+	default:
+		return;
 	}
+	if (isdown)
+		B.keys |= k;
+	else
+		B.keys &= ~k;
 }
 
-static void onbtn(U8 b, OK isdown)
+static void onbtn(U button, OK isdown)
 {
+	Btn b;
+	switch (button) {
+	case 1: b = BtnLeft;   break;
+	case 2: b = BtnMiddle; break;
+	case 3: b = BtnRight;  break;
+	case 4: b = BtnUp;     break;
+	case 5: b = BtnDown;   break;
+	default:
+		return;
+	}
 	B.gotinput |= !isdown;
-	B.prevbtndown[b] = B.btndown[b];
-	B.btndown[b] = isdown;
+	B.prevbtns = B.btns;
+	if (isdown)
+		B.btns |= b;
+	else
+		B.btns &= ~b;
 }
 
-OK keyisdown(U8 k)
+OK keyisdown(Key k)
 {
-	return B.keydown[k];
+	return BOOL(B.keys & k);
 }
 
-OK keywaspressed(U8 k)
+OK keywaspressed(Key k)
 {
-	return !B.keydown[k] && B.prevkeydown[k];
+	return BOOL(~B.keys & B.prevkeys & k);
 }
 
-OK btnisdown(U8 b)
+OK btnisdown(Btn b)
 {
-	return B.btndown[b];
+	return BOOL(B.btns & b);
 }
 
-OK btnwaspressed(U8 b)
+OK btnwaspressed(Btn b)
 {
-	return !B.btndown[b] && B.prevbtndown[b];
+	return BOOL(~B.btns & B.prevbtns & b);
 }
 
 I mousex(void)
@@ -242,10 +286,8 @@ void flush(void)
 
 static void evpoll(void)
 {
-	for (I i = 0; i < COUNT; i++) {
-		B.prevbtndown[i] = B.btndown[i];
-		B.prevkeydown[i] = B.keydown[i];
-	}
+	B.prevbtns = B.btns;
+	B.prevkeys = B.keys;
 	/* NOTE: in the "event based" mode we want draw the next
 	 * frame when a key or a button was pressed */
 	if (!B.targetns && !B.gotinput) {
