@@ -43,7 +43,7 @@ typedef enum {
 	KeyBackslash = (U64)1 << 41,
 	KeySemicolon = (U64)1 << 42,
 	KeyDQuote    = (U64)1 << 43,
-	KeyComa      = (U64)1 << 44,
+	KeyComma      = (U64)1 << 44,
 	KeyDot       = (U64)1 << 45,
 	KeySlash     = (U64)1 << 46,
 	KeyTab       = (U64)1 << 47,
