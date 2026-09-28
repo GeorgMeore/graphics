@@ -140,7 +140,7 @@ static void onkey(KeySym sym, OK isdown)
 {
 	Key k;
 	switch (sym) {
-	case XK_space:        k = KeySpace;     break;
+	case XK_grave:        k = KeyGrave;     break;
 	case XK_0:            k = Key0;         break;
 	case XK_1:            k = Key1;         break;
 	case XK_2:            k = Key2;         break;
@@ -151,6 +151,8 @@ static void onkey(KeySym sym, OK isdown)
 	case XK_7:            k = Key7;         break;
 	case XK_8:            k = Key8;         break;
 	case XK_9:            k = Key9;         break;
+	case XK_minus:        k = KeyMinus;     break;
+	case XK_equal:        k = KeyEqual;     break;
 	case XK_a:            k = KeyA;         break;
 	case XK_b:            k = KeyB;         break;
 	case XK_c:            k = KeyC;         break;
@@ -177,23 +179,27 @@ static void onkey(KeySym sym, OK isdown)
 	case XK_x:            k = KeyX;         break;
 	case XK_y:            k = KeyY;         break;
 	case XK_z:            k = KeyZ;         break;
-	case XK_minus:        k = KeyMinus;     break;
-	case XK_equal:        k = KeyEqual;     break;
-	case XK_BackSpace:    k = KeyBackspace; break;
 	case XK_bracketleft:  k = KeyLBracket;  break;
 	case XK_bracketright: k = KeyRBracket;  break;
 	case XK_backslash:    k = KeyBackslash; break;
 	case XK_semicolon:    k = KeySemicolon; break;
+	case XK_apostrophe:   k = KeyQuote;     break;
+	case XK_comma:        k = KeyComma;     break;
+	case XK_period:       k = KeyDot;       break;
+	case XK_slash:        k = KeySlash;     break;
 	case XK_Tab:          k = KeyTab;       break;
-	case XK_Shift_L:      k = KeyLShift;    break;
-	case XK_Shift_R:      k = KeyRShift;    break;
-	case XK_Control_L:    k = KeyLCtrl;     break;
-	case XK_Control_R:    k = KeyRCtrl;     break;
-	case XK_Alt_L:        k = KeyLAlt;      break;
-	case XK_Alt_R:        k = KeyRAlt;      break;
-	case XK_Super_L:      k = KeyLWin;      break;
-	case XK_Super_R:      k = KeyRWin;      break;
 	case XK_Caps_Lock:    k = KeyCaps;      break;
+	case XK_Shift_L:      k = KeyLShift;    break;
+	case XK_Control_L:    k = KeyLCtrl;     break;
+	case XK_Super_L:      k = KeyLWin;      break;
+	case XK_Alt_L:        k = KeyLAlt;      break;
+	case XK_space:        k = KeySpace;     break;
+	case XK_Alt_R:        k = KeyRAlt;      break;
+	case XK_Super_R:      k = KeyRWin;      break;
+	case XK_Control_R:    k = KeyRCtrl;     break;
+	case XK_Shift_R:      k = KeyRShift;    break;
+	case XK_Return:       k = KeyEnter;     break;
+	case XK_BackSpace:    k = KeyBackspace; break;
 	default:
 		return;
 	}

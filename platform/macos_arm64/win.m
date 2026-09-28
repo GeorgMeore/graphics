@@ -215,7 +215,7 @@ static void onkey(UInt16 code, OK isdown)
 	case kVK_ANSI_RightBracket: k = KeyRBracket;  break;
 	case kVK_ANSI_Backslash:    k = KeyBackslash; break;
 	case kVK_ANSI_Semicolon:    k = KeySemicolon; break;
-	case kVK_ANSI_Quote:        k = KeyDQuote;    break;
+	case kVK_ANSI_Quote:        k = KeyQuote;     break;
 	case kVK_ANSI_Comma:        k = KeyComma;     break;
 	case kVK_ANSI_Period:       k = KeyDot;       break;
 	case kVK_ANSI_Slash:        k = KeySlash;     break;
