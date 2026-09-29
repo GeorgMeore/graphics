@@ -3,16 +3,16 @@
 .text
 save:
 	mov %rbx,   (%rdi)
-	pop %rbx /* pop the return address */
+	pop %rcx /* pop the return address before saving rsp */
 	mov %rsp,  8(%rdi)
 	mov %rbp, 16(%rdi)
 	mov %r12, 24(%rdi)
 	mov %r13, 32(%rdi)
 	mov %r14, 40(%rdi)
 	mov %r15, 48(%rdi)
-	mov %rbx, 56(%rdi)
+	mov %rcx, 56(%rdi)
 	xor %rax, %rax
-	jmp *%rbx
+	jmp *%rcx
 
 jump:
 	mov (%rdi),   %rbx
