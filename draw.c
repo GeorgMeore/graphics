@@ -36,8 +36,8 @@
 
 void drawclear(Image *i, Color c)
 {
-	for (I64 x = 0; x < i->w; x++)
 	for (I64 y = 0; y < i->h; y++)
+	for (I64 x = 0; x < i->w; x++)
 		PIXEL(i, x, y) = c; /* NOTE: no blending here */
 }
 
