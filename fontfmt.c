@@ -345,8 +345,8 @@ static OK parsefmt12(IOBuffer *b, U64 start, Arena *a, Font *f)
 		U32 start = readbe(b, 4);
 		U32 end = readbe(b, 4);
 		U32 startglyph = readbe(b, 4);
-		U64 n = end - start + 1;
-		if (start > end || startglyph + n >= f->nglyph)
+		U64 n = end - start + (U64)1;
+		if (start > end || startglyph + n > f->nglyph)
 			return 0;
 		npoints += n;
 	}
@@ -354,11 +354,11 @@ static OK parsefmt12(IOBuffer *b, U64 start, Arena *a, Font *f)
 	f->ctable[0] = aralloc(a, npoints*sizeof(U32));
 	f->ctable[1] = aralloc(a, npoints*sizeof(U32));
 	bseek(b, table);
-	for (U16 i = 0, j = 0; i < ngroups; i++) {
+	for (U64 i = 0, j = 0; i < ngroups; i++) {
 		U32 start = readbe(b, 4);
 		U32 end = readbe(b, 4);
 		U32 startglyph = readbe(b, 4);
-		for (U32 p = start; p <= end; p++, j++) {
+		for (U64 p = start; p <= end; p++, j++) {
 			f->ctable[0][j] = p;
 			f->ctable[1][j] = startglyph + (p - start);
 		}

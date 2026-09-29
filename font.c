@@ -10,9 +10,9 @@ U16 findglyph(Font f, U32 code)
 {
 	if (!f.ctable[0])
 		return 0;
-	U16 l = 0, r = f.npoints;
+	U64 l = 0, r = f.npoints;
 	while (l < r) {
-		U16 m = l + (r - l)/2;
+		U64 m = l + (r - l)/2;
 		if (f.ctable[0][m] == code)
 			return f.ctable[1][m];
 		if (f.ctable[0][m] < code)
