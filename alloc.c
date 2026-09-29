@@ -357,7 +357,7 @@ void memfree(void *p)
 	segunlink(s);
 	for (;;) {
 		Segment *n = segladjacent(s);
-		if (!n)
+		if (!n || !n->free)
 			n = segradjacent(s);
 		if (!n || !n->free)
 			break;
