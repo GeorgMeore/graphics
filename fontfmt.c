@@ -495,19 +495,19 @@ OK font2c(Font fn, const char *var, const char *path)
 	bprintln(&b, "\t},");
 	bprintln(&b, "\t.npoints = ", OD(fn.npoints), ",");
 	bprintln(&b, "\t.ctable = {");
-	bprint(&b, "\t\t(U16[]){");
-	for (U16 i = 0; i < fn.npoints; i++) {
+	bprint(&b, "\t\t(U32[]){");
+	for (U64 i = 0; i < fn.npoints; i++) {
 		bprint(&b, i ? ", " : "");
 		bprint(&b, OD(fn.ctable[0][i]));
 	}
 	bprintln(&b, "},");
-	bprint(&b, "\t\t(U16[]){");
-	for (U16 i = 0; i < fn.npoints; i++) {
+	bprint(&b, "\t\t(U32[]){");
+	for (U64 i = 0; i < fn.npoints; i++) {
 		bprint(&b, i ? ", " : "");
 		bprint(&b, OD(fn.ctable[1][i]));
 	}
 	bprintln(&b, "},");
 	bprintln(&b, "\t},");
 	bprintln(&b, "};");
-	return 1;
+	return bclose(&b);
 }
