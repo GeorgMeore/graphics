@@ -12,4 +12,4 @@ Building.
 
 To build this thing you'll need a c compiler and a posix shell.
 
-$ ./build -o3
+$ ./build.sh -o3
