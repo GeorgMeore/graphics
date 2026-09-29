@@ -45,7 +45,7 @@ static Image frame = {WIDTH, HEIGHT, WIDTH, (Color[WIDTH*HEIGHT]){}};
  * to experiment interactively and then use the same code to generate a video. */
 int main(void)
 {
-	IOBuffer video;
+	IOBuffer video = {0};
 	if (!bopen(&video, "video.y4m", 'w')) {
 		panic("failed to open the output file!");
 		return 1;
