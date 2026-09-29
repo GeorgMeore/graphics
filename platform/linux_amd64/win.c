@@ -264,8 +264,8 @@ I mousey(void)
 
 static void swaprgb32(Image *i)
 {
-	for (I x = 0; x < i->w; x++)
 	for (I y = 0; y < i->h; y++)
+	for (I x = 0; x < i->w; x++)
 		PIXEL(i, x, y) = REVERSE4(PIXEL(i, x, y));
 }
 
