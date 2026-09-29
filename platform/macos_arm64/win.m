@@ -43,6 +43,11 @@ static void onresize(void)
 	B.scale = B.win.backingScaleFactor;
 	U16 w = s.width * B.scale;
 	U16 h = s.height * B.scale;
+	/* NOTE: by setting contents to nil and flushing we aim to
+	 * ensure that the to-be-freed buffer won't be accessed through
+	 * a still alive CGImage, this is a hack */
+	B.win.contentView.layer.contents = nil;
+	[CATransaction flush];
 	pfree(B.fb.p);
 	B.fb.p = palloc(w*h*sizeof(Color));
 	B.fb.w = w;
@@ -91,8 +96,8 @@ void winopen(U16 w, U16 h, const char *title, U16 fps)
 		B.targetns = 1e9 / fps;
 	else
 		B.targetns = 0;
-	onresize();
 	B.win.contentView.wantsLayer = YES;
+	onresize();
 	[B.app finishLaunching];
 	}
 }
