@@ -1,6 +1,5 @@
 #include "types.h"
 #include "math.h"
-#include "time.h"
 #include "color.h"
 #include "image.h"
 #include "draw.h"
