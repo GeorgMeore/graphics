@@ -378,14 +378,16 @@ static void *memtryextend(void *p, U size, U align)
 	Segment *r = segradjacent(s);
 	if (!r || !r->free)
 		return 0;
+	U msize = s->size + r->size + 2; /* segmerge(s, r)->size */
+	if (msize < asize)
+		return 0;
 	segunlink(s);
 	segunlink(r);
-	/* NOTE: a->size + b->size + 2 == segmerge(a, b)->size */
-	if ((r->size + s->size + 2) - asize > 4) {
-		Segment *o = segsplit(r, asize - s->size - 2);
+	s = segmerge(s, r);
+	if (msize - asize > 4) {
+		Segment *o = segsplit(s, asize);
 		seglink(o, 1);
 	}
-	s = segmerge(s, r);
 	seglink(s, 0);
 	return segaddr(s, align);
 }
