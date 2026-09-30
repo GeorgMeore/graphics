@@ -66,12 +66,13 @@ Image *lookup(GCache *c, Glyph *g)
 {
 	U16 *pp = &c->last;
 	OK found = 0;
-	for (U16 i = 0; i < c->n; i++) {
+	for (U16 i = 1; i <= c->n; i++) {
 		if (c->map[*pp] == g) {
 			found = 1;
 			break;
 		}
-		pp = &c->next[*pp];
+		if (i < c->n)
+			pp = &c->next[*pp];
 	}
 	if (!found && c->n < CACHESIZE) {
 		c->next[c->n] = c->last;
