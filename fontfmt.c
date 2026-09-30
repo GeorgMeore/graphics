@@ -200,7 +200,7 @@ static OK parseglyph(IOBuffer *b, Font *f, Points *p, U16 index, U32 glyf, U32 *
 	g->ymin = readbe(b, 2);
 	g->xmax = readbe(b, 2);
 	g->ymax = readbe(b, 2);
-	OK ok = g->xmin < g->xmax && g->ymin < g->ymax &&
+	OK ok = g->xmin <= g->xmax && g->ymin <= g->ymax &&
 		g->xmin >= f->xmin && g->xmax <= f->xmax &&
 		g->ymin >= f->ymin && g->ymax <= f->ymax;
 	if (!ok)
