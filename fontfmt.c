@@ -329,10 +329,14 @@ static OK parsefmt4(IOBuffer *b, U64 start, Arena *a, Font *f)
 			skip(b, idroff - 2);
 		for (U32 p = start; p <= end; p++, j++) {
 			f->ctable[0][j] = p;
-			if (!idroff)
+			if (!idroff) {
 				f->ctable[1][j] = (U16)(iddelta + p);
-			else
-				f->ctable[1][j] = readbe(b, 2);
+			} else {
+				U16 id = readbe(b, 2);
+				if (id)
+					id += iddelta;
+				f->ctable[1][j] = id;
+			}
 			if (f->ctable[1][j] >= f->nglyph)
 				return 0;
 		}
