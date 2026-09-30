@@ -137,7 +137,7 @@ typedef enum {
 	Have2x2      = 1<<7,
 } CompFlag;
 
-static OK parsecompoundglyph(IOBuffer *b, Points *p, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
+static OK parsecompoundglyph(IOBuffer *b, Points *p, Font *f, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
 {
 	for (;;) {
 		U16 flags = readbe(b, 2);
@@ -146,6 +146,8 @@ static OK parsecompoundglyph(IOBuffer *b, Points *p, U32 glyf, U32 *locations, U
 		if (flags & (HaveScale|HaveXYScale|Have2x2))
 			return 0; /* TODO: scaling */
 		U16 index = readbe(b, 2);
+		if (index >= f->nglyph)
+			return 0;
 		I16 x, y;
 		if (flags & ArgsWords) {
 			x = readbe(b, 2);
@@ -165,7 +167,7 @@ static OK parsecompoundglyph(IOBuffer *b, Points *p, U32 glyf, U32 *locations, U
 		if (ncont > 0)
 			ok = parsesimpleglyph(b, p, ncont, maxconts, maxpts);
 		if (ncont < 0)
-			ok = parsecompoundglyph(b, p, glyf, locations, maxconts, maxpts);
+			ok = parsecompoundglyph(b, p, f, glyf, locations, maxconts, maxpts);
 		if (!ok)
 			return 0;
 		for (U16 i = start; i < p->nvert; i++) {
@@ -181,15 +183,19 @@ static OK parsecompoundglyph(IOBuffer *b, Points *p, U32 glyf, U32 *locations, U
 
 static OK parseglyph(IOBuffer *b, Font *f, Points *p, U16 index, U32 glyf, U32 *locations, U16 maxconts, U16 maxpts)
 {
-	if (index+1 < f->nglyph && locations[index] == locations[index+1])
+	Glyph *g = &f->glyphs[index];
+	if (locations[index] == locations[index+1]) {
+		g->nseg = 0;
 		return 1;
+	}
 	bseek(b, glyf + locations[index]);
 	I16 ncont = readbe(b, 2);
 	if (ncont > maxconts)
 		return 0;
-	if (ncont == 0)
+	if (ncont == 0) {
+		g->nseg = 0;
 		return 1;
-	Glyph *g = &f->glyphs[index];
+	}
 	g->xmin = readbe(b, 2);
 	g->ymin = readbe(b, 2);
 	g->xmax = readbe(b, 2);
@@ -203,7 +209,7 @@ static OK parseglyph(IOBuffer *b, Font *f, Points *p, U16 index, U32 glyf, U32 *
 	if (ncont > 0)
 		ok = parsesimpleglyph(b, p, ncont, maxconts, maxpts);
 	else
-		ok = parsecompoundglyph(b, p, glyf, locations, maxconts, maxpts);
+		ok = parsecompoundglyph(b, p, f, glyf, locations, maxconts, maxpts);
 	if (!ok)
 		return 0;
 	for (U16 i = 0; i < p->nvert; i++) {
@@ -242,14 +248,14 @@ static OK parseglyphs(IOBuffer *b, Arena *a, Font *f, U32 head, U32 maxp, U32 gl
 	I16 locasize = 2 << indextolocformat;
 	I16 locascale = 2 - indextolocformat;
 	bseek(b, loca);
-	U32 *locations = aralloc(a, f->nglyph * sizeof(U32));
-	for (U16 i = 0; i < f->nglyph; i++) {
+	U32 *locations = aralloc(a, (f->nglyph + 1) * sizeof(U32));
+	for (U32 i = 0; i < f->nglyph + 1; i++) {
 		U32 offset = readbe(b, locasize);
 		locations[i] = offset*locascale;
 	}
 	f->glyphs = aralloc(a, f->nglyph * sizeof(Glyph));
 	/* NOTE: a contour of n points consists of no more than n+1 segments */
-	U16 maxsegs = maxpts + maxconts;
+	U32 maxsegs = maxpts + maxconts;
 	for (U16 i = 0; i < f->nglyph; i++)
 		f->glyphs[i].segs = aralloc(a, maxsegs * sizeof(Segment));
 	Points p = {
