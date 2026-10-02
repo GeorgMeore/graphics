@@ -76,26 +76,26 @@ wait
 
 ccexmpl() {
 	# recompile the example if any of the object files changed
-	nonstale "$1" "$2" ../*.o || cc $cppflags $cflags -o "$1" "$2" ../*.o $ldflags
+	nonstale "$1" "$1.c" ../*.o || cc $cppflags $cflags -o "$1" "$1.c" ../*.o $ldflags
 }
 
 cd examples
-ccexmpl 3d       3d.c &
-ccexmpl bezier   bezier.c &
-ccexmpl circle   circle.c &
-ccexmpl dragon   dragon.c &
-ccexmpl io       io.c &
-ccexmpl line     line.c &
-ccexmpl nbody    nbody.c &
-ccexmpl paint    paint.c &
-ccexmpl poly     poly.c &
-ccexmpl ppm      ppm.c &
-ccexmpl sin      sin.c &
-ccexmpl split    split.c &
-ccexmpl triangle triangle.c &
-ccexmpl ttf      ttf.c &
-[ $osarch != linux_amd64 ] || ccexmpl wav      wav.c &
-ccexmpl y4m      y4m.c &
+ccexmpl 3d &
+ccexmpl bezier &
+ccexmpl circle &
+ccexmpl dragon &
+ccexmpl io &
+ccexmpl line &
+ccexmpl nbody &
+ccexmpl paint &
+ccexmpl poly &
+ccexmpl ppm &
+ccexmpl sin &
+ccexmpl split &
+ccexmpl triangle &
+ccexmpl ttf &
+[ $osarch != linux_amd64 ] || ccexmpl wav &
+ccexmpl y4m &
 wait
 
 # TODO: compile tests (TODO 2: write some decent tests)
