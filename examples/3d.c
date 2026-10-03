@@ -235,7 +235,7 @@ void rasterize(Image *f, Image *z, Camera c)
 	for (U16 y = 0; y < f->h; y++)
 	for (U16 x = 0; x < f->w; x++) {
 		/* TODO: this is suboptimal, since we can find where dot(...) == 0 */
-		Vec p = fromscreen((Vec){x, y, 1}, c, f);
+		Vec p = fromscreen((Vec){x, y, c.d}, c, f);
 		if (dot(p, up) >= 0)
 			PIXEL(f, x, y) = UPCOLOR;
 		else
