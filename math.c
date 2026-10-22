@@ -108,6 +108,32 @@ typedef union {
 	};
 } _F64;
 
+F64 fpack(I64 m, I16 e)
+{
+	_F64 _x;
+	if (m < 0) {
+		_x.sign = 1;
+		m = -m;
+	}
+	/* TODO: renormalize m and e */
+	_x.exp = e + 1023 + 52;
+	_x.frac = m;
+	return _x.v;
+}
+
+void funpack(F64 x, I64 *m, I16 *e)
+{
+	_F64 _x = {x};
+	*m = _x.frac;
+	*e = _x.exp - 1023 - 52;
+	if (_x.exp != 0)
+		*m |= (I64)1 << 52;
+	else
+		*e += 1;
+	if (_x.sign)
+		*m *= -1;
+}
+
 OK fsignbit(F64 x)
 {
 	_F64 _x = {x};

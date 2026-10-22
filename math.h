@@ -40,6 +40,9 @@ F64 ffloor(F64 x);
 F64 fceil(F64 x);
 F64 fround(F64 x);
 
+F64  fpack(I64 m, I16 e);
+void funpack(F64 x, I64 *m, I16 *e);
+
 OK  fsignbit(F64 x);
 F64 fsetsign(F64 x, OK v);
 F64 fabs(F64 x);

@@ -96,6 +96,7 @@ ccexmpl triangle &
 ccexmpl ttf &
 [ $osarch != linux_amd64 ] || ccexmpl wav &
 ccexmpl y4m &
+ccexmpl fp &
 wait
 
 # TODO: compile tests (TODO 2: write some decent tests)
