@@ -249,7 +249,7 @@ static OK parseglyphs(IOBuffer *b, Arena *a, Font *f, U32 head, U32 maxp, U32 gl
 	I16 locascale = 2 - indextolocformat;
 	bseek(b, loca);
 	U32 *locations = aralloc(a, (f->nglyph + 1) * sizeof(U32));
-	for (U32 i = 0; i < f->nglyph + 1; i++) {
+	for (I32 i = 0; i < f->nglyph + 1; i++) {
 		U32 offset = readbe(b, locasize);
 		locations[i] = offset*locascale;
 	}
