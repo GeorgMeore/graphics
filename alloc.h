@@ -11,7 +11,7 @@ void pfree(void *p);
 /* TODO: use crc or something for metadata corruption detection */
 typedef struct Zone Zone;
 struct Zone {
-	U free;  /* in bytes */
+	U    free; /* in bytes */
 	void *mem;
 	Zone *next;
 };

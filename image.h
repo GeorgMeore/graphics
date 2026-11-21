@@ -1,5 +1,5 @@
 typedef struct {
-	U16 w, h, s;
+	U16   w, h, s;
 	Color *p;
 } Image;
 
