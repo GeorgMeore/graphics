@@ -60,7 +60,7 @@ typedef struct {
 
 /* NOTE: the profiler exists throughout the program execution,
  * so we don't bother with freeing up it's resources. */
-static Profiler defpr;
+static Profiler P;
 
 static void profpush(Profiler *p, Section *s, U64 t)
 {
@@ -111,15 +111,15 @@ static Section *proffindsection(Profiler *p, const char *name)
 
 void _profbegin(const char *name)
 {
-	Section *s = proffindsection(&defpr, name);
+	Section *s = proffindsection(&P, name);
 	if (!s)
-		s = profaddsection(&defpr, name);
-	profpush(&defpr, s, timens());
+		s = profaddsection(&P, name);
+	profpush(&P, s, timens());
 }
 
 void _profend(void)
 {
-	Entry *e = profpop(&defpr);
+	Entry *e = profpop(&P);
 	if (!e)
 		return;
 	statadd(&e->s->time, timens() - e->startns);
@@ -127,15 +127,15 @@ void _profend(void)
 
 void _profdump(void)
 {
-	for (U16 i = 0; i < defpr.scount; i++) {
-		Section *s = &defpr.ss[i];
+	for (U16 i = 0; i < P.scount; i++) {
+		Section *s = &P.ss[i];
 		println("prof: ", s->name, ": ", FMTSTAT(&s->time));
 	}
 }
 
 void _profreset(const char *name)
 {
-	Section *s = proffindsection(&defpr, name);
+	Section *s = proffindsection(&P, name);
 	if (s)
 		statreset(&s->time);
 }
